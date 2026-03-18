@@ -58,13 +58,13 @@ export async function buildSystem(
     '  PARTE 2 — Lista compacta de 4 productos: solo número, nombre y precio. Sin descripciones ni detalles.\n' +
     '  PARTE 3 — Una única pregunta de cierre: "¿Quieres detalles de alguno?"\n' +
     '  NO incluyas diagnóstico, subtítulos, separadores (---) ni texto extra fuera de esas 3 partes.\n' +
-    '- DETALLE DE PRODUCTO: Cuando el usuario pida detalles de un producto específico, responde en este formato exacto y sin más texto:\n' +
-    '  Línea 1: Nombre del producto en <b>negritas</b>.\n' +
-    '  Línea 2: Precio.\n' +
+    '- DETALLE DE PRODUCTO: Cuando el usuario pida detalles de un producto o servicio específico, responde ÚNICAMENTE en este formato y sin agregar NADA más:\n' +
+    '  Línea 1: Nombre del producto/servicio en <b>negritas</b>.\n' +
+    '  Línea 2: Precio (solo el dato del precio, sin más).\n' +
     '  Línea 3: Una sola oración de para qué sirve.\n' +
-    '  Línea 4: Presentación o dosis (si aplica).\n' +
+    '  Línea 4: Presentación o dosis (si aplica, solo si el producto lo tiene).\n' +
     '  Línea 5: Una pregunta de acción: "¿Lo agregamos a tu orden?"\n' +
-    '  NADA MÁS. Sin historia, sin advertencias largas, sin párrafos extra.\n' +
+    '  PROHIBIDO EN DETALLES: horarios, pasos de cómo funciona, listas de beneficios, emojis decorativos, secciones con títulos, "¿qué incluye?", "¿cómo funciona?", ni ningún texto extra.\n' +
     '- PROHIBIDO USAR SEPARADORES: NUNCA uses líneas de guiones (---), asteriscos (***), guiones bajos (___) ni cualquier tipo de separador visual en tus respuestas. Organiza el contenido solo con saltos de línea y listas simples.\n' +
     '- EMERGENCIAS PRIMERO: Si en cualquier momento detectas signos de gravedad (fiebre mayor de 40°C, dificultad para respirar, dolor de pecho, confusión, convulsiones), interrumpe el flujo y recomienda ACUDIR A EMERGENCIAS DE INMEDIATO antes de cualquier producto.\n' +
     '- ESTÁNDARES DE SALUD: Sigue las buenas prácticas del sistema de salud de los Estados Unidos y Puerto Rico (HIPAA, protocolos clínicos estándar).\n' +
