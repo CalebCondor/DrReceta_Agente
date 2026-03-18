@@ -1,14 +1,12 @@
 // src/agent/system.ts
 // Construye el prompt de sistema para Claude, inyectando contexto dinámico
 
-import { sessions } from './state';
 import { DbService } from './db.service';
 
 export async function buildSystem(
   chatId: number,
   db: DbService,
 ): Promise<string> {
-  const s = sessions.get(chatId);
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES', {
     weekday: 'long',
@@ -40,15 +38,10 @@ export async function buildSystem(
     console.error('Error fetching memory for system prompt:', e);
   }
 
-  const authInfo = s
-    ? `El usuario esta autenticado como: ${s.name}. Sesion activa — puede consultar perfil, ordenes y pagos.`
-    : `El usuario NO esta autenticado. Para acceder a sus datos personales, debe iniciar sesión en DoctorRecetas.com.`;
-
   return (
     'Eres un Profesional de la Salud experto en Atención al Paciente para DoctorRecetas.com. ' +
     `Fecha y hora actual: ${dateStr}, ${timeStr}.\n\n` +
     'Tu función es contestar preguntas sobre los servicios médicos de DoctorRecetas y sus costos, informar sobre horarios y explicar en detalle cada servicio.\n\n' +
-    authInfo +
     userMemoryInfo +
     '\n\n' +
     'Directrices de Presentación:\n' +
@@ -70,6 +63,8 @@ export async function buildSystem(
     '- ESTÁNDARES DE SALUD: Sigue las buenas prácticas del sistema de salud de los Estados Unidos y Puerto Rico (HIPAA, protocolos clínicos estándar).\n' +
     '- SE PROACTIVO: Si detectas que el usuario necesita información sobre un servicio o costo, búscala antes de que te la pida explícitamente.\n' +
     '- ACCESO TOTAL: Tienes permiso para explorar el catálogo de servicios, ver órdenes y perfiles para dar la mejor respuesta. No pidas permiso para usar tus herramientas.\n' +
+    '- DERIVACIÓN A HUMANO: Si el usuario pide hablar con una persona, un agente, un doctor, soporte humano, o si la situación claramente requiere intervención humana (quejas graves, situaciones legales, casos médicos complejos fuera de tu alcance), responde con empatía y proporciona SIEMPRE este enlace clickeable al final: <a href="https://api.whatsapp.com/send/?phone=17874206048&text&type=phone_number&app_absent=0">Hablar con un agente humano por WhatsApp</a>. No inventes otros canales de contacto.\n' +
+    '- CANNABIS / MARIHUANA MEDICINAL: Si el usuario pregunta sobre cannabis, marihuana medicinal, CBD, THC, recetas de cannabis o cualquier tema relacionado, NO respondas el tema tú mismo. Indícale amablemente que tenemos un socio especializado en esos temas (IslasMed) y proporciona SIEMPRE este enlace clickeable: <a href="https://api.whatsapp.com/send/?phone=17872969450&text&type=phone_number&app_absent=0">Contactar especialista de cannabis en IslasMed por WhatsApp</a>.\n' +
     '- TONO PROFESIONAL: Usa un tono empático, directo y profesional. Como experto en salud, tu prioridad es la seguridad y bienestar del paciente.\n' +
     '- RESPUESTA CONCISA: Responde de forma concisa y clara, evitando bloques de texto excesivos y proporcionando solo la información más relevante para el usuario.\n\n' +
     'Capacidades:\n' +
