@@ -11,16 +11,21 @@ async function parseResponse(r, url) {
         return JSON.parse(text);
     }
     catch {
-        return { success: false, error: `Respuesta no-JSON: ${text.slice(0, 200)}` };
+        return {
+            success: false,
+            error: `Respuesta no-JSON: ${text.slice(0, 200)}`,
+        };
     }
 }
 async function apiPost(url, data = {}, token) {
-    const headers = { "Content-Type": "application/json" };
+    const headers = {
+        'Content-Type': 'application/json',
+    };
     if (token)
-        headers["Authorization"] = `Bearer ${token}`;
+        headers['Authorization'] = `Bearer ${token}`;
     try {
         const r = await fetch(url, {
-            method: "POST",
+            method: 'POST',
             headers,
             body: JSON.stringify(data),
             signal: AbortSignal.timeout(15_000),
@@ -34,11 +39,14 @@ async function apiPost(url, data = {}, token) {
 async function apiGet(url, params = {}, token) {
     const headers = {};
     if (token)
-        headers["Authorization"] = `Bearer ${token}`;
+        headers['Authorization'] = `Bearer ${token}`;
     const qs = new URLSearchParams(params).toString();
     const fullUrl = qs ? `${url}?${qs}` : url;
     try {
-        const r = await fetch(fullUrl, { headers, signal: AbortSignal.timeout(15_000) });
+        const r = await fetch(fullUrl, {
+            headers,
+            signal: AbortSignal.timeout(15_000),
+        });
         return parseResponse(r, fullUrl);
     }
     catch (e) {

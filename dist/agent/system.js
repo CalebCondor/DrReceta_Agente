@@ -11,7 +11,10 @@ async function buildSystem(chatId, db) {
         month: 'long',
         day: 'numeric',
     });
-    const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    const timeStr = now.toLocaleTimeString('es-ES', {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
     let userMemoryInfo = '';
     try {
         const { rows } = await db.query('SELECT clave, valor FROM memoria_largo_plazo WHERE chat_id = $1', [chatId]);

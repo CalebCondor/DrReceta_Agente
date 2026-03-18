@@ -12,6 +12,16 @@ import {
   PRODUCTOS_BASE_URL,
 } from '../api/urls';
 
+function strVal(v: unknown, fallback = ''): string {
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  return fallback;
+}
+
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
 const AUTH_REQUIRED = new Set([
   'get_perfil',
   'actualizar_perfil',
@@ -32,7 +42,8 @@ export async function executeTool(
   if (AUTH_REQUIRED.has(toolName) && !s) {
     return JSON.stringify({
       success: false,
-      error: 'Usuario no autenticado. Debe iniciar sesión en DoctorRecetas.com para acceder a sus datos personales.',
+      error:
+        'Usuario no autenticado. Debe iniciar sesión en DoctorRecetas.com para acceder a sus datos personales.',
     });
   }
 
@@ -47,23 +58,23 @@ export async function executeTool(
     );
 
     const FIELD_MAP: Record<string, string> = {
-      nombre:           'us_nombres',
-      nombres:          'us_nombres',
-      name:             'us_nombres',
-      email:            'us_email',
-      correo:           'us_email',
-      telefono:         'us_telefono',
-      phone:            'us_telefono',
-      pais:             'us_pais',
-      country:          'us_pais',
-      direccion:        'us_direccion',
-      address:          'us_direccion',
-      ciudad:           'us_ciudad',
-      city:             'us_ciudad',
+      nombre: 'us_nombres',
+      nombres: 'us_nombres',
+      name: 'us_nombres',
+      email: 'us_email',
+      correo: 'us_email',
+      telefono: 'us_telefono',
+      phone: 'us_telefono',
+      pais: 'us_pais',
+      country: 'us_pais',
+      direccion: 'us_direccion',
+      address: 'us_direccion',
+      ciudad: 'us_ciudad',
+      city: 'us_ciudad',
       fecha_nacimiento: 'us_fech_nac',
-      fech_nac:         'us_fech_nac',
-      codigo_postal:    'us_code_postal',
-      code_postal:      'us_code_postal',
+      fech_nac: 'us_fech_nac',
+      codigo_postal: 'us_code_postal',
+      code_postal: 'us_code_postal',
     };
 
     const camposNuevos: Record<string, unknown> = {};
@@ -82,13 +93,21 @@ export async function executeTool(
 
     const perfilActual = await apiGet(PERFIL_URL, {}, token);
     const datosActuales =
-      perfilActual['success'] && perfilActual['data'] && typeof perfilActual['data'] === 'object'
+      perfilActual['success'] &&
+      perfilActual['data'] &&
+      typeof perfilActual['data'] === 'object'
         ? (perfilActual['data'] as Record<string, unknown>)
         : {};
 
     const PERFIL_FIELDS = [
-      'us_nombres', 'us_email', 'us_telefono', 'us_pais',
-      'us_direccion', 'us_ciudad', 'us_fech_nac', 'us_code_postal',
+      'us_nombres',
+      'us_email',
+      'us_telefono',
+      'us_pais',
+      'us_direccion',
+      'us_ciudad',
+      'us_fech_nac',
+      'us_code_postal',
     ];
 
     const payload: Record<string, unknown> = { us_id: userId };
@@ -111,22 +130,31 @@ export async function executeTool(
 
   if (toolName === 'get_productos') {
     const raw = await apiGet(TODAS_LAS_ORDENES_URL);
-    const busqueda = String(toolInput['busqueda'] ?? '').toLowerCase().trim();
+    const busqueda = strVal(toolInput['busqueda']).toLowerCase().trim();
 
     if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-      const allItems: { titulo: string; resumen: string; precio: string; precio_vip: string; web_url: string }[] = [];
+      const allItems: {
+        titulo: string;
+        resumen: string;
+        precio: string;
+        precio_vip: string;
+        web_url: string;
+      }[] = [];
       for (const [, products] of Object.entries(raw)) {
         if (Array.isArray(products)) {
           for (const p of products) {
             if (p && typeof p === 'object') {
               const product = p as Record<string, unknown>;
-              const rel = String(product['url'] ?? '');
+              const rel = strVal(product['url']);
               allItems.push({
-                titulo:     String(product['titulo'] ?? product['nombre'] ?? product['producto'] ?? ''),
-                resumen:    String(product['resumen'] ?? ''),
-                precio:     String(product['precio'] ?? ''),
-                precio_vip: String(product['precio_vip'] ?? ''),
-                web_url:    rel ? PRODUCTOS_BASE_URL + rel : '',
+                titulo:
+                  strVal(product['titulo']) ||
+                  strVal(product['nombre']) ||
+                  strVal(product['producto']),
+                resumen: strVal(product['resumen']),
+                precio: strVal(product['precio']),
+                precio_vip: strVal(product['precio_vip']),
+                web_url: rel ? PRODUCTOS_BASE_URL + rel : '',
               });
             }
           }
@@ -135,59 +163,72 @@ export async function executeTool(
       const filtered = busqueda
         ? allItems.filter((p) => p.titulo.toLowerCase().includes(busqueda))
         : allItems;
-      return JSON.stringify({ success: true, total: filtered.length, data: filtered });
+      return JSON.stringify({
+        success: true,
+        total: filtered.length,
+        data: filtered,
+      });
     }
-    return JSON.stringify({ success: false, error: 'Formato inesperado de la API' });
+    return JSON.stringify({
+      success: false,
+      error: 'Formato inesperado de la API',
+    });
   }
 
   if (toolName === 'recordar_conocimiento') {
-    const q = String(toolInput['pregunta'] ?? '');
-    const a = String(toolInput['respuesta'] ?? '');
+    const q = strVal(toolInput['pregunta']);
+    const a = strVal(toolInput['respuesta']);
     try {
       await db.query(
         'INSERT INTO conocimiento_especifico (pregunta, respuesta) VALUES ($1, $2)',
         [q, a],
       );
-      return JSON.stringify({ success: true, message: 'Aprendizaje guardado correctamente.' });
-    } catch (e: any) {
-      return JSON.stringify({ success: false, error: e.message });
+      return JSON.stringify({
+        success: true,
+        message: 'Aprendizaje guardado correctamente.',
+      });
+    } catch (e: unknown) {
+      return JSON.stringify({ success: false, error: errMsg(e) });
     }
   }
 
   if (toolName === 'buscar_conocimiento') {
-    const b = String(toolInput['busqueda'] ?? '').toLowerCase();
+    const b = strVal(toolInput['busqueda']).toLowerCase();
     try {
       const { rows } = await db.query(
         'SELECT pregunta, respuesta FROM conocimiento_especifico ' +
-        'WHERE LOWER(pregunta) LIKE $1 OR LOWER(respuesta) LIKE $1 ' +
-        'ORDER BY created_at DESC LIMIT 5',
+          'WHERE LOWER(pregunta) LIKE $1 OR LOWER(respuesta) LIKE $1 ' +
+          'ORDER BY created_at DESC LIMIT 5',
         [`%${b}%`],
       );
       return JSON.stringify({ success: true, resultados: rows });
-    } catch (e: any) {
-      return JSON.stringify({ success: false, error: e.message });
+    } catch (e: unknown) {
+      return JSON.stringify({ success: false, error: errMsg(e) });
     }
   }
 
   if (toolName === 'guardar_memoria_usuario') {
-    const k = String(toolInput['clave'] ?? '').toLowerCase().trim();
-    const v = String(toolInput['valor'] ?? '').trim();
+    const k = strVal(toolInput['clave']).toLowerCase().trim();
+    const v = strVal(toolInput['valor']).trim();
     try {
       await db.query(
         'INSERT INTO memoria_largo_plazo (chat_id, clave, valor) VALUES ($1, $2, $3) ' +
-        'ON CONFLICT (chat_id, clave) DO UPDATE SET valor = EXCLUDED.valor, updated_at = CURRENT_TIMESTAMP',
+          'ON CONFLICT (chat_id, clave) DO UPDATE SET valor = EXCLUDED.valor, updated_at = CURRENT_TIMESTAMP',
         [chatId, k, v],
       );
       return JSON.stringify({ success: true, message: `Memorizado: ${k}` });
-    } catch (e: any) {
-      return JSON.stringify({ success: false, error: e.message });
+    } catch (e: unknown) {
+      return JSON.stringify({ success: false, error: errMsg(e) });
     }
   }
 
   if (toolName === 'consultar_memoria_usuario') {
-    const k = toolInput['clave'] ? String(toolInput['clave']).toLowerCase().trim() : null;
+    const rawClave = toolInput['clave'];
+    const k =
+      typeof rawClave === 'string' ? rawClave.toLowerCase().trim() : null;
     try {
-      let query = 'SELECT clave, valor FROM memoria_largo_plazo WHERE chat_id = $1';
+      let query =
+        'SELECT clave, valor FROM memoria_largo_plazo WHERE chat_id = $1';
       const params: any[] = [chatId];
       if (k) {
         query += ' AND clave = $2';
@@ -195,10 +236,13 @@ export async function executeTool(
       }
       const { rows } = await db.query(query, params);
       return JSON.stringify({ success: true, memoria: rows });
-    } catch (e: any) {
-      return JSON.stringify({ success: false, error: e.message });
+    } catch (e: unknown) {
+      return JSON.stringify({ success: false, error: errMsg(e) });
     }
   }
 
-  return JSON.stringify({ success: false, error: `Herramienta desconocida: ${toolName}` });
+  return JSON.stringify({
+    success: false,
+    error: `Herramienta desconocida: ${toolName}`,
+  });
 }

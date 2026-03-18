@@ -4,7 +4,10 @@
 import { sessions } from './state';
 import { DbService } from './db.service';
 
-export async function buildSystem(chatId: number, db: DbService): Promise<string> {
+export async function buildSystem(
+  chatId: number,
+  db: DbService,
+): Promise<string> {
   const s = sessions.get(chatId);
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES', {
@@ -13,7 +16,10 @@ export async function buildSystem(chatId: number, db: DbService): Promise<string
     month: 'long',
     day: 'numeric',
   });
-  const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const timeStr = now.toLocaleTimeString('es-ES', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   let userMemoryInfo = '';
   try {
@@ -24,7 +30,11 @@ export async function buildSystem(chatId: number, db: DbService): Promise<string
     if (rows.length > 0) {
       userMemoryInfo =
         '\n\nMEMORIA A LARGO PLAZO DEL USUARIO:\n' +
-        rows.map((r) => `- ${r.clave}: ${r.valor}`).join('\n');
+        rows
+          .map(
+            (r: { clave: string; valor: string }) => `- ${r.clave}: ${r.valor}`,
+          )
+          .join('\n');
     }
   } catch (e) {
     console.error('Error fetching memory for system prompt:', e);

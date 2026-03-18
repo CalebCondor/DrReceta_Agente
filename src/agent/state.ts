@@ -1,8 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-if (!process.env.ANTHROPIC_API_KEY) throw new Error('Missing ANTHROPIC_API_KEY');
+if (!process.env.ANTHROPIC_API_KEY)
+  throw new Error('Missing ANTHROPIC_API_KEY');
 
-export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5-20250929';
+export const ANTHROPIC_MODEL =
+  process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5-20250929';
 export const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export interface SessionData {
