@@ -1,0 +1,28 @@
+services:
+  api:
+    build: .
+    container_name: dr_receta_api
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    restart: always
+
+# Descomenta las líneas de abajo si quieres que Docker Compose también gestione PostgreSQL
+#  db:
+#    image: postgres:15-alpine
+#    container_name: dr_receta_db
+#    restart: always
+#    environment:
+#      POSTGRES_USER: ${DB_USER:-postgres}
+#      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+#      POSTGRES_DB: ${DB_NAME:-doctor_recetas}
+#    ports:
+#      - "5432:5432"
+#    volumes:
+#      - pgdata:/var/lib/postgresql/data
+
+# volumes:
+#  pgdata:
