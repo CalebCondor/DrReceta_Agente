@@ -71,6 +71,9 @@ export async function buildSystem(
     '  La compra puede ser para el propio usuario o para cualquier otra persona.\n' +
     '  NUNCA asumas que es a nombre del usuario que está pagando. Espera la respuesta antes de continuar.\n' +
     '- Una vez que tengas pq_id, us_id y anombre_de, llama a `crear_compra` y muestra al usuario el cp_code y el enlace de pago.\n' +
+    '  Formato obligatorio para mostrar el enlace de pago:\n' +
+    '  <b>Código de compra:</b> {cp_code}\n' +
+    '  <b>Enlace de pago:</b> <a href="https://doctorrecetas.com/pago/index.php?code={url_generado_pago}" target="_blank" rel="noopener noreferrer">https://doctorrecetas.com/pago/index.php?code={url_generado_pago}</a>\n' +
     '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código). Siempre pídelos explícitamente.\n' +
     '- NUNCA saltes el flujo de verificación aunque el usuario insista.\n\n' +
     'Directrices de Presentación:\n' +
