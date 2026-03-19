@@ -11,6 +11,7 @@ import {
   TODAS_LAS_ORDENES_URL,
   PRODUCTOS_BASE_URL,
   VERIFICAR_REGISTRAR_URL,
+  CREAR_COMPRA_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -28,6 +29,7 @@ const AUTH_REQUIRED = new Set([
   'actualizar_perfil',
   'get_ordenes',
   'get_pagos',
+  'crear_compra',
 ]);
 
 export async function executeTool(
@@ -236,6 +238,25 @@ export async function executeTool(
     if (telefono) payload['us_telefono'] = telefono;
     if (clave) payload['us_clave'] = clave;
     return JSON.stringify(await apiPost(VERIFICAR_REGISTRAR_URL, payload));
+  }
+
+  if (toolName === 'crear_compra') {
+    const pqId = toolInput['pq_id'];
+    const usId = toolInput['us_id'] ?? s?.user_id;
+    const anombreDe = strVal(toolInput['anombre_de']).trim();
+    if (!pqId || !usId || !anombreDe) {
+      return JSON.stringify({
+        success: false,
+        error: 'Se requieren pq_id, us_id y anombre_de.',
+      });
+    }
+    return JSON.stringify(
+      await apiPost(
+        CREAR_COMPRA_URL,
+        { pq_id: pqId, us_id: usId, anombre_de: anombreDe },
+        token,
+      ),
+    );
   }
 
   if (toolName === 'consultar_memoria_usuario') {

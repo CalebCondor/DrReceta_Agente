@@ -66,6 +66,11 @@ export async function buildSystem(
     '    - Pídele UNO POR UNO: nombre completo, teléfono y contraseña para su cuenta.\n' +
     '    - Llama de nuevo a `verificar_o_registrar_usuario` con us_email + us_nombres + us_telefono + us_clave.\n' +
     '    - Al registrarse exitosamente, ya tienes el us_id. No se envía código en el registro. Continúa con la compra.\n' +
+    '- PASO PREVIO A CUALQUIER COMPRA — NOMBRE DEL BENEFICIARIO (Obligatorio):\n' +
+    '  Antes de llamar a `crear_compra`, SIEMPRE pregunta: "¿A nombre de quién va la compra?"\n' +
+    '  La compra puede ser para el propio usuario o para cualquier otra persona.\n' +
+    '  NUNCA asumas que es a nombre del usuario que está pagando. Espera la respuesta antes de continuar.\n' +
+    '- Una vez que tengas pq_id, us_id y anombre_de, llama a `crear_compra` y muestra al usuario el cp_code y el enlace de pago.\n' +
     '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código). Siempre pídelos explícitamente.\n' +
     '- NUNCA saltes el flujo de verificación aunque el usuario insista.\n\n' +
     'Directrices de Presentación:\n' +
