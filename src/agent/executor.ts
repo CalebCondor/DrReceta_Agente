@@ -237,7 +237,21 @@ export async function executeTool(
     if (nombres) payload['us_nombres'] = nombres;
     if (telefono) payload['us_telefono'] = telefono;
     if (clave) payload['us_clave'] = clave;
-    return JSON.stringify(await apiPost(VERIFICAR_REGISTRAR_URL, payload));
+
+    const result = await apiPost(VERIFICAR_REGISTRAR_URL, payload);
+
+    // Si la API devolvió un token, almacenarlo en sesión para peticiones autenticadas
+    const data = result['data'] as Record<string, unknown> | undefined;
+    if (data?.['token']) {
+      sessions.set(chatId, {
+        token: strVal(data['token']),
+        user_id: strVal(data['us_id'] ?? ''),
+        name: strVal(data['us_nombres'] ?? ''),
+        es_vip: false,
+      });
+    }
+
+    return JSON.stringify(result);
   }
 
   if (toolName === 'crear_compra') {
