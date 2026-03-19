@@ -137,4 +137,41 @@ export const TOOLS: Anthropic.Tool[] = [
       required: [],
     },
   },
+  {
+    name: 'verificar_o_registrar_usuario',
+    description:
+      'Verifica si un usuario existe en DoctorRecetas por correo y devuelve su us_id. ' +
+      'Si no existe, lo registra con los datos proporcionados. ' +
+      'ÚSALO cuando el usuario quiera comprar un producto o servicio y NO esté autenticado. ' +
+      'FLUJO OBLIGATORIO: ' +
+      '1) Llama PRIMERO solo con us_email para verificar si existe. ' +
+      '2) Si la API responde HTTP 422 (faltan campos), es que no existe: pídele al usuario su nombre completo, teléfono y una contraseña. ' +
+      '3) Una vez que el usuario proporcione esos datos, llama de nuevo con todos los campos para registrarlo. ' +
+      'NUNCA inventes ni rellenes us_nombres, us_telefono ni us_clave — siempre pídelos al usuario.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        us_email: {
+          type: 'string',
+          description: 'Correo electrónico del usuario (obligatorio siempre).',
+        },
+        us_nombres: {
+          type: 'string',
+          description:
+            'Nombre completo del usuario. Solo incluir si el usuario ya lo proporcionó.',
+        },
+        us_telefono: {
+          type: 'string',
+          description:
+            'Teléfono del usuario. Solo incluir si el usuario ya lo proporcionó.',
+        },
+        us_clave: {
+          type: 'string',
+          description:
+            'Contraseña elegida por el usuario. Solo incluir si el usuario ya la proporcionó. Se encripta con AES-256-CBC.',
+        },
+      },
+      required: ['us_email'],
+    },
+  },
 ];

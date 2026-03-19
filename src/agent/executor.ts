@@ -10,6 +10,7 @@ import {
   MIS_PAGOS_URL,
   TODAS_LAS_ORDENES_URL,
   PRODUCTOS_BASE_URL,
+  VERIFICAR_REGISTRAR_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -220,6 +221,21 @@ export async function executeTool(
     } catch (e: unknown) {
       return JSON.stringify({ success: false, error: errMsg(e) });
     }
+  }
+
+  if (toolName === 'verificar_o_registrar_usuario') {
+    const email = strVal(toolInput['us_email']).trim();
+    if (!email) {
+      return JSON.stringify({ success: false, error: 'Se requiere us_email.' });
+    }
+    const payload: Record<string, unknown> = { us_email: email };
+    const nombres = strVal(toolInput['us_nombres']).trim();
+    const telefono = strVal(toolInput['us_telefono']).trim();
+    const clave = strVal(toolInput['us_clave']).trim();
+    if (nombres) payload['us_nombres'] = nombres;
+    if (telefono) payload['us_telefono'] = telefono;
+    if (clave) payload['us_clave'] = clave;
+    return JSON.stringify(await apiPost(VERIFICAR_REGISTRAR_URL, payload));
   }
 
   if (toolName === 'consultar_memoria_usuario') {

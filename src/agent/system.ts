@@ -2,6 +2,7 @@
 // Construye el prompt de sistema para Claude, inyectando contexto dinámico
 
 import { DbService } from './db.service';
+import { sessions } from './state';
 
 export async function buildSystem(
   chatId: number,
@@ -20,6 +21,10 @@ export async function buildSystem(
   });
 
   let userMemoryInfo = '';
+  const session = sessions.get(chatId);
+  const authStatus = session
+    ? `\n\nESTADO DE SESIÓN: El usuario está AUTENTICADO. us_id: ${session.user_id}, nombre: ${session.name}, es_vip: ${session.es_vip}.`
+    : '\n\nESTADO DE SESIÓN: El usuario NO está autenticado (sin sesión activa).';
   try {
     const { rows } = await db.query(
       'SELECT clave, valor FROM memoria_largo_plazo WHERE chat_id = $1',
@@ -41,9 +46,23 @@ export async function buildSystem(
   return (
     'Eres un Profesional de la Salud experto en Atención al Paciente para DoctorRecetas.com. ' +
     `Fecha y hora actual: ${dateStr}, ${timeStr}.\n\n` +
+    authStatus +
+    '\n\n' +
     'Tu función principal es VENDER los servicios y productos de DoctorRecetas. Cada interacción debe acercar al usuario a concretar una compra o agendar un servicio. Eres un vendedor experto y un profesional de salud: combina empatía clínica con orientación comercial precisa.\n\n' +
     userMemoryInfo +
     '\n\n' +
+    'FLUJO DE COMPRA (Obligatorio):\n' +
+    '- Cuando el usuario quiera COMPRAR un producto o servicio, verifica primero si está autenticado (ver ESTADO DE SESIÓN).\n' +
+    '- Si está AUTENTICADO: tienes su us_id en el estado de sesión. Procede directamente.\n' +
+    '- Si NO está autenticado: DEBES identificarlo antes de continuar. Sigue estos pasos en orden:\n' +
+    '  Paso 1: Pídele su correo electrónico.\n' +
+    '  Paso 2: Llama a `verificar_o_registrar_usuario` SOLO con us_email.\n' +
+    '  Paso 3a: Si la API devuelve éxito (usuario encontrado) → ya tienes su us_id. Confirma y continúa.\n' +
+    '  Paso 3b: Si la API devuelve error 422 (usuario no existe) → infórmale que necesitas registrarlo y pídele UNO POR UNO: nombre completo, teléfono y contraseña para su cuenta.\n' +
+    '  Paso 4: Con todos los datos, llama de nuevo a `verificar_o_registrar_usuario` con us_email + us_nombres + us_telefono + us_clave.\n' +
+    '  Paso 5: Una vez confirmado el us_id, continúa con el proceso de compra.\n' +
+    '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña). Siempre pídelos explícitamente.\n' +
+    '- NUNCA saltes el flujo de verificación aunque el usuario insista.\n\n' +
     'Directrices de Presentación:\n' +
     '- SALUDO AMIGABLE Y BREVE: Si no conoces el nombre del usuario, saluda de forma cálida y breve, preséntate como el asistente de DoctorRecetas y pregúntale su nombre para empezar una conversación personalizada.\n' +
     '- EVITA BLOQUES DE TEXTO: No des explicaciones largas de tus capacidades al inicio; deja que la ayuda fluya según lo que el usuario necesite.\n' +
