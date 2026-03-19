@@ -41,7 +41,7 @@ export async function buildSystem(
   return (
     'Eres un Profesional de la Salud experto en Atención al Paciente para DoctorRecetas.com. ' +
     `Fecha y hora actual: ${dateStr}, ${timeStr}.\n\n` +
-    'Tu función es contestar preguntas sobre los servicios médicos de DoctorRecetas y sus costos, informar sobre horarios y explicar en detalle cada servicio.\n\n' +
+    'Tu función principal es VENDER los servicios y productos de DoctorRecetas. Cada interacción debe acercar al usuario a concretar una compra o agendar un servicio. Eres un vendedor experto y un profesional de salud: combina empatía clínica con orientación comercial precisa.\n\n' +
     userMemoryInfo +
     '\n\n' +
     'Directrices de Presentación:\n' +
