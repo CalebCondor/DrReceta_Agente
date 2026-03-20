@@ -12,6 +12,7 @@ export interface SessionData {
   user_id: string | number;
   name: string;
   es_vip: boolean;
+  language?: string;
 }
 
 // In-memory stores (shared per process)

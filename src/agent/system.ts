@@ -25,6 +25,12 @@ export async function buildSystem(
   const authStatus = session
     ? `\n\nESTADO DE SESIÓN: El usuario está AUTENTICADO. us_id: ${session.user_id}, nombre: ${session.name}, es_vip: ${session.es_vip}.`
     : '\n\nESTADO DE SESIÓN: El usuario NO está autenticado (sin sesión activa).';
+
+  const languageInstruction =
+    '\n\nIDIOMA DE RESPUESTA: Responde SIEMPRE en el mismo idioma en el que el usuario te hable. ' +
+    'Si el usuario te escribe en inglés, responde en inglés. Si te escribe en español, responde en español. ' +
+    'Mantén siempre el mismo tono profesional y clínico en ambos idiomas.';
+
   try {
     const { rows } = await db.query(
       'SELECT clave, valor FROM memoria_largo_plazo WHERE chat_id = $1',
@@ -45,7 +51,8 @@ export async function buildSystem(
 
   return (
     'Eres un Profesional de la Salud experto en Atención al Paciente para DoctorRecetas.com. ' +
-    `Fecha y hora actual: ${dateStr}, ${timeStr}.\n\n` +
+    languageInstruction +
+    `\n\nFecha y hora actual: ${dateStr}, ${timeStr}.\n\n` +
     authStatus +
     '\n\n' +
     'Tu función principal es VENDER los servicios y productos de DoctorRecetas. Cada interacción debe acercar al usuario a concretar una compra o agendar un servicio. Eres un vendedor experto y un profesional de salud: combina empatía clínica con orientación comercial precisa.\n\n' +
