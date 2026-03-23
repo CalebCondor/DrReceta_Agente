@@ -17,10 +17,16 @@ export class ChatService {
     return rows as { role: string; content: unknown; created_at: string }[];
   }
 
-  async getAllUserIds(): Promise<number[]> {
+  async getAllUserIds(): Promise<{ chat_id: number; fechas: string[] }[]> {
     const { rows } = await this.db.query(
-      'SELECT DISTINCT chat_id FROM historial_mensajes ORDER BY chat_id ASC',
+      `SELECT chat_id, ARRAY_AGG(DISTINCT DATE(created_at)::text ORDER BY DATE(created_at)::text ASC) AS fechas
+       FROM historial_mensajes
+       GROUP BY chat_id
+       ORDER BY chat_id ASC`,
     );
-    return (rows as { chat_id: number }[]).map((r) => r.chat_id);
+    return (rows as { chat_id: number; fechas: string[] }[]).map((r) => ({
+      chat_id: r.chat_id,
+      fechas: r.fechas,
+    }));
   }
 }
