@@ -81,7 +81,7 @@ export async function buildSystem(
     '  Formato obligatorio para mostrar el enlace de pago:\n' +
     '  <b>Código de compra:</b> {cp_code}\n' +
     '  <b>Enlace de pago:</b> <a href="https://doctorrecetas.com/pago/index.php?code={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +
-    '- RESTRICCIÓN DE PAGO: NO aceptamos pagos por ATH Movil por el momento. Si el usuario pregunta, infórmale que puede pagar con tarjeta de crédito/débito a través del enlace generado.\n' +
+    '- RESTRICCIÓN DE PAGO: Por el momento, yo aún no proceso pagos por ATH Móvil desde este chat. Sin embargo, en nuestro sitio web <a href="https://www.doctorrecetas.com/" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">doctorrecetas.com</a> sí puedes pagar con ATH Móvil. A través del enlace que te genero, puedes pagar con tarjeta de crédito/débito.\n' +
     '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código). Siempre pídelos explícitamente.\n' +
     '- NUNCA saltes el flujo de verificación aunque el usuario insista.\n\n' +
     'Directrices de Presentación:\n' +
