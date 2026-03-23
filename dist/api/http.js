@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.apiPost = apiPost;
 exports.apiGet = apiGet;
-async function parseResponse(r, url) {
+async function parseResponse(r) {
     const text = await r.text();
     if (!r.ok) {
         return { success: false, error: `HTTP ${r.status}: ${text.slice(0, 200)}` };
@@ -30,7 +30,7 @@ async function apiPost(url, data = {}, token) {
             body: JSON.stringify(data),
             signal: AbortSignal.timeout(15_000),
         });
-        return parseResponse(r, url);
+        return parseResponse(r);
     }
     catch (e) {
         return { success: false, error: String(e) };
@@ -47,7 +47,7 @@ async function apiGet(url, params = {}, token) {
             headers,
             signal: AbortSignal.timeout(15_000),
         });
-        return parseResponse(r, fullUrl);
+        return parseResponse(r);
     }
     catch (e) {
         return { success: false, error: String(e) };

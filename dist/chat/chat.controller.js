@@ -17,6 +17,7 @@ const common_1 = require("@nestjs/common");
 const class_transformer_1 = require("class-transformer");
 const class_validator_1 = require("class-validator");
 const agent_service_1 = require("../agent/agent.service");
+const chat_service_1 = require("./chat.service");
 class ChatDto {
     chat_id;
     message;
@@ -33,13 +34,35 @@ __decorate([
 ], ChatDto.prototype, "message", void 0);
 let ChatController = class ChatController {
     agentService;
-    constructor(agentService) {
+    chatService;
+    constructor(agentService, chatService) {
         this.agentService = agentService;
+        this.chatService = chatService;
     }
     async chat(body) {
         try {
             const response = await this.agentService.chat(body.chat_id, body.message);
             return { success: true, response };
+        }
+        catch (e) {
+            const message = e instanceof Error ? e.message : 'Internal server error';
+            throw new common_1.HttpException({ success: false, error: message }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async getChatsByUser(usId) {
+        try {
+            const messages = await this.chatService.getChatsByUserId(usId);
+            return { success: true, chat_id: usId, total: messages.length, messages };
+        }
+        catch (e) {
+            const message = e instanceof Error ? e.message : 'Internal server error';
+            throw new common_1.HttpException({ success: false, error: message }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+    async getAllUserIds() {
+        try {
+            const user_ids = await this.chatService.getAllUserIds();
+            return { success: true, total: user_ids.length, user_ids };
         }
         catch (e) {
             const message = e instanceof Error ? e.message : 'Internal server error';
@@ -56,8 +79,22 @@ __decorate([
     __metadata("design:paramtypes", [ChatDto]),
     __metadata("design:returntype", Promise)
 ], ChatController.prototype, "chat", null);
+__decorate([
+    (0, common_1.Get)('chats/user/:us_id'),
+    __param(0, (0, common_1.Param)('us_id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "getChatsByUser", null);
+__decorate([
+    (0, common_1.Get)('chats/users'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], ChatController.prototype, "getAllUserIds", null);
 exports.ChatController = ChatController = __decorate([
     (0, common_1.Controller)('api'),
-    __metadata("design:paramtypes", [agent_service_1.AgentService])
+    __metadata("design:paramtypes", [agent_service_1.AgentService,
+        chat_service_1.ChatService])
 ], ChatController);
 //# sourceMappingURL=chat.controller.js.map

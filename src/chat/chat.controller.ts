@@ -5,12 +5,16 @@ import {
   Controller,
   HttpCode,
   Post,
+  Get,
+  Param,
+  ParseIntPipe,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsNumber, IsString, IsNotEmpty } from 'class-validator';
 import { AgentService } from '../agent/agent.service';
+import { ChatService } from './chat.service';
 
 class ChatDto {
   @IsNumber()
@@ -24,7 +28,10 @@ class ChatDto {
 
 @Controller('api')
 export class ChatController {
-  constructor(private readonly agentService: AgentService) {}
+  constructor(
+    private readonly agentService: AgentService,
+    private readonly chatService: ChatService,
+  ) {}
 
   @Post('chat')
   @HttpCode(200)
@@ -32,6 +39,34 @@ export class ChatController {
     try {
       const response = await this.agentService.chat(body.chat_id, body.message);
       return { success: true, response };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('chats/user/:us_id')
+  async getChatsByUser(@Param('us_id', ParseIntPipe) usId: number) {
+    try {
+      const messages = await this.chatService.getChatsByUserId(usId);
+      return { success: true, chat_id: usId, total: messages.length, messages };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('chats/users')
+  async getAllUserIds() {
+    try {
+      const user_ids = await this.chatService.getAllUserIds();
+      return { success: true, total: user_ids.length, user_ids };
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Internal server error';
       throw new HttpException(

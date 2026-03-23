@@ -19,7 +19,7 @@ let DbService = DbService_1 = class DbService {
             port: parseInt(process.env.DB_PORT || '5432'),
             database: process.env.DB_NAME || 'AGENTEIA',
             user: process.env.DB_USER || 'agente',
-            password: process.env.DB_PASSWORD,
+            password: process.env.DB_PASSWORD || 'SmartHiring2025@',
         });
         this.initTables().catch((e) => this.logger.error('DB init failed', e));
     }

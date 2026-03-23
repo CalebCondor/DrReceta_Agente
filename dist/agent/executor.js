@@ -19,6 +19,7 @@ const AUTH_REQUIRED = new Set([
     'actualizar_perfil',
     'get_ordenes',
     'get_pagos',
+    'crear_compra',
 ]);
 async function executeTool(toolName, toolInput, chatId, db) {
     const s = state_1.sessions.get(chatId);
@@ -169,6 +170,45 @@ async function executeTool(toolName, toolInput, chatId, db) {
         catch (e) {
             return JSON.stringify({ success: false, error: errMsg(e) });
         }
+    }
+    if (toolName === 'verificar_o_registrar_usuario') {
+        const email = strVal(toolInput['us_email']).trim();
+        if (!email) {
+            return JSON.stringify({ success: false, error: 'Se requiere us_email.' });
+        }
+        const payload = { us_email: email };
+        const nombres = strVal(toolInput['us_nombres']).trim();
+        const telefono = strVal(toolInput['us_telefono']).trim();
+        const clave = strVal(toolInput['us_clave']).trim();
+        if (nombres)
+            payload['us_nombres'] = nombres;
+        if (telefono)
+            payload['us_telefono'] = telefono;
+        if (clave)
+            payload['us_clave'] = clave;
+        const result = await (0, http_1.apiPost)(urls_1.VERIFICAR_REGISTRAR_URL, payload);
+        const data = result['data'];
+        if (data?.['token']) {
+            state_1.sessions.set(chatId, {
+                token: strVal(data['token']),
+                user_id: strVal(data['us_id'] ?? ''),
+                name: strVal(data['us_nombres'] ?? ''),
+                es_vip: false,
+            });
+        }
+        return JSON.stringify(result);
+    }
+    if (toolName === 'crear_compra') {
+        const pqId = toolInput['pq_id'];
+        const usId = toolInput['us_id'] ?? s?.user_id;
+        const anombreDe = strVal(toolInput['anombre_de']).trim();
+        if (!pqId || !usId || !anombreDe) {
+            return JSON.stringify({
+                success: false,
+                error: 'Se requieren pq_id, us_id y anombre_de.',
+            });
+        }
+        return JSON.stringify(await (0, http_1.apiPost)(urls_1.CREAR_COMPRA_URL, { pq_id: pqId, us_id: usId, anombre_de: anombreDe }, token));
     }
     if (toolName === 'consultar_memoria_usuario') {
         const rawClave = toolInput['clave'];
