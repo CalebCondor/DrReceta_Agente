@@ -80,20 +80,20 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], ChatController.prototype, "chat", null);
 __decorate([
-    (0, common_1.Get)('chats/user/:us_id'),
+    (0, common_1.Get)('/user/:us_id'),
     __param(0, (0, common_1.Param)('us_id', common_1.ParseIntPipe)),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Number]),
     __metadata("design:returntype", Promise)
 ], ChatController.prototype, "getChatsByUser", null);
 __decorate([
-    (0, common_1.Get)('chats/users'),
+    (0, common_1.Get)('/users'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], ChatController.prototype, "getAllUserIds", null);
 exports.ChatController = ChatController = __decorate([
-    (0, common_1.Controller)('api'),
+    (0, common_1.Controller)('chat'),
     __metadata("design:paramtypes", [agent_service_1.AgentService,
         chat_service_1.ChatService])
 ], ChatController);

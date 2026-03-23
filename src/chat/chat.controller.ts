@@ -26,7 +26,7 @@ class ChatDto {
   message: string;
 }
 
-@Controller('api')
+@Controller('chat')
 export class ChatController {
   constructor(
     private readonly agentService: AgentService,
@@ -48,7 +48,7 @@ export class ChatController {
     }
   }
 
-  @Get('chats/user/:us_id')
+  @Get('/user/:us_id')
   async getChatsByUser(@Param('us_id', ParseIntPipe) usId: number) {
     try {
       const messages = await this.chatService.getChatsByUserId(usId);
@@ -62,7 +62,7 @@ export class ChatController {
     }
   }
 
-  @Get('chats/users')
+  @Get('/users')
   async getAllUserIds() {
     try {
       const user_ids = await this.chatService.getAllUserIds();
