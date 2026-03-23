@@ -6,6 +6,7 @@ import {
   HttpCode,
   Post,
   Get,
+  Delete,
   Param,
   ParseIntPipe,
   HttpException,
@@ -53,6 +54,27 @@ export class ChatController {
     try {
       const messages = await this.chatService.getChatsByUserId(usId);
       return { success: true, chat_id: usId, total: messages.length, messages };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Delete('/user/:us_id/fecha/:fecha')
+  async deleteByUserIdAndDate(
+    @Param('us_id', ParseIntPipe) usId: number,
+    @Param('fecha') fecha: string,
+  ) {
+    try {
+      const deleted = await this.chatService.deleteByUserIdAndDate(usId, fecha);
+      return {
+        success: true,
+        message: `Se eliminaron ${deleted} mensaje(s) del chat ${usId} en la fecha ${fecha}.`,
+        deleted,
+      };
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Internal server error';
       throw new HttpException(

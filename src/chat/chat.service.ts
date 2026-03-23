@@ -17,6 +17,16 @@ export class ChatService {
     return rows as { role: string; content: unknown; created_at: string }[];
   }
 
+  async deleteByUserIdAndDate(userId: number, fecha: string): Promise<number> {
+    const { rows } = await this.db.query(
+      `DELETE FROM historial_mensajes
+       WHERE chat_id = $1 AND DATE(created_at) = $2::date
+       RETURNING id`,
+      [userId, fecha],
+    );
+    return (rows as { id: number }[]).length;
+  }
+
   async getAllUserIds(): Promise<{ chat_id: number; fechas: string[] }[]> {
     const { rows } = await this.db.query(
       `SELECT chat_id, ARRAY_AGG(DISTINCT DATE(created_at)::text ORDER BY DATE(created_at)::text ASC) AS fechas
