@@ -34,7 +34,7 @@ export class ChatController {
     private readonly chatService: ChatService,
   ) {}
 
-  @Post('chat')
+  @Post('')
   @HttpCode(200)
   async chat(@Body() body: ChatDto) {
     try {
