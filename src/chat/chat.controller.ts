@@ -13,7 +13,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { IsNumber, IsString, IsNotEmpty } from 'class-validator';
+import { IsNumber, IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import { AgentService } from '../agent/agent.service';
 import { ChatService } from './chat.service';
 
@@ -25,6 +25,10 @@ class ChatDto {
   @IsString()
   @IsNotEmpty()
   message: string;
+
+  @IsOptional()
+  @IsString()
+  user_name?: string;
 }
 
 @Controller('chat')
@@ -38,7 +42,11 @@ export class ChatController {
   @HttpCode(200)
   async chat(@Body() body: ChatDto) {
     try {
-      const response = await this.agentService.chat(body.chat_id, body.message);
+      const response = await this.agentService.chat(
+        body.chat_id,
+        body.message,
+        body.user_name,
+      );
       return { success: true, response };
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Internal server error';

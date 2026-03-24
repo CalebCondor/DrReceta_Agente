@@ -7,6 +7,7 @@ import { sessions } from './state';
 export async function buildSystem(
   chatId: number,
   db: DbService,
+  knownName?: string,
 ): Promise<string> {
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-ES', {
@@ -22,9 +23,17 @@ export async function buildSystem(
 
   let userMemoryInfo = '';
   const session = sessions.get(chatId);
+
+  // Si el frontend indica el nombre del usuario logueado, actualizarlo en la sesión activa
+  if (knownName && session) {
+    session.name = knownName;
+  }
+
   const authStatus = session
     ? `\n\nESTADO DE SESIÓN: El usuario está AUTENTICADO. us_id: ${session.user_id}, nombre: ${session.name}, es_vip: ${session.es_vip}.`
-    : '\n\nESTADO DE SESIÓN: El usuario NO está autenticado (sin sesión activa).';
+    : knownName
+      ? `\n\nESTADO DE SESIÓN: El usuario está AUTENTICADO (nombre: ${knownName}). Sesión de herramientas no inicializada en este servidor — si el usuario requiere operaciones que necesiten su cuenta, deberá volver a verificarse.`
+      : '\n\nESTADO DE SESIÓN: El usuario NO está autenticado (sin sesión activa).';
 
   const languageInstruction =
     '\n\nIDIOMA DE RESPUESTA: Responde SIEMPRE en el mismo idioma en el que el usuario te hable. ' +

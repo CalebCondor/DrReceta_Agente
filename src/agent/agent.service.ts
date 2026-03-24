@@ -163,6 +163,7 @@ export class AgentService {
   private async runAgentCore(
     chatId: number,
     userText: string,
+    userName?: string,
   ): Promise<string> {
     const history = await this.loadHistoryIfEmpty(chatId);
     history.push({ role: 'user', content: userText });
@@ -175,7 +176,7 @@ export class AgentService {
     const collected: string[] = [];
 
     for (let round = 0; round < 10; round++) {
-      const systemPrompt = await buildSystem(chatId, this.db);
+      const systemPrompt = await buildSystem(chatId, this.db, userName);
       const response = await client.messages.create({
         model: ANTHROPIC_MODEL,
         max_tokens: 4096,
@@ -309,9 +310,13 @@ export class AgentService {
   /**
    * Punto de entrada público: procesa un mensaje y devuelve la respuesta del agente.
    */
-  async chat(chatId: number, userText: string): Promise<string> {
+  async chat(
+    chatId: number,
+    userText: string,
+    userName?: string,
+  ): Promise<string> {
     try {
-      return await this.runAgentCore(chatId, userText);
+      return await this.runAgentCore(chatId, userText, userName);
     } catch (e) {
       const errStr = String(e);
       if (errStr.includes('valid list') || errStr.includes('400')) {
