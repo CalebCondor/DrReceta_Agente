@@ -1,5 +1,3 @@
-// src/chat/chat.controller.ts
-
 import {
   Body,
   Controller,
@@ -16,6 +14,16 @@ import { Type } from 'class-transformer';
 import { IsNumber, IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import { AgentService } from '../agent/agent.service';
 import { ChatService } from './chat.service';
+class PreguntaRespuestaDto {
+  @IsString()
+  @IsNotEmpty()
+  pregunta!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  respuesta!: string;
+}
+// src/chat/chat.controller.ts
 
 class ChatDto {
   @IsNumber()
@@ -37,6 +45,39 @@ export class ChatController {
     private readonly agentService: AgentService,
     private readonly chatService: ChatService,
   ) {}
+  // Listar todas las preguntas y respuestas
+  @Get('/conocimiento')
+  async listPreguntasRespuestas() {
+    try {
+      const data = await this.chatService.listPreguntasRespuestas();
+      return { success: true, total: data.length, data };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Insertar una nueva pregunta y respuesta
+  @Post('/conocimiento')
+  @HttpCode(201)
+  async insertPreguntaRespuesta(@Body() body: PreguntaRespuestaDto) {
+    try {
+      const result = await this.chatService.insertPreguntaRespuesta(
+        body.pregunta,
+        body.respuesta,
+      );
+      return result;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   @Post('')
   @HttpCode(200)

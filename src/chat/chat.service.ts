@@ -1,5 +1,3 @@
-// src/chat/chat.service.ts
-
 import { Injectable } from '@nestjs/common';
 import { DbService } from '../agent/db.service';
 
@@ -38,5 +36,34 @@ export class ChatService {
       chat_id: r.chat_id,
       fechas: r.fechas,
     }));
+  }
+
+  async listPreguntasRespuestas(): Promise<
+    { id: number; pregunta: string; respuesta: string }[]
+  > {
+    const { rows } = await this.db.query(
+      'SELECT id, pregunta, respuesta FROM conocimiento_especifico ORDER BY id ASC',
+    );
+    return (
+      rows as Array<{ id: number; pregunta: string; respuesta: string }>
+    ).map((r) => ({
+      id: Number(r.id),
+      pregunta: String(r.pregunta),
+      respuesta: String(r.respuesta),
+    }));
+  }
+
+  async insertPreguntaRespuesta(
+    pregunta: string,
+    respuesta: string,
+  ): Promise<{ success: boolean; id?: number }> {
+    const { rows } = await this.db.query(
+      'INSERT INTO conocimiento_especifico (pregunta, respuesta) VALUES ($1, $2) RETURNING id',
+      [pregunta, respuesta],
+    );
+    const row = rows[0] as { id?: number } | undefined;
+    const id =
+      row && typeof row.id !== 'undefined' ? Number(row.id) : undefined;
+    return { success: true, id };
   }
 }
