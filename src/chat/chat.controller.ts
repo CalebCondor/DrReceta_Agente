@@ -52,7 +52,7 @@ export class ChatController {
       const data = await this.chatService.listPreguntasRespuestas();
       return { success: true, total: data.length, data };
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Internal server error';
+      const message = e instanceof Error ? e.message : 'Internal server errors';
       throw new HttpException(
         { success: false, error: message },
         HttpStatus.INTERNAL_SERVER_ERROR,
