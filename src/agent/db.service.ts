@@ -4,7 +4,7 @@ import { Pool } from 'pg';
 @Injectable()
 export class DbService implements OnModuleInit {
   private readonly logger = new Logger(DbService.name);
-  private pool: Pool;
+  private pool!: Pool;
 
   onModuleInit() {
     this.pool = new Pool({

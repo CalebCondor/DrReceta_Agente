@@ -28,11 +28,11 @@ class PreguntaRespuestaDto {
 class ChatDto {
   @IsNumber()
   @Type(() => Number)
-  chat_id: number;
+  chat_id!: number;
 
   @IsString()
   @IsNotEmpty()
-  message: string;
+  message!: string;
 
   @IsOptional()
   @IsString()
