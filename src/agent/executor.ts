@@ -139,6 +139,7 @@ export async function executeTool(
       const allItems: {
         titulo: string;
         resumen: string;
+        tags: string;
         precio: string;
         precio_vip: string;
         web_url: string;
@@ -149,12 +150,17 @@ export async function executeTool(
             if (p && typeof p === 'object') {
               const product = p as Record<string, unknown>;
               const rel = strVal(product['url']);
+              const rawTags = product['tags'];
+              const tags = Array.isArray(rawTags)
+                ? rawTags.map((t: unknown) => strVal(t)).join(' ')
+                : strVal(rawTags);
               allItems.push({
                 titulo:
                   strVal(product['titulo']) ||
                   strVal(product['nombre']) ||
                   strVal(product['producto']),
                 resumen: strVal(product['resumen']),
+                tags,
                 precio: strVal(product['precio']),
                 precio_vip: strVal(product['precio_vip']),
                 web_url: rel ? PRODUCTOS_BASE_URL + rel : '',
@@ -163,8 +169,23 @@ export async function executeTool(
           }
         }
       }
+      const normalize = (s: string) =>
+        s
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+
       const filtered = busqueda
-        ? allItems.filter((p) => p.titulo.toLowerCase().includes(busqueda))
+        ? (() => {
+            const terms = normalize(busqueda)
+              .split(/\s+/)
+              .filter((t) => t.length > 2);
+            if (terms.length === 0) return allItems;
+            return allItems.filter((p) => {
+              const haystack = normalize(p.titulo) + ' ' + normalize(p.tags);
+              return terms.some((t) => haystack.includes(t));
+            });
+          })()
         : allItems;
       return JSON.stringify({
         success: true,
