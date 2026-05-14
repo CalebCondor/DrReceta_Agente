@@ -177,6 +177,31 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'verificar_codigo',
+    description:
+      'Verifica el código de 6 dígitos enviado al correo del usuario para autenticarlo. ' +
+      'Úsalo DESPUÉS de que el usuario te proporcione el código que recibió en su correo, ' +
+      'como parte del flujo de compra cuando el usuario ya existe en el sistema. ' +
+      'Si el código es correcto, la API devuelve us_id, us_nombres y token para iniciar sesión. ' +
+      'NUNCA inventes ni asumas el código — siempre espera a que el usuario lo escriba.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        us_email: {
+          type: 'string',
+          description:
+            'Correo electrónico del usuario (el mismo usado en verificar_o_registrar_usuario).',
+        },
+        codigo: {
+          type: 'string',
+          description:
+            'Código de 6 dígitos que el usuario recibió en su correo.',
+        },
+      },
+      required: ['us_email', 'codigo'],
+    },
+  },
+  {
     name: 'crear_compra',
     description:
       'Registra una intención de compra en DoctorRecetas. ' +

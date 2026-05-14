@@ -12,6 +12,7 @@ import {
   PRODUCTOS_BASE_URL,
   VERIFICAR_REGISTRAR_URL,
   CREAR_COMPRA_URL,
+  VERIFICAR_CODIGO_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -264,6 +265,35 @@ export async function executeTool(
     // Si la API devolvió un token, almacenarlo en sesión para peticiones autenticadas
     const data = result['data'] as Record<string, unknown> | undefined;
     if (data?.['token']) {
+      sessions.set(chatId, {
+        token: strVal(data['token']),
+        user_id: strVal(data['us_id'] ?? ''),
+        name: strVal(data['us_nombres'] ?? ''),
+        es_vip: false,
+      });
+    }
+
+    return JSON.stringify(result);
+  }
+
+  if (toolName === 'verificar_codigo') {
+    const email = strVal(toolInput['us_email']).trim();
+    const codigo = strVal(toolInput['codigo']).trim();
+    if (!email || !codigo) {
+      return JSON.stringify({
+        success: false,
+        error: 'Se requieren us_email y codigo.',
+      });
+    }
+
+    const result = await apiPost(VERIFICAR_CODIGO_URL, {
+      us_email: email,
+      codigo,
+    });
+
+    // Si el código es correcto, guardar la sesión autenticada
+    const data = result['data'] as Record<string, unknown> | undefined;
+    if (result['success'] && data?.['token']) {
       sessions.set(chatId, {
         token: strVal(data['token']),
         user_id: strVal(data['us_id'] ?? ''),

@@ -76,7 +76,9 @@ export async function buildSystem(
     '  Paso 3a — Usuario EXISTE (codigo_enviado: true):\n' +
     '    - Informa: "Te enviamos un código de verificación de 6 dígitos a tu correo. Por favor escríbelo aquí (válido 10 minutos)."\n' +
     '    - Espera a que el usuario proporcione el código.\n' +
-    '    - Una vez que el usuario escriba el código, guárdalo y continúa con el proceso de compra usando el us_id recibido.\n' +
+    '    - Una vez que el usuario escriba el código, llama a `verificar_codigo` con us_email y el código proporcionado para autenticar al usuario.\n' +
+    '    - Si `verificar_codigo` devuelve success: true, ya tienes el us_id y el token. Continúa con el proceso de compra.\n' +
+    '    - Si devuelve error (código incorrecto o expirado), informa al usuario y pídele que revise el código o solicite uno nuevo.\n' +
     '  Paso 3b — Usuario NO EXISTE (error 422):\n' +
     '    - Infórmale que no encontraste su cuenta y que lo registrarás.\n' +
     '    - Pídele UNO POR UNO: nombre completo, teléfono y contraseña para su cuenta.\n' +
