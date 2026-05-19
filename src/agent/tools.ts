@@ -254,4 +254,27 @@ export const TOOLS: Anthropic.Tool[] = [
       required: ['pq_id', 'us_id', 'amount', 'anombre_de'],
     },
   },
+  {
+    name: 'get_detalle_pago',
+    description:
+      'Obtiene el detalle completo de un pago usando el token devuelto por `crear_compra`. ' +
+      'Úsalo INMEDIATAMENTE después de llamar a `crear_compra` para mostrar al usuario el resumen completo (paquete, monto, estado, usuario) antes de enviarle el enlace de pago. ' +
+      'Enruta automáticamente al endpoint de residentes o turistas según el tipo de usuario.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        token: {
+          type: 'string',
+          description:
+            'Token único (formato IS…M) devuelto por `crear_compra` en el campo `token` o `url_generado_pago`.',
+        },
+        user_type: {
+          type: 'string',
+          enum: ['residente', 'turista'],
+          description: 'Tipo de usuario para enrutar al endpoint correcto.',
+        },
+      },
+      required: ['token', 'user_type'],
+    },
+  },
 ];

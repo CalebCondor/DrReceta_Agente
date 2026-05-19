@@ -123,9 +123,17 @@ export async function buildSystem(
     '  - Si el usuario elige la opción 1 (adulto): el precio del paquete NO cambia.\n' +
     '  - Si el usuario elige la opción 2 (menor de edad con acompañante) O la opción 3 (mayor que necesita acompañante): DEBES agregar $60.00 al precio base del paquete (más cualquier cargo adicional de tarjeta PVC/envío). Informa al usuario claramente: "Por el acompañante requerido, se añaden $60.00 al costo del servicio."\n' +
     '  NUNCA saltes esta pregunta. Espera la respuesta antes de continuar con la compra.\n' +
-    '- Una vez que tengas pq_id, us_id, amount (monto total calculado), anombre_de, ra_tipo_pac y tarjeta_pvc (si aplica), llama a `crear_compra`. La API devuelve un `token` y `url_generado_pago`. Muestra al usuario el enlace de pago con este formato:\n' +
-    '  <b>Enlace de pago:</b> <a href="https://doctorrecetas.com/pago/index.php?code={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +
-    '- RESTRICCIÓN DE PAGO: Por el momento, yo aún no proceso pagos por ATH Móvil desde este chat. Sin embargo, en nuestro sitio web <a href="https://www.doctorrecetas.com/" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">doctorrecetas.com</a> sí puedes pagar con ATH Móvil. A través del enlace que te genero, puedes pagar con tarjeta de crédito/débito.\n' +
+    '- Una vez que tengas pq_id, us_id, amount (monto total calculado), anombre_de, ra_tipo_pac y tarjeta_pvc (si aplica), llama a `crear_compra`. La API devuelve un `token` y `url_generado_pago`.\n' +
+    '  INMEDIATAMENTE después, llama a `get_detalle_pago` con ese token y el user_type para obtener el resumen completo.\n' +
+    '  Muestra al usuario el resumen con este formato ANTES de enviar el enlace de pago:\n' +
+    '  <b>Resumen de tu pedido:</b>\n' +
+    '  - <b>Paquete:</b> {pg_plan_name}\n' +
+    '  - <b>Monto total:</b> ${amount}\n' +
+    '  - <b>Paciente:</b> {us_first_name} {us_last_name}\n' +
+    '  - <b>Estado:</b> {pg_est_nombre / pg_est_label}\n' +
+    '  - <b>Método de pago:</b> {pg_metodo_nombre / pg_metodo_label}\n' +
+    '  Si el resumen es correcto, muestra el enlace de pago:\n' +
+    '  <b>Enlace de pago:</b> <a href="https://islandmedpr.com/enlace/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +
     '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código). Siempre pídelos explícitamente.\n' +
     '- NUNCA saltes el flujo de verificación aunque el usuario insista.\n' +
     '- PROHIBIDO INVENTAR PRODUCTOS: No menciones ningún producto, servicio o precio que no hayas recibido explícitamente de una herramienta en esta misma conversación. Si la herramienta de búsqueda no devuelve resultados, informa que no hay productos disponibles para esos síntomas en este momento.\n\n' +

@@ -15,6 +15,8 @@ import {
   RESIDENTES_PACKAGES_URL,
   TURISTAS_PACKAGES_URL,
   DISPENSARIOS_RESIDENTES_URL,
+  DETALLE_PAGO_RESIDENTES_URL,
+  DETALLE_PAGO_TURISTAS_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -54,6 +56,17 @@ export async function executeTool(
 
   if (toolName === 'get_dispensarios') {
     return JSON.stringify(await apiGet(DISPENSARIOS_RESIDENTES_URL, {}));
+  }
+
+  if (toolName === 'get_detalle_pago') {
+    const token = strVal(toolInput['token']);
+    const userType: 'residente' | 'turista' =
+      strVal(toolInput['user_type']) === 'turista' ? 'turista' : 'residente';
+    const detalleUrl =
+      userType === 'turista'
+        ? DETALLE_PAGO_TURISTAS_URL
+        : DETALLE_PAGO_RESIDENTES_URL;
+    return JSON.stringify(await apiGet(detalleUrl, { token }));
   }
 
   if (toolName === 'get_productos') {
