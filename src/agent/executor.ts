@@ -198,11 +198,13 @@ export async function executeTool(
 
     // Si la API devolvió un token, almacenarlo en sesión para peticiones autenticadas
     const data = result['data'] as Record<string, unknown> | undefined;
-    if (data?.['token']) {
+    const auth = result['auth'] as Record<string, unknown> | undefined;
+    const accessToken = strVal(auth?.['access_token'] ?? data?.['token'] ?? '');
+    if (accessToken) {
       sessions.set(chatId, {
-        token: strVal(data['token']),
-        user_id: strVal(data['us_id'] ?? ''),
-        name: strVal(data['us_first_name'] ?? data['us_nombres'] ?? ''),
+        token: accessToken,
+        user_id: strVal(data?.['us_id'] ?? ''),
+        name: strVal(data?.['us_first_name'] ?? data?.['us_nombres'] ?? ''),
         es_vip: false,
         user_type: userType,
       });
@@ -236,11 +238,13 @@ export async function executeTool(
 
     // Si el código es correcto, guardar la sesión autenticada
     const data = result['data'] as Record<string, unknown> | undefined;
-    if (result['success'] && data?.['token']) {
+    const auth = result['auth'] as Record<string, unknown> | undefined;
+    const accessToken = strVal(auth?.['access_token'] ?? data?.['token'] ?? '');
+    if (result['success'] && accessToken) {
       sessions.set(chatId, {
-        token: strVal(data['token']),
-        user_id: strVal(data['us_id'] ?? ''),
-        name: strVal(data['us_first_name'] ?? data['us_nombres'] ?? ''),
+        token: accessToken,
+        user_id: strVal(data?.['us_id'] ?? ''),
+        name: strVal(data?.['us_first_name'] ?? data?.['us_nombres'] ?? ''),
         es_vip: false,
         user_type: userType,
       });
