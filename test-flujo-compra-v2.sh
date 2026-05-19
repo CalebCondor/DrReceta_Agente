@@ -10,10 +10,10 @@
 # ── Configuración ─────────────────────────────────────────────────────────────
 EMAIL="calebcondor553@gmail.com"
 USER_TYPE="residente"     # "residente" o "turista"
-PQ_ID=26
-AMOUNT=69.00              # ajusta al precio real del paquete
+PQ_ID=26                  # Paquete ORO
+AMOUNT=69.00              # Paquete ORO: $69.00 (+ $19.99 si tarjeta PVC, + $60 si acompañante)
 RA_TIPO_PAC="adulto"      # "adulto" | "menor_con_acompaniante" | "mayor_con_acompaniante"
-# TARJETA_PVC=""          # descomenta si aplica: "oficina" | "dispensario:Nombre" | "domicilio:Dir"
+# TARJETA_PVC="oficina"   # descomenta si aplica: "oficina" | "dispensario:Nombre" | "domicilio:Dir"
 
 # ── URLs (según user_type) ────────────────────────────────────────────────────
 if [[ "$USER_TYPE" == "turista" ]]; then
