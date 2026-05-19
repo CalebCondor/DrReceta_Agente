@@ -250,6 +250,7 @@ export async function executeTool(
   }
 
   if (toolName === 'crear_compra') {
+    const token = strVal(toolInput['token']);
     const pqId = toolInput['pq_id'];
     const usId = toolInput['us_id'] ?? s?.user_id;
     const amount = toolInput['amount'];
