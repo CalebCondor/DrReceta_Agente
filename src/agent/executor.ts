@@ -16,6 +16,7 @@ import {
   VERIFICAR_CODIGO_TURISTAS_URL,
   RESIDENTES_PACKAGES_URL,
   TURISTAS_PACKAGES_URL,
+  DISPENSARIOS_RESIDENTES_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -52,6 +53,10 @@ export async function executeTool(
       error:
         'Usuario no autenticado. Debe iniciar sesión en DoctorRecetas.com para acceder a sus datos personales.',
     });
+  }
+
+  if (toolName === 'get_dispensarios') {
+    return JSON.stringify(await apiGet(DISPENSARIOS_RESIDENTES_URL, {}));
   }
 
   if (toolName === 'get_perfil') {

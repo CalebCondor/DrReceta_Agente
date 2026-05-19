@@ -196,6 +196,18 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'get_dispensarios',
+    description:
+      'Obtiene la lista de dispensarios PVC activos donde el usuario puede recoger su Tarjeta PVC sin cargo adicional. ' +
+      'Úsalo cuando el usuario seleccione la opción de recoger en un dispensario cercano durante el flujo de Tarjeta PVC. ' +
+      'No requiere parámetros. Devuelve dip_id, dip_nomb de cada dispensario activo.',
+    input_schema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
     name: 'crear_compra',
     description:
       'Registra una intención de compra en DoctorRecetas. ' +

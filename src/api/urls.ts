@@ -19,3 +19,6 @@ export const RESIDENTES_PACKAGES_URL =
 
 export const TURISTAS_PACKAGES_URL =
   'https://islandmedpr.com/apiia/api/turistas/packages.php';
+
+export const DISPENSARIOS_RESIDENTES_URL =
+  'https://islandmedpr.com/apiia/api/residentes/dispensarios_pvc.php';
