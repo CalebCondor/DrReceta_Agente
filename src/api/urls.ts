@@ -5,8 +5,11 @@ export const VERIFICAR_REGISTRAR_TURISTAS_URL =
   'https://islandmedpr.com/apiia/api/turistas/verificar_o_registrar_usuario.php';
 
 export const PRODUCTOS_BASE_URL = 'https://islandmedpr.com/';
-export const CREAR_COMPRA_URL =
-  'https://islandmedpr.com/apiia/api/crear_compra.php';
+export const CREAR_COMPRA_RESIDENTES_URL =
+  'https://islandmedpr.com/apiia/api/residentes/iniciar_pago.php';
+
+export const CREAR_COMPRA_TURISTAS_URL =
+  'https://islandmedpr.com/apiia/api/turistas/iniciar_pago.php';
 
 export const VERIFICAR_CODIGO_RESIDENTES_URL =
   'https://islandmedpr.com/apiia/api/residentes/verificar_codigo.php';
@@ -22,3 +25,9 @@ export const TURISTAS_PACKAGES_URL =
 
 export const DISPENSARIOS_RESIDENTES_URL =
   'https://islandmedpr.com/apiia/api/residentes/dispensarios_pvc.php';
+
+export const DETALLE_PAGO_RESIDENTES_URL =
+  'https://islandmedpr.com/apiia/api/residentes/detalle_pago.php';
+
+export const DETALLE_PAGO_TURISTAS_URL =
+  'https://islandmedpr.com/apiia/api/turistas/detalle_pago.php';

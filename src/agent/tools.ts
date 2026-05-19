@@ -210,30 +210,48 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'crear_compra',
     description:
-      'Registra una intención de compra en DoctorRecetas. ' +
-      'La API genera automáticamente el código de la compra (cp_code: DR+8 chars) y un token único de pago (url_generado_pago). ' +
-      'ANTES de llamar esta herramienta SIEMPRE debes tener: pq_id (id del producto/paquete), us_id (id del usuario) y anombre_de. ' +
-      'El campo anombre_de es OBLIGATORIO y debe ser preguntado SIEMPRE al usuario antes de ejecutar la compra, ' +
-      'ya que la compra puede hacerse a nombre de cualquier persona (no necesariamente el comprador). ' +
-      'Ejemplo de pregunta: "¿A nombre de quién va la compra?"',
+      'Registra una intención de compra (iniciar_pago) en IslandMedPR. ' +
+      'La API genera un token único (formato IS…M) devuelto en los campos `token` y `url_generado_pago`. ' +
+      'ANTES de llamar esta herramienta SIEMPRE debes tener: pq_id, us_id, amount (monto total calculado con todos los cargos), ra_tipo_pac y tarjeta_pvc si aplica. ' +
+      'El campo anombre_de es OBLIGATORIO: pregunta siempre "¿A nombre de quién va la orden?" antes de ejecutar la compra.',
     input_schema: {
       type: 'object',
       properties: {
         pq_id: {
           type: 'number',
-          description: 'ID del paquete o producto a comprar.',
+          description: 'ID del paquete a adquirir.',
         },
         us_id: {
           type: 'number',
           description: 'ID del usuario que realiza la compra.',
+        },
+        amount: {
+          type: 'number',
+          description:
+            'Monto total a cobrar (mín 0.01). Incluye el precio base del paquete más todos los cargos adicionales (tarjeta PVC, envío, acompañante).',
         },
         anombre_de: {
           type: 'string',
           description:
             'Nombre de la persona a cuyo nombre se registrará la compra. Siempre preguntarlo al usuario.',
         },
+        ra_tipo_pac: {
+          type: 'string',
+          description:
+            'Tipo de paciente: "adulto", "menor_con_acompaniante" o "mayor_con_acompaniante".',
+        },
+        tarjeta_pvc: {
+          type: 'string',
+          description:
+            'Información de entrega de tarjeta PVC si el usuario la solicitó. Ej: "oficina", "dispensario:Dispensario A" o "domicilio:Dirección completa".',
+        },
+        pg_metodo: {
+          type: 'number',
+          description:
+            'Método de pago: 2 = Tarjeta (default), 3 = Efectivo/ATH.',
+        },
       },
-      required: ['pq_id', 'us_id', 'anombre_de'],
+      required: ['pq_id', 'us_id', 'amount', 'anombre_de'],
     },
   },
 ];

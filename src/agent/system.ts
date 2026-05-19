@@ -123,9 +123,7 @@ export async function buildSystem(
     '  - Si el usuario elige la opción 1 (adulto): el precio del paquete NO cambia.\n' +
     '  - Si el usuario elige la opción 2 (menor de edad con acompañante) O la opción 3 (mayor que necesita acompañante): DEBES agregar $60.00 al precio base del paquete (más cualquier cargo adicional de tarjeta PVC/envío). Informa al usuario claramente: "Por el acompañante requerido, se añaden $60.00 al costo del servicio."\n' +
     '  NUNCA saltes esta pregunta. Espera la respuesta antes de continuar con la compra.\n' +
-    '- Una vez que tengas pq_id, us_id, anombre_de, selección de tarjeta PVC y tipo de paciente (con todos los ajustes de precio aplicados), llama a `crear_compra` y muestra al usuario el cp_code y el enlace de pago.\n' +
-    '  Formato obligatorio para mostrar el enlace de pago:\n' +
-    '  <b>Código de compra:</b> {cp_code}\n' +
+    '- Una vez que tengas pq_id, us_id, amount (monto total calculado), anombre_de, ra_tipo_pac y tarjeta_pvc (si aplica), llama a `crear_compra`. La API devuelve un `token` y `url_generado_pago`. Muestra al usuario el enlace de pago con este formato:\n' +
     '  <b>Enlace de pago:</b> <a href="https://doctorrecetas.com/pago/index.php?code={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +
     '- RESTRICCIÓN DE PAGO: Por el momento, yo aún no proceso pagos por ATH Móvil desde este chat. Sin embargo, en nuestro sitio web <a href="https://www.doctorrecetas.com/" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">doctorrecetas.com</a> sí puedes pagar con ATH Móvil. A través del enlace que te genero, puedes pagar con tarjeta de crédito/débito.\n' +
     '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código). Siempre pídelos explícitamente.\n' +

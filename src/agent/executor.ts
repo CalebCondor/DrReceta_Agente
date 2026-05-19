@@ -5,13 +5,11 @@ import { sessions } from './state';
 import { apiPost, apiGet } from '../api/http';
 import { DbService } from './db.service';
 import {
-  PERFIL_URL,
-  MIS_ORDENES_URL,
-  MIS_PAGOS_URL,
   PRODUCTOS_BASE_URL,
   VERIFICAR_REGISTRAR_RESIDENTES_URL,
   VERIFICAR_REGISTRAR_TURISTAS_URL,
-  CREAR_COMPRA_URL,
+  CREAR_COMPRA_RESIDENTES_URL,
+  CREAR_COMPRA_TURISTAS_URL,
   VERIFICAR_CODIGO_RESIDENTES_URL,
   VERIFICAR_CODIGO_TURISTAS_URL,
   RESIDENTES_PACKAGES_URL,
@@ -45,7 +43,6 @@ export async function executeTool(
 ): Promise<string> {
   const s = sessions.get(chatId);
   const token = s?.token;
-  const userId = s?.user_id;
 
   if (AUTH_REQUIRED.has(toolName) && !s) {
     return JSON.stringify({
@@ -57,87 +54,6 @@ export async function executeTool(
 
   if (toolName === 'get_dispensarios') {
     return JSON.stringify(await apiGet(DISPENSARIOS_RESIDENTES_URL, {}));
-  }
-
-  if (toolName === 'get_perfil') {
-    return JSON.stringify(await apiGet(PERFIL_URL, {}, token));
-  }
-
-  if (toolName === 'actualizar_perfil') {
-    const rawCampos = Object.assign(
-      {},
-      toolInput['campos'] as Record<string, unknown>,
-    );
-
-    const FIELD_MAP: Record<string, string> = {
-      nombre: 'us_nombres',
-      nombres: 'us_nombres',
-      name: 'us_nombres',
-      email: 'us_email',
-      correo: 'us_email',
-      telefono: 'us_telefono',
-      phone: 'us_telefono',
-      pais: 'us_pais',
-      country: 'us_pais',
-      direccion: 'us_direccion',
-      address: 'us_direccion',
-      ciudad: 'us_ciudad',
-      city: 'us_ciudad',
-      fecha_nacimiento: 'us_fech_nac',
-      fech_nac: 'us_fech_nac',
-      codigo_postal: 'us_code_postal',
-      code_postal: 'us_code_postal',
-    };
-
-    const camposNuevos: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(rawCampos)) {
-      const mappedKey = FIELD_MAP[key.toLowerCase()] ?? key;
-      camposNuevos[mappedKey] = value;
-    }
-
-    const camposReales = Object.keys(camposNuevos).filter((k) => k !== 'us_id');
-    if (camposReales.length === 0) {
-      return JSON.stringify({
-        success: false,
-        error: 'No se especificaron campos a actualizar.',
-      });
-    }
-
-    const perfilActual = await apiGet(PERFIL_URL, {}, token);
-    const datosActuales =
-      perfilActual['success'] &&
-      perfilActual['data'] &&
-      typeof perfilActual['data'] === 'object'
-        ? (perfilActual['data'] as Record<string, unknown>)
-        : {};
-
-    const PERFIL_FIELDS = [
-      'us_nombres',
-      'us_email',
-      'us_telefono',
-      'us_pais',
-      'us_direccion',
-      'us_ciudad',
-      'us_fech_nac',
-      'us_code_postal',
-    ];
-
-    const payload: Record<string, unknown> = { us_id: userId };
-    for (const field of PERFIL_FIELDS) {
-      payload[field] = camposNuevos[field] ?? datosActuales[field] ?? '';
-    }
-
-    return JSON.stringify(await apiPost(PERFIL_URL, payload, token));
-  }
-
-  if (toolName === 'get_ordenes') {
-    return JSON.stringify(
-      await apiGet(MIS_ORDENES_URL, { us_id: String(userId) }, token),
-    );
-  }
-
-  if (toolName === 'get_pagos') {
-    return JSON.stringify(await apiPost(MIS_PAGOS_URL, {}, token));
   }
 
   if (toolName === 'get_productos') {
@@ -350,20 +266,32 @@ export async function executeTool(
   if (toolName === 'crear_compra') {
     const pqId = toolInput['pq_id'];
     const usId = toolInput['us_id'] ?? s?.user_id;
-    const anombreDe = strVal(toolInput['anombre_de']).trim();
-    if (!pqId || !usId || !anombreDe) {
+    const amount = toolInput['amount'];
+    if (!pqId || !usId || !amount) {
       return JSON.stringify({
         success: false,
-        error: 'Se requieren pq_id, us_id y anombre_de.',
+        error: 'Se requieren pq_id, us_id y amount.',
       });
     }
-    return JSON.stringify(
-      await apiPost(
-        CREAR_COMPRA_URL,
-        { pq_id: pqId, us_id: usId, anombre_de: anombreDe },
-        token,
-      ),
-    );
+    const userType: 'residente' | 'turista' =
+      s?.user_type === 'turista' ? 'turista' : 'residente';
+    const pagoUrl =
+      userType === 'turista'
+        ? CREAR_COMPRA_TURISTAS_URL
+        : CREAR_COMPRA_RESIDENTES_URL;
+    const body: Record<string, unknown> = {
+      us_id: usId,
+      pq_id: pqId,
+      amount,
+    };
+    if (toolInput['pg_metodo']) body['pg_metodo'] = toolInput['pg_metodo'];
+    if (toolInput['ra_tipo_pac'])
+      body['ra_tipo_pac'] = strVal(toolInput['ra_tipo_pac']);
+    if (toolInput['tarjeta_pvc'])
+      body['tarjeta_pvc'] = strVal(toolInput['tarjeta_pvc']);
+    if (toolInput['anombre_de'])
+      body['cod_vend'] = strVal(toolInput['anombre_de']);
+    return JSON.stringify(await apiPost(pagoUrl, body, token));
   }
 
   if (toolName === 'consultar_memoria_usuario') {
