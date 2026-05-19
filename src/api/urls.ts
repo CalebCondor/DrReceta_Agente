@@ -1,8 +1,8 @@
 export const VERIFICAR_REGISTRAR_RESIDENTES_URL =
-  'https://islandmedpr.com/apiia/api/residentes/verificar_o_registrar_usuario.php';
+  'https://islandmedpr.com/apiia/api/residentes/verificar_o_registrar.php';
 
 export const VERIFICAR_REGISTRAR_TURISTAS_URL =
-  'https://islandmedpr.com/apiia/api/turistas/verificar_o_registrar_usuario.php';
+  'https://islandmedpr.com/apiia/api/turistas/verificar_o_registrar.php';
 
 export const PRODUCTOS_BASE_URL = 'https://islandmedpr.com/';
 export const CREAR_COMPRA_RESIDENTES_URL =
