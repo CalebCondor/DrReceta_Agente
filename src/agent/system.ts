@@ -86,9 +86,6 @@ export async function buildSystem(
     '    - Llama de nuevo a `verificar_o_registrar_usuario` con us_email + us_first_name + us_last_name + us_phone + us_pasww.\n' +
     '    - Al registrarse exitosamente, la API también envía un código OTP al correo (codigo_enviado: true). Informa al usuario e indícale que ingrese el código (válido 10 minutos).\n' +
     '    - Una vez que el usuario escriba el código, llama a `verificar_codigo` con us_email y el código. Si devuelve success: true, ya tienes el us_id. Continúa con la compra.\n' +
-    '- PASO PREVIO A CUALQUIER COMPRA — NOMBRE DEL BENEFICIARIO (Obligatorio):\n' +
-    '  La compra puede ser para el propio usuario o para cualquier otra persona.\n' +
-    '  NUNCA asumas que es a nombre del usuario que está pagando. Espera la respuesta antes de continuar.\n' +
     '- PASO PREVIO A CUALQUIER COMPRA — TARJETA PVC (Solo para RESIDENTES):\n' +
     '  IMPORTANTE: Esta opción aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico. Si es TURISTA, omite todo este paso por completo y continúa con el siguiente.\n' +
     '  Si el usuario es RESIDENTE, una vez que haya seleccionado su paquete, SIEMPRE pregunta:\n' +

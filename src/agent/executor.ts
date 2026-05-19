@@ -276,8 +276,6 @@ export async function executeTool(
       body['ra_tipo_pac'] = strVal(toolInput['ra_tipo_pac']);
     if (toolInput['tarjeta_pvc'])
       body['tarjeta_pvc'] = strVal(toolInput['tarjeta_pvc']);
-    if (toolInput['anombre_de'])
-      body['cod_vend'] = strVal(toolInput['anombre_de']);
     return JSON.stringify(await apiPost(pagoUrl, body, token));
   }
 

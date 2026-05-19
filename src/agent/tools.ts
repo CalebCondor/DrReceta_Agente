@@ -212,8 +212,7 @@ export const TOOLS: Anthropic.Tool[] = [
     description:
       'Registra una intención de compra (iniciar_pago) en IslandMedPR. ' +
       'La API genera un token único (formato IS…M) devuelto en los campos `token` y `url_generado_pago`. ' +
-      'ANTES de llamar esta herramienta SIEMPRE debes tener: pq_id, us_id, amount (monto total calculado con todos los cargos), ra_tipo_pac y tarjeta_pvc si aplica. ' +
-      'El campo anombre_de es OBLIGATORIO: pregunta siempre "¿A nombre de quién va la orden?" antes de ejecutar la compra.',
+      'ANTES de llamar esta herramienta SIEMPRE debes tener: pq_id, us_id, amount (monto total calculado con todos los cargos), ra_tipo_pac y tarjeta_pvc si aplica.',
     input_schema: {
       type: 'object',
       properties: {
@@ -229,11 +228,6 @@ export const TOOLS: Anthropic.Tool[] = [
           type: 'number',
           description:
             'Monto total a cobrar (mín 0.01). Incluye el precio base del paquete más todos los cargos adicionales (tarjeta PVC, envío, acompañante).',
-        },
-        anombre_de: {
-          type: 'string',
-          description:
-            'Nombre de la persona a cuyo nombre se registrará la compra. Siempre preguntarlo al usuario.',
         },
         ra_tipo_pac: {
           type: 'string',
@@ -251,7 +245,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'Método de pago: 2 = Tarjeta (default), 3 = Efectivo/ATH.',
         },
       },
-      required: ['pq_id', 'us_id', 'amount', 'anombre_de'],
+      required: ['pq_id', 'us_id', 'amount'],
     },
   },
   {
