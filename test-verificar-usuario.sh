@@ -3,7 +3,7 @@
 # Test script: /api/verificar_o_registrar_usuario.php
 # =============================================================================
 
-API="https://www.doctorrecetas.com/api/verificar_o_registrar_usuario.php"
+API="https://islandmedpr.com/apiia/api/residentes/verificar_o_registrar_usuario.php"
 EMAIL="andreslg20@gmail.com"
 BOLD="\033[1m"
 CYAN="\033[1;36m"

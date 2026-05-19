@@ -3,8 +3,8 @@
 # Test flujo completo: verificar → código interactivo → crear_compra
 # =============================================================================
 
-VERIFICAR_URL="https://www.doctorrecetas.com/api/verificar_o_registrar_usuario.php"
-COMPRA_URL="https://www.doctorrecetas.com/api/crear_compra.php"
+VERIFICAR_URL="https://islandmedpr.com/apiia/api/residentes/verificar_o_registrar_usuario.php"
+COMPRA_URL="https://islandmedpr.com/apiia/api/residentes/iniciar_pago.php"
 EMAIL="andreslg20@gmail.com"
 PQ_ID=26
 ANOMBRE_DE="María García"
@@ -109,7 +109,7 @@ else
     echo -e "${DIM}  url_generado_pago : $URL_PAGO${RESET}"
     echo ""
     echo -e "${BOLD}${GREEN}  Enlace de pago:${RESET}"
-    echo -e "${BOLD}  https://doctorrecetas.com/pago/index.php?code=${URL_PAGO}${RESET}"
+    echo -e "${BOLD}  https://islandmedpr.com/enlace/index.php?u=${URL_PAGO}${RESET}"
   else
     fail "No se recibió cp_code — revisa la respuesta arriba"
   fi

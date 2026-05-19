@@ -5,7 +5,6 @@ import { sessions } from './state';
 import { apiPost, apiGet } from '../api/http';
 import { DbService } from './db.service';
 import {
-  PRODUCTOS_BASE_URL,
   VERIFICAR_REGISTRAR_RESIDENTES_URL,
   VERIFICAR_REGISTRAR_TURISTAS_URL,
   CREAR_COMPRA_RESIDENTES_URL,
@@ -50,7 +49,7 @@ export async function executeTool(
     return JSON.stringify({
       success: false,
       error:
-        'Usuario no autenticado. Debe iniciar sesión en DoctorRecetas.com para acceder a sus datos personales.',
+        'Usuario no autenticado. Debe iniciar sesión en IslandMedPR.com para acceder a sus datos personales.',
     });
   }
 
@@ -84,69 +83,43 @@ export async function executeTool(
       queryParams['offset'] = strVal(toolInput['offset']);
 
     const raw = await apiGet(packagesUrl, queryParams);
+
+    const packages: unknown[] = Array.isArray(raw['data'])
+      ? (raw['data'] as unknown[])
+      : [];
+
+    // Filtrado opcional por busqueda sobre pq_tit_esp / pq_tit_eng / pq_det_esp
     const busqueda = strVal(toolInput['busqueda']).toLowerCase().trim();
+    const normalize = (s: string) =>
+      s
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
 
-    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-      const allItems: {
-        titulo: string;
-        resumen: string;
-        tags: string;
-        precio: string;
-        precio_vip: string;
-        web_url: string;
-      }[] = [];
-      for (const [, products] of Object.entries(raw)) {
-        if (Array.isArray(products)) {
-          for (const p of products) {
-            if (p && typeof p === 'object') {
-              const product = p as Record<string, unknown>;
-              const rel = strVal(product['url']);
-              const rawTags = product['tags'];
-              const tags = Array.isArray(rawTags)
-                ? rawTags.map((t: unknown) => strVal(t)).join(' ')
-                : strVal(rawTags);
-              allItems.push({
-                titulo:
-                  strVal(product['titulo']) ||
-                  strVal(product['nombre']) ||
-                  strVal(product['producto']),
-                resumen: strVal(product['resumen']),
-                tags,
-                precio: strVal(product['precio']),
-                precio_vip: strVal(product['precio_vip']),
-                web_url: rel ? PRODUCTOS_BASE_URL + rel : '',
-              });
-            }
-          }
-        }
-      }
-      const normalize = (s: string) =>
-        s
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '');
+    const filtered = busqueda
+      ? (() => {
+          const terms = normalize(busqueda)
+            .split(/\s+/)
+            .filter((t) => t.length > 2);
+          if (terms.length === 0) return packages;
+          return packages.filter((p) => {
+            if (!p || typeof p !== 'object') return false;
+            const product = p as Record<string, unknown>;
+            const haystack =
+              normalize(strVal(product['pq_tit_esp'])) +
+              ' ' +
+              normalize(strVal(product['pq_tit_eng'])) +
+              ' ' +
+              normalize(strVal(product['pq_det_esp']));
+            return terms.some((t) => haystack.includes(t));
+          });
+        })()
+      : packages;
 
-      const filtered = busqueda
-        ? (() => {
-            const terms = normalize(busqueda)
-              .split(/\s+/)
-              .filter((t) => t.length > 2);
-            if (terms.length === 0) return allItems;
-            return allItems.filter((p) => {
-              const haystack = normalize(p.titulo) + ' ' + normalize(p.tags);
-              return terms.some((t) => haystack.includes(t));
-            });
-          })()
-        : allItems;
-      return JSON.stringify({
-        success: true,
-        total: filtered.length,
-        data: filtered,
-      });
-    }
     return JSON.stringify({
-      success: false,
-      error: 'Formato inesperado de la API',
+      success: true,
+      total: filtered.length,
+      data: filtered,
     });
   }
 
