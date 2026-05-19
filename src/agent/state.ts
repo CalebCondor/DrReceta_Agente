@@ -13,6 +13,7 @@ export interface SessionData {
   name: string;
   es_vip: boolean;
   language?: string;
+  user_type?: 'residente' | 'turista';
 }
 
 // In-memory stores (shared per process)

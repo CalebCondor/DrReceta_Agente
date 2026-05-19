@@ -5,64 +5,40 @@ import Anthropic from '@anthropic-ai/sdk';
 
 export const TOOLS: Anthropic.Tool[] = [
   {
-    name: 'get_perfil',
-    description:
-      'Obtiene los datos del perfil del usuario autenticado en DoctorRecetas. ' +
-      'Usalo cuando el usuario pregunte por su perfil, datos personales, nombre, correo, etc.',
-    input_schema: { type: 'object', properties: {}, required: [] },
-  },
-  {
-    name: 'actualizar_perfil',
-    description:
-      'Actualiza campos del perfil del usuario en DoctorRecetas. ' +
-      'Usalo cuando el usuario quiera cambiar su nombre, email, telefono u otros datos. ' +
-      'Solo incluye los campos que el usuario quiere cambiar. ' +
-      'Los nombres de campo exactos que acepta la API son: ' +
-      'us_nombres (nombre completo), us_email (correo), us_telefono (telefono), ' +
-      'us_pais (pais), us_direccion (direccion), us_ciudad (ciudad), ' +
-      'us_fech_nac (fecha nacimiento YYYY-MM-DD), us_code_postal (codigo postal). ' +
-      'Usa SIEMPRE estos nombres exactos en el objeto campos.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        campos: {
-          type: 'object',
-          description:
-            'Objeto JSON con los campos a actualizar. Ej: {"us_nombres": "Juan"}',
-        },
-      },
-      required: ['campos'],
-    },
-  },
-  {
-    name: 'get_ordenes',
-    description:
-      'Obtiene las ordenes/pedidos del usuario autenticado en DoctorRecetas. ' +
-      'Usalo cuando pregunte por compras, pedidos, productos comprados o enlaces de descarga.',
-    input_schema: { type: 'object', properties: {}, required: [] },
-  },
-  {
-    name: 'get_pagos',
-    description:
-      'Obtiene el historial de pagos y transacciones del usuario autenticado. ' +
-      'Usalo cuando pregunte por pagos, facturas o transacciones.',
-    input_schema: { type: 'object', properties: {}, required: [] },
-  },
-  {
     name: 'get_productos',
     description:
-      'Obtiene el catalogo de todos los productos disponibles en DoctorRecetas. ' +
-      'Usalo cuando pregunte que productos hay, que venden, que esta disponible o quiera buscar algo.',
+      'Obtiene el catálogo de paquetes disponibles. ' +
+      'Enruta automáticamente al endpoint de residentes o turistas según el tipo de usuario. ' +
+      'Úsalo cuando el usuario pregunte qué paquetes hay, qué venden, o quiera buscar algo. ' +
+      'Puedes filtrar por pq_id para obtener un paquete específico.',
     input_schema: {
       type: 'object',
       properties: {
+        user_type: {
+          type: 'string',
+          enum: ['residente', 'turista'],
+          description:
+            'Tipo de usuario: residente o turista. Obligatorio para enrutar al catálogo correcto.',
+        },
         busqueda: {
           type: 'string',
           description:
-            'Termino de busqueda opcional para filtrar productos por nombre.',
+            'Término de búsqueda opcional para filtrar paquetes por nombre o tags.',
+        },
+        pq_id: {
+          type: 'integer',
+          description: 'Filtrar por ID de paquete específico.',
+        },
+        limit: {
+          type: 'integer',
+          description: 'Cantidad máxima de resultados a devolver.',
+        },
+        offset: {
+          type: 'integer',
+          description: 'Desplazamiento para paginación.',
         },
       },
-      required: [],
+      required: ['user_type'],
     },
   },
   {
@@ -140,16 +116,17 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'verificar_o_registrar_usuario',
     description:
-      'Verifica si un usuario existe en DoctorRecetas por correo y devuelve su us_id. ' +
-      'Si el usuario EXISTE: la API envía automáticamente un código de verificación de 6 dígitos a su correo (válido 10 min). ' +
-      'Si NO existe, lo registra con los datos proporcionados. ' +
-      'ÚSALO cuando el usuario quiera comprar un producto o servicio y NO esté autenticado. ' +
+      'Endpoint unificado de acceso. Con solo el email detecta si el usuario ya existe. ' +
+      'Si existe: genera y envía un OTP de 6 dígitos válido 10 minutos (codigo_enviado: true). ' +
+      'Si no existe y se pasan los campos de registro: crea la cuenta y también envía el código OTP. ' +
+      'En ambos casos el código se verifica luego con `verificar_codigo`. ' +
       'FLUJO OBLIGATORIO: ' +
       '1) Llama PRIMERO solo con us_email. ' +
-      '2a) Si la API devuelve { existe: true, codigo_enviado: true }: informa al usuario que se envió un código a su correo y pídele que lo escriba (expira en 10 min). Guarda el us_id recibido. ' +
-      '2b) Si la API responde HTTP 422 (faltan campos), el usuario no existe: pídele nombre completo, teléfono y contraseña UNO POR UNO. ' +
-      '3) Si registraste al usuario nuevo (caso 2b), ya tienes su us_id. No se envía código en el registro. ' +
-      'NUNCA inventes ni rellenes us_nombres, us_telefono ni us_clave — siempre pídelos al usuario.',
+      '2a) Si devuelve { existe: true, codigo_enviado: true }: informa que se envió un código y pídele que lo escriba (expira en 10 min). ' +
+      '2b) Si responde HTTP 422 (usuario no existe): pídele nombre, apellido, teléfono y contraseña (mín 8 caracteres) UNO POR UNO. ' +
+      '3) Llama de nuevo con us_email + us_first_name + us_last_name + us_phone + us_pasww. La API registra al usuario y envía el OTP (codigo_enviado: true). ' +
+      '4) En AMBOS casos (existe o nuevo), espera el código del usuario y llama a `verificar_codigo` para autenticarlo. ' +
+      'NUNCA inventes ni rellenes us_first_name, us_last_name, us_phone ni us_pasww — siempre pídelos al usuario.',
     input_schema: {
       type: 'object',
       properties: {
@@ -157,23 +134,34 @@ export const TOOLS: Anthropic.Tool[] = [
           type: 'string',
           description: 'Correo electrónico del usuario (obligatorio siempre).',
         },
-        us_nombres: {
+        us_first_name: {
           type: 'string',
           description:
-            'Nombre completo del usuario. Solo incluir si el usuario ya lo proporcionó.',
+            'Nombre del usuario. Solo incluir cuando el usuario no existe y ya lo proporcionó.',
         },
-        us_telefono: {
+        us_last_name: {
           type: 'string',
           description:
-            'Teléfono del usuario. Solo incluir si el usuario ya lo proporcionó.',
+            'Apellido del usuario. Solo incluir cuando el usuario no existe y ya lo proporcionó.',
         },
-        us_clave: {
+        us_phone: {
           type: 'string',
           description:
-            'Contraseña elegida por el usuario. Solo incluir si el usuario ya la proporcionó. Se encripta con AES-256-CBC.',
+            'Teléfono del usuario. Solo incluir cuando el usuario no existe y ya lo proporcionó.',
+        },
+        us_pasww: {
+          type: 'string',
+          description:
+            'Contraseña elegida por el usuario (mínimo 8 caracteres). Solo incluir cuando el usuario no existe y ya la proporcionó.',
+        },
+        user_type: {
+          type: 'string',
+          enum: ['residente', 'turista'],
+          description:
+            'Tipo de usuario detectado al inicio de la conversación: residente (Puerto Rico) o turista. Obligatorio para enrutar al endpoint correcto.',
         },
       },
-      required: ['us_email'],
+      required: ['us_email', 'user_type'],
     },
   },
   {
@@ -197,8 +185,14 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Código de 6 dígitos que el usuario recibió en su correo.',
         },
+        user_type: {
+          type: 'string',
+          enum: ['residente', 'turista'],
+          description:
+            'Tipo de usuario: residente o turista. Debe coincidir con el usado en verificar_o_registrar_usuario.',
+        },
       },
-      required: ['us_email', 'codigo'],
+      required: ['us_email', 'codigo', 'user_type'],
     },
   },
   {

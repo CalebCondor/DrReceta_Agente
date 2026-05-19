@@ -8,11 +8,14 @@ import {
   PERFIL_URL,
   MIS_ORDENES_URL,
   MIS_PAGOS_URL,
-  TODAS_LAS_ORDENES_URL,
   PRODUCTOS_BASE_URL,
-  VERIFICAR_REGISTRAR_URL,
+  VERIFICAR_REGISTRAR_RESIDENTES_URL,
+  VERIFICAR_REGISTRAR_TURISTAS_URL,
   CREAR_COMPRA_URL,
-  VERIFICAR_CODIGO_URL,
+  VERIFICAR_CODIGO_RESIDENTES_URL,
+  VERIFICAR_CODIGO_TURISTAS_URL,
+  RESIDENTES_PACKAGES_URL,
+  TURISTAS_PACKAGES_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -133,7 +136,20 @@ export async function executeTool(
   }
 
   if (toolName === 'get_productos') {
-    const raw = await apiGet(TODAS_LAS_ORDENES_URL);
+    const userType: 'residente' | 'turista' =
+      strVal(toolInput['user_type']).trim() === 'turista'
+        ? 'turista'
+        : 'residente';
+    const packagesUrl =
+      userType === 'turista' ? TURISTAS_PACKAGES_URL : RESIDENTES_PACKAGES_URL;
+
+    const queryParams: Record<string, string> = {};
+    if (toolInput['pq_id']) queryParams['pq_id'] = strVal(toolInput['pq_id']);
+    if (toolInput['limit']) queryParams['limit'] = strVal(toolInput['limit']);
+    if (toolInput['offset'])
+      queryParams['offset'] = strVal(toolInput['offset']);
+
+    const raw = await apiGet(packagesUrl, queryParams);
     const busqueda = strVal(toolInput['busqueda']).toLowerCase().trim();
 
     if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
@@ -252,15 +268,26 @@ export async function executeTool(
     if (!email) {
       return JSON.stringify({ success: false, error: 'Se requiere us_email.' });
     }
-    const payload: Record<string, unknown> = { us_email: email };
-    const nombres = strVal(toolInput['us_nombres']).trim();
-    const telefono = strVal(toolInput['us_telefono']).trim();
-    const clave = strVal(toolInput['us_clave']).trim();
-    if (nombres) payload['us_nombres'] = nombres;
-    if (telefono) payload['us_telefono'] = telefono;
-    if (clave) payload['us_clave'] = clave;
+    const userType: 'residente' | 'turista' =
+      strVal(toolInput['user_type']).trim() === 'turista'
+        ? 'turista'
+        : 'residente';
+    const registrarUrl =
+      userType === 'turista'
+        ? VERIFICAR_REGISTRAR_TURISTAS_URL
+        : VERIFICAR_REGISTRAR_RESIDENTES_URL;
 
-    const result = await apiPost(VERIFICAR_REGISTRAR_URL, payload);
+    const payload: Record<string, unknown> = { us_email: email };
+    const firstName = strVal(toolInput['us_first_name']).trim();
+    const lastName = strVal(toolInput['us_last_name']).trim();
+    const phone = strVal(toolInput['us_phone']).trim();
+    const password = strVal(toolInput['us_pasww']).trim();
+    if (firstName) payload['us_first_name'] = firstName;
+    if (lastName) payload['us_last_name'] = lastName;
+    if (phone) payload['us_phone'] = phone;
+    if (password) payload['us_pasww'] = password;
+
+    const result = await apiPost(registrarUrl, payload);
 
     // Si la API devolvió un token, almacenarlo en sesión para peticiones autenticadas
     const data = result['data'] as Record<string, unknown> | undefined;
@@ -268,8 +295,9 @@ export async function executeTool(
       sessions.set(chatId, {
         token: strVal(data['token']),
         user_id: strVal(data['us_id'] ?? ''),
-        name: strVal(data['us_nombres'] ?? ''),
+        name: strVal(data['us_first_name'] ?? data['us_nombres'] ?? ''),
         es_vip: false,
+        user_type: userType,
       });
     }
 
@@ -285,8 +313,16 @@ export async function executeTool(
         error: 'Se requieren us_email y codigo.',
       });
     }
+    const userType: 'residente' | 'turista' =
+      strVal(toolInput['user_type']).trim() === 'turista'
+        ? 'turista'
+        : 'residente';
+    const verificarUrl =
+      userType === 'turista'
+        ? VERIFICAR_CODIGO_TURISTAS_URL
+        : VERIFICAR_CODIGO_RESIDENTES_URL;
 
-    const result = await apiPost(VERIFICAR_CODIGO_URL, {
+    const result = await apiPost(verificarUrl, {
       us_email: email,
       codigo,
     });
@@ -297,8 +333,9 @@ export async function executeTool(
       sessions.set(chatId, {
         token: strVal(data['token']),
         user_id: strVal(data['us_id'] ?? ''),
-        name: strVal(data['us_nombres'] ?? ''),
+        name: strVal(data['us_first_name'] ?? data['us_nombres'] ?? ''),
         es_vip: false,
+        user_type: userType,
       });
     }
 
