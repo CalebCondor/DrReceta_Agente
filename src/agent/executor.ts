@@ -58,7 +58,7 @@ export async function executeTool(
   }
 
   if (toolName === 'get_detalle_pago') {
-    const token = strVal(toolInput['token']);
+    const token = strVal(toolInput['token']) || s?.token || '';
     const userType: 'residente' | 'turista' =
       strVal(toolInput['user_type']) === 'turista' ? 'turista' : 'residente';
     const detalleUrl =
@@ -250,7 +250,7 @@ export async function executeTool(
   }
 
   if (toolName === 'crear_compra') {
-    const token = strVal(toolInput['token']);
+    const token = strVal(toolInput['token']) || s?.token || '';
     const pqId = toolInput['pq_id'];
     const usId = toolInput['us_id'] ?? s?.user_id;
     const amount = toolInput['amount'];
