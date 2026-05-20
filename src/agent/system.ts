@@ -111,8 +111,12 @@ export async function buildSystem(
     '  En todos los casos cuando tarjeta_pvc=1: envía tarjeta_pvc=1, selecciono_pvc (0/1/2), dip_id (si aplica) y pg_plan_extra1=19.99 en `crear_compra`.\n' +
     '- PASO PREVIO A LA COMPRA — FECHA DE LLEGADA (Solo para TURISTAS):\n' +
     '  IMPORTANTE: Este paso aplica ÚNICAMENTE si el usuario es TURISTA. Si es RESIDENTE, omite y continúa.\n' +
-    '  Si el usuario es TURISTA, SIEMPRE pregunta: "¿Cuál es tu fecha de llegada a Puerto Rico? Por favor indícala en formato YYYY-MM-DD."\n' +
-    '  Espera la respuesta y guarda la fecha como fecha_llegada para incluirla en `crear_compra`. NUNCA saltes esta pregunta para turistas.\n' +
+    '  Si el usuario es TURISTA, SIEMPRE pregunta: "What is your arrival date to Puerto Rico?"\n' +
+    '  El usuario puede responder en cualquier formato natural (ej: "next Friday", "May 28", "in 3 days", "tomorrow", "el 30 de mayo", etc.).\n' +
+    '  DEBES INTERPRETAR la respuesta y CONVERTIRLA internamente a formato YYYY-MM-DD usando la fecha actual como referencia.\n' +
+    '  Usa la fecha y hora actual del sistema para resolver expresiones relativas ("tomorrow", "next Monday", "in 2 days", etc.).\n' +
+    '  Una vez interpretada, confirma al usuario: "Got it! Your arrival date is set for [fecha legible]. ✓" y guarda la fecha convertida como fecha_llegada para incluirla en `crear_compra`.\n' +
+    '  Si la expresión es ambigua o imposible de interpretar, pide clarificación amablemente. NUNCA saltes esta pregunta para turistas.\n' +
     '- PASO FINAL ANTES DE COMPRA — TIPO DE PACIENTE (Solo para RESIDENTES):\n' +
     '  IMPORTANTE: Este paso aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico. Si es TURISTA, omite esta pregunta por completo y procede directamente a llamar a `crear_compra` con ra_tipo_pac=0 por defecto.\n' +
     '  Si el usuario es RESIDENTE, SIEMPRE pregunta el tipo de paciente con este mensaje exacto:\n' +
