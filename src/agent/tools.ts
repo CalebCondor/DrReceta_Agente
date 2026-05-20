@@ -230,14 +230,31 @@ export const TOOLS: Anthropic.Tool[] = [
             'Monto total a cobrar (mín 0.01). Incluye el precio base del paquete más todos los cargos adicionales (tarjeta PVC, envío, acompañante).',
         },
         ra_tipo_pac: {
-          type: 'string',
+          type: 'integer',
+          enum: [0, 1, 2],
           description:
-            'Tipo de paciente: "adulto", "menor_con_acompaniante" o "mayor_con_acompaniante".',
+            'Tipo de paciente: 0=Paciente adulto (default), 1=Paciente menor de edad con acompañante, 2=Paciente mayor que necesita acompañante.',
         },
         tarjeta_pvc: {
+          type: 'integer',
+          enum: [0, 1, 2],
+          description:
+            'Opción de entrega de Tarjeta PVC: 0=Recoger en oficina (default), 1=Recoger en dispensario, 2=Envío a domicilio. Solo incluir si el usuario la solicitó.',
+        },
+        pg_plan_extra1: {
+          type: 'number',
+          description:
+            'Monto extra adicional al paquete (ej. 19.99 por Tarjeta PVC). Default 0.',
+        },
+        dip_id: {
+          type: 'integer',
+          description:
+            'ID del dispensario seleccionado. Obligatorio cuando tarjeta_pvc=1. Default 0.',
+        },
+        us_dir_postal: {
           type: 'string',
           description:
-            'Información de entrega de tarjeta PVC si el usuario la solicitó. Ej: "oficina", "dispensario:Dispensario A" o "domicilio:Dirección completa".',
+            'Dirección postal del paciente. Obligatorio cuando ra_tipo_pac=2 (mayor que necesita acompañante).',
         },
         pg_metodo: {
           type: 'number',

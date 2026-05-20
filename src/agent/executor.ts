@@ -274,12 +274,19 @@ export async function executeTool(
       amount,
     };
     if (toolInput['pg_metodo']) body['pg_metodo'] = toolInput['pg_metodo'];
-    if (toolInput['ra_tipo_pac'])
-      body['ra_tipo_pac'] = strVal(toolInput['ra_tipo_pac']);
-    if (toolInput['tarjeta_pvc'])
-      body['tarjeta_pvc'] = strVal(toolInput['tarjeta_pvc']);
+    if (toolInput['ra_tipo_pac'] !== undefined)
+      body['ra_tipo_pac'] = toolInput['ra_tipo_pac'];
+    if (toolInput['tarjeta_pvc'] !== undefined)
+      body['tarjeta_pvc'] = toolInput['tarjeta_pvc'];
+    if (toolInput['pg_plan_extra1'] !== undefined)
+      body['pg_plan_extra1'] = toolInput['pg_plan_extra1'];
+    if (toolInput['dip_id'] !== undefined) body['dip_id'] = toolInput['dip_id'];
+    if (toolInput['us_dir_postal'])
+      body['us_dir_postal'] = strVal(toolInput['us_dir_postal']);
     if (toolInput['cp_code']) body['cp_code'] = strVal(toolInput['cp_code']);
-    if (toolInput['cod_vend']) body['cod_vend'] = strVal(toolInput['cod_vend']);
+    body['cod_vend'] = toolInput['cod_vend']
+      ? strVal(toolInput['cod_vend'])
+      : 'IAWEB';
     return JSON.stringify(await apiPost(pagoUrl, body, token));
   }
 

@@ -105,10 +105,10 @@ export async function buildSystem(
     '    3. Envío a domicilio o dirección postal\n' +
     '       Proporciona tu dirección postal completa.\n' +
     '       Costo: $5.99 adicionales."\n' +
-    '    - Si elige opción 1: registra "recoger en oficina IslandMed" como método de entrega. Sin cargo extra.\n' +
-    '    - Si elige opción 2: llama a `get_dispensarios` para obtener la lista de dispensarios activos y preséntala numerada (dip_nomb). Pídele que elija uno. Registra el dispensario seleccionado (dip_id + dip_nomb) como método de entrega. Sin cargo extra.\n' +
-    '    - Si elige opción 3: pídele su dirección postal completa y agrega $5.99 al total. Informa: "Se añaden $5.99 por envío a domicilio."\n' +
-    '  Guarda la selección de tarjeta PVC y entrega para incluirla en el resumen final de la compra.\n' +
+    '    - Si elige opción 1: tarjeta_pvc=0, dip_id=0. Sin cargo extra.\n' +
+    '    - Si elige opción 2: tarjeta_pvc=1. Llama a `get_dispensarios`, presenta la lista numerada (dip_nomb). Pídele que elija uno y guarda su dip_id. Sin cargo extra.\n' +
+    '    - Si elige opción 3: tarjeta_pvc=2, agrega $5.99 al total. Informa: "Se añaden $5.99 por envío a domicilio."\n' +
+    '  En todos los casos guarda tarjeta_pvc (0/1/2), dip_id (si aplica) y pg_plan_extra1=19.99 para incluirlos en `crear_compra`.\n' +
     '- PASO FINAL ANTES DE COMPRA — TIPO DE PACIENTE (Obligatorio):\n' +
     '  SIEMPRE pregunta el tipo de paciente con este mensaje exacto:\n' +
     '  "Esta información es requerida para poder procesar su solicitud.\n\n' +
@@ -116,13 +116,21 @@ export async function buildSystem(
     '  1. Paciente adulto (mayores de 21 años)\n' +
     '  2. Paciente menor de edad con acompañante\n' +
     '  3. Paciente mayor que necesita acompañante"\n' +
-    '  - Si el usuario elige la opción 1 (adulto): el precio del paquete NO cambia.\n' +
-    '  - Si el usuario elige la opción 2 (menor de edad con acompañante) O la opción 3 (mayor que necesita acompañante): DEBES agregar $60.00 al precio base del paquete (más cualquier cargo adicional de tarjeta PVC/envío). Informa al usuario claramente: "Por el acompañante requerido, se añaden $60.00 al costo del servicio."\n' +
+    '  - Opción 1 → ra_tipo_pac=0. Precio NO cambia.\n' +
+    '  - Opción 2 → ra_tipo_pac=1. Agrega $60.00 al total. Informa: "Se añaden $60.00 por acompañante requerido."\n' +
+    '  - Opción 3 → ra_tipo_pac=2. Agrega $60.00 al total. Además DEBES pedir la dirección postal del paciente (us_dir_postal) antes de continuar.\n' +
     '  NUNCA saltes esta pregunta. Espera la respuesta antes de continuar con la compra.\n' +
-    '- Una vez que tengas todos los datos, llama a `crear_compra` con TODOS los campos recolectados. Campos obligatorios: pq_id, us_id, amount (monto total con todos los cargos). Campos que DEBES incluir siempre que apliquen:\n' +
-    '  · ra_tipo_pac → SIEMPRE (adulto / menor_con_acompaniante / mayor_con_acompaniante).\n' +
-    '  · tarjeta_pvc → OBLIGATORIO si el usuario la solicitó. Usa el formato exacto: "oficina", "dispensario:Nombre del dispensario" o "domicilio:Dirección completa". NUNCA omitas este campo si el usuario eligió tarjeta PVC.\n' +
+    '- Una vez que tengas todos los datos, llama a `crear_compra` con TODOS los campos recolectados:\n' +
+    '  OBLIGATORIOS: pq_id, us_id, amount (total con todos los cargos).\n' +
+    '  SIEMPRE incluir:\n' +
+    '  · ra_tipo_pac → 0 (adulto), 1 (menor con acompañante), 2 (mayor con acompañante).\n' +
+    '  · tarjeta_pvc → 0 (oficina), 1 (dispensario), 2 (domicilio). NUNCA omitas si el usuario eligió tarjeta PVC.\n' +
+    '  · pg_plan_extra1 → 19.99 si el usuario eligió tarjeta PVC, de lo contrario no lo envíes.\n' +
+    '  · dip_id → ID del dispensario cuando tarjeta_pvc=1. Default 0 en otros casos.\n' +
+    '  · us_dir_postal → dirección postal cuando ra_tipo_pac=2. OBLIGATORIO en ese caso.\n' +
     '  · pg_metodo → 2 (Tarjeta, default). Envía 3 solo si el usuario indicó Efectivo/ATH.\n' +
+    '  · cp_code → si el usuario proporcionó cupón.\n' +
+    '  · cod_vend → se envía automáticamente como IAWEB por defecto.\n' +
     '  La API devuelve un `token` y `url_generado_pago`.\n' +
     '  INMEDIATAMENTE después, llama a `get_detalle_pago` con ese token y el user_type para obtener el resumen completo.\n' +
     '  Muestra al usuario el resumen con este formato ANTES de enviar el enlace de pago:\n' +
