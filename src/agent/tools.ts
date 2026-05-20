@@ -244,6 +244,15 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Método de pago: 2 = Tarjeta (default), 3 = Efectivo/ATH.',
         },
+        cp_code: {
+          type: 'string',
+          description:
+            'Código de cupón de descuento. Solo incluir si el usuario lo proporciona.',
+        },
+        cod_vend: {
+          type: 'string',
+          description: 'Código de vendedor. Solo incluir si aplica.',
+        },
       },
       required: ['pq_id', 'us_id', 'amount'],
     },

@@ -43,8 +43,6 @@ export async function executeTool(
   db: DbService,
 ): Promise<string> {
   const s = sessions.get(chatId);
-  const token = s?.token;
-
   if (AUTH_REQUIRED.has(toolName) && !s) {
     return JSON.stringify({
       success: false,
@@ -280,6 +278,8 @@ export async function executeTool(
       body['ra_tipo_pac'] = strVal(toolInput['ra_tipo_pac']);
     if (toolInput['tarjeta_pvc'])
       body['tarjeta_pvc'] = strVal(toolInput['tarjeta_pvc']);
+    if (toolInput['cp_code']) body['cp_code'] = strVal(toolInput['cp_code']);
+    if (toolInput['cod_vend']) body['cod_vend'] = strVal(toolInput['cod_vend']);
     return JSON.stringify(await apiPost(pagoUrl, body, token));
   }
 

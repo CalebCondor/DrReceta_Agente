@@ -119,7 +119,7 @@ export async function buildSystem(
     '  - Si el usuario elige la opción 1 (adulto): el precio del paquete NO cambia.\n' +
     '  - Si el usuario elige la opción 2 (menor de edad con acompañante) O la opción 3 (mayor que necesita acompañante): DEBES agregar $60.00 al precio base del paquete (más cualquier cargo adicional de tarjeta PVC/envío). Informa al usuario claramente: "Por el acompañante requerido, se añaden $60.00 al costo del servicio."\n' +
     '  NUNCA saltes esta pregunta. Espera la respuesta antes de continuar con la compra.\n' +
-    '- Una vez que tengas pq_id, us_id, amount (monto total calculado), ra_tipo_pac y tarjeta_pvc (si aplica), llama a `crear_compra`. La API devuelve un `token` y `url_generado_pago`.\n' +
+    '- Una vez que tengas pq_id, us_id, amount (monto total calculado), ra_tipo_pac y tarjeta_pvc (si aplica), llama a `crear_compra`. Si el usuario mencionó un código de cupón (cp_code) o código de vendedor (cod_vend), inclúyelos también. El campo pg_metodo es 2 (Tarjeta) por defecto; solo cámbialo si el usuario indica Efectivo/ATH (valor 3). La API devuelve un `token` y `url_generado_pago`.\n' +
     '  INMEDIATAMENTE después, llama a `get_detalle_pago` con ese token y el user_type para obtener el resumen completo.\n' +
     '  Muestra al usuario el resumen con este formato ANTES de enviar el enlace de pago:\n' +
     '  <b>Resumen de tu pedido:</b>\n' +

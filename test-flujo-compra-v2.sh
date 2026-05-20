@@ -10,10 +10,11 @@
 # ── Configuración ─────────────────────────────────────────────────────────────
 EMAIL="calebcondor553@gmail.com"
 USER_TYPE="residente"     # "residente" o "turista"
-PQ_ID=26                  # Paquete ORO
-AMOUNT=69.00              # Paquete ORO: $69.00 (+ $19.99 si tarjeta PVC, + $60 si acompañante)
-RA_TIPO_PAC="adulto"      # "adulto" | "menor_con_acompaniante" | "mayor_con_acompaniante"
-# TARJETA_PVC="oficina"   # descomenta si aplica: "oficina" | "dispensario:Nombre" | "domicilio:Dir"
+PQ_ID=5                   # Paquete
+AMOUNT=148.99             # Monto total
+RA_TIPO_PAC="menor_con_acompaniante"  # "adulto" | "menor_con_acompaniante" | "mayor_con_acompaniante"
+TARJETA_PVC="dispensario:Bwell Caguas"  # "oficina" | "dispensario:Nombre" | "domicilio:Dir"
+PG_METODO=2               # Método de pago
 
 # ── URLs (según user_type) ────────────────────────────────────────────────────
 if [[ "$USER_TYPE" == "turista" ]]; then
@@ -142,7 +143,7 @@ COMPRA_BODY="{\"pq_id\":$PQ_ID,\"us_id\":$US_ID,\"amount\":$AMOUNT,\"ra_tipo_pac
 if [[ -n "${TARJETA_PVC:-}" ]]; then
   COMPRA_BODY+=",\"tarjeta_pvc\":\"$TARJETA_PVC\""
 fi
-COMPRA_BODY+="}"
+COMPRA_BODY+=",\"pg_metodo\":$PG_METODO}"
 
 do_post "$COMPRA_URL" "$COMPRA_BODY" "$AUTH_TOKEN"
 echo -e "${YELLOW}HTTP:${RESET} $OUT_CODE"
