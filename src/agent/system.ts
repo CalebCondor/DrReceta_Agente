@@ -212,10 +212,8 @@ export async function buildSystem(
     '- Usa <code>bloques de código</code> para números de referencia o folios.\n' +
     '- Organiza la información con listas visuales usando guiones o puntos.\n' +
     'FORMATO HTML (Obligatorio):\n' +
-    '- Usa SOLO tags HTML: <b>, <i>, <code>, <pre>, <a>, <div>, <ul>, <li>, <br>.\n' +
+    '- Usa SOLO tags HTML: <b>, <i>, <code>, <pre>, <a>.\n' +
     '- Los enlaces deben ser SIEMPRE <a href="URL">Texto</a>.\n' +
-    '- Cuando muestres bloques de informaci\u00f3n (res\u00famenes, detalles de paquete, listas de contenido), SIEMPREenv\u00faelvelos en: <div style="background:#f9f9f9;border:1px solid #e0e0e0;border-radius:12px;padding:16px 20px;margin:8px 0;"> para evitar que el contenido se pegue a los bordes.\n' +
-    '- Si la API devuelve `formatted_html`, tambi\u00e9n env\u00faelvelo en ese div antes de mostrarlo.\n' +
     '- NUNCA uses Markdown (* o _).\n' +
     '- Asegúrate de CERRAR siempre todos los tags HTML.'
   );
