@@ -288,80 +288,85 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'editar_pago',
     description:
-      'Edita una compra existente en IslandMedPR (ej. cambio de paquete, monto, tarjeta PVC, método de pago, etc.). ' +
-      'Úsalo cuando el usuario quiera modificar algo de su pedido ya creado. ' +
-      'Requiere el token del pago original y los mismos campos que `crear_compra`. ' +
-      'Enruta automáticamente al endpoint de residentes o turistas según el tipo de usuario.',
+      'Edita una compra existente en IslandMedPR. ' +
+      'Úsalo cuando el usuario quiera modificar algo de su pedido ya creado (paquete, monto, método de pago, tarjeta PVC, fecha de llegada, etc.). ' +
+      'Solo se actualizan los campos enviados; se debe enviar al menos uno. ' +
+      'Requiere us_id y url_generado_pago. ' +
+      'Enruta automáticamente al endpoint de residentes o turistas según el tipo de usuario. ' +
+      'Residentes: soporta tarjeta_pvc, selecciono_pvc, ra_tipo_pac, dip_id, us_dir_postal, pg_plan_extra1, cp_code. ' +
+      'Turistas: soporta fecha_llegada.',
     input_schema: {
       type: 'object',
       properties: {
-        token: {
+        us_id: {
+          type: 'integer',
+          description: 'ID del usuario (debe coincidir con el token de auth).',
+        },
+        url_generado_pago: {
           type: 'string',
-          description: 'Token único del pago a editar (formato IS…M).',
+          description:
+            'Identificador del pago devuelto por `crear_compra` (campo `url_generado_pago` o `token`).',
         },
         pq_id: {
-          type: 'number',
-          description: 'ID del paquete a adquirir.',
-        },
-        us_id: {
-          type: 'number',
-          description: 'ID del usuario.',
+          type: 'integer',
+          description: 'Nuevo paquete. Recalcula pg_plan_name y pg_plan_monto.',
         },
         amount: {
           type: 'number',
-          description:
-            'Monto total actualizado (incluye todos los cargos adicionales).',
-        },
-        ra_tipo_pac: {
-          type: 'integer',
-          enum: [0, 1, 2],
-          description:
-            'Tipo de paciente: 0=adulto, 1=menor con acompañante, 2=mayor con acompañante.',
-        },
-        tarjeta_pvc: {
-          type: 'integer',
-          enum: [0, 1],
-          description: '0=No quiere PVC, 1=Sí quiere PVC.',
-        },
-        selecciono_pvc: {
-          type: 'integer',
-          enum: [0, 1, 2],
-          description:
-            'Opción de entrega PVC: 0=oficina, 1=dispensario, 2=domicilio. Solo si tarjeta_pvc=1.',
-        },
-        pg_plan_extra1: {
-          type: 'number',
-          description:
-            'Monto extra por Tarjeta PVC (19.99). No enviar si tarjeta_pvc=0.',
-        },
-        dip_id: {
-          type: 'integer',
-          description:
-            'ID del dispensario. Obligatorio cuando selecciono_pvc=1.',
-        },
-        us_dir_postal: {
-          type: 'string',
-          description: 'Dirección postal. Obligatorio cuando ra_tipo_pac=2.',
+          description: 'Nuevo monto total (mín 0.01).',
         },
         pg_metodo: {
-          type: 'number',
-          description: 'Método de pago: 2=Tarjeta (default), 3=Efectivo/ATH.',
-        },
-        fecha_llegada: {
-          type: 'string',
-          description:
-            'Fecha de llegada del turista (YYYY-MM-DD). Solo para turistas.',
-        },
-        cp_code: {
-          type: 'string',
-          description: 'Código de cupón. Solo si el usuario lo proporciona.',
+          type: 'integer',
+          description: 'Método de pago: 2=Tarjeta, 3=Efectivo/ATH.',
         },
         cod_vend: {
           type: 'string',
           description: 'Código de vendedor.',
         },
+        pg_plan_extra1: {
+          type: 'number',
+          description:
+            'Monto extra (ej. 19.99 por Tarjeta PVC). Solo residentes.',
+        },
+        tarjeta_pvc: {
+          type: 'integer',
+          enum: [0, 1],
+          description:
+            '0=No quiere PVC, 1=Sí quiere PVC. Reconstruye pg_plan_name. Solo residentes.',
+        },
+        selecciono_pvc: {
+          type: 'integer',
+          enum: [0, 1, 2],
+          description:
+            'Entrega PVC: 0=Oficina, 1=Dispensario, 2=Domicilio. Recalcula pvc_tipo_name. Solo residentes.',
+        },
+        ra_tipo_pac: {
+          type: 'integer',
+          enum: [0, 1, 2],
+          description:
+            'Tipo de paciente: 0=adulto, 1=menor con acompañante, 2=mayor con acompañante. Reconstruye pg_plan_name. Solo residentes.',
+        },
+        dip_id: {
+          type: 'integer',
+          description:
+            'ID del dispensario (≥ 0). Obligatorio cuando selecciono_pvc=1. Solo residentes.',
+        },
+        us_dir_postal: {
+          type: 'string',
+          description:
+            'Dirección postal. Reconstruye pg_plan_name si ra_tipo_pac=2. Solo residentes.',
+        },
+        cp_code: {
+          type: 'string',
+          description: 'Código de cupón de descuento. Solo residentes.',
+        },
+        fecha_llegada: {
+          type: 'string',
+          description:
+            'Nueva fecha de llegada a Puerto Rico (YYYY-MM-DD). Solo turistas.',
+        },
       },
-      required: ['token', 'pq_id', 'us_id', 'amount'],
+      required: ['us_id', 'url_generado_pago'],
     },
   },
   {

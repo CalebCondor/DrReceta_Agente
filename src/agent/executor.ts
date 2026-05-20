@@ -298,14 +298,12 @@ export async function executeTool(
   }
 
   if (toolName === 'editar_pago') {
-    const token = strVal(toolInput['token']) || s?.token || '';
-    const pqId = toolInput['pq_id'];
+    const urlGeneradoPago = strVal(toolInput['url_generado_pago']);
     const usId = toolInput['us_id'] ?? s?.user_id;
-    const amount = toolInput['amount'];
-    if (!token || !pqId || !usId || !amount) {
+    if (!urlGeneradoPago || !usId) {
       return JSON.stringify({
         success: false,
-        error: 'Se requieren token, pq_id, us_id y amount.',
+        error: 'Se requieren us_id y url_generado_pago.',
       });
     }
     const userType: 'residente' | 'turista' =
@@ -315,29 +313,37 @@ export async function executeTool(
         ? EDITAR_PAGO_TURISTAS_URL
         : EDITAR_PAGO_RESIDENTES_URL;
     const body: Record<string, unknown> = {
-      token,
       us_id: usId,
-      pq_id: pqId,
-      amount,
+      url_generado_pago: urlGeneradoPago,
     };
-    if (toolInput['pg_metodo']) body['pg_metodo'] = toolInput['pg_metodo'];
-    if (toolInput['ra_tipo_pac'] !== undefined)
-      body['ra_tipo_pac'] = toolInput['ra_tipo_pac'];
-    body['tarjeta_pvc'] =
-      toolInput['tarjeta_pvc'] !== undefined ? toolInput['tarjeta_pvc'] : 0;
-    if (toolInput['selecciono_pvc'] !== undefined)
-      body['selecciono_pvc'] = toolInput['selecciono_pvc'];
-    if (toolInput['pg_plan_extra1'] !== undefined)
-      body['pg_plan_extra1'] = toolInput['pg_plan_extra1'];
-    if (toolInput['dip_id'] !== undefined) body['dip_id'] = toolInput['dip_id'];
-    if (toolInput['us_dir_postal'])
-      body['us_dir_postal'] = strVal(toolInput['us_dir_postal']);
-    if (toolInput['cp_code']) body['cp_code'] = strVal(toolInput['cp_code']);
-    if (toolInput['fecha_llegada'])
-      body['fecha_llegada'] = strVal(toolInput['fecha_llegada']);
+    // Campos compartidos
+    if (toolInput['pq_id'] !== undefined) body['pq_id'] = toolInput['pq_id'];
+    if (toolInput['amount'] !== undefined) body['amount'] = toolInput['amount'];
+    if (toolInput['pg_metodo'] !== undefined)
+      body['pg_metodo'] = toolInput['pg_metodo'];
     body['cod_vend'] = toolInput['cod_vend']
       ? strVal(toolInput['cod_vend'])
       : 'IAWEB';
+    if (userType === 'turista') {
+      // Campos exclusivos de turistas
+      if (toolInput['fecha_llegada'])
+        body['fecha_llegada'] = strVal(toolInput['fecha_llegada']);
+    } else {
+      // Campos exclusivos de residentes
+      if (toolInput['pg_plan_extra1'] !== undefined)
+        body['pg_plan_extra1'] = toolInput['pg_plan_extra1'];
+      if (toolInput['tarjeta_pvc'] !== undefined)
+        body['tarjeta_pvc'] = toolInput['tarjeta_pvc'];
+      if (toolInput['selecciono_pvc'] !== undefined)
+        body['selecciono_pvc'] = toolInput['selecciono_pvc'];
+      if (toolInput['ra_tipo_pac'] !== undefined)
+        body['ra_tipo_pac'] = toolInput['ra_tipo_pac'];
+      if (toolInput['dip_id'] !== undefined)
+        body['dip_id'] = toolInput['dip_id'];
+      if (toolInput['us_dir_postal'])
+        body['us_dir_postal'] = strVal(toolInput['us_dir_postal']);
+      if (toolInput['cp_code']) body['cp_code'] = strVal(toolInput['cp_code']);
+    }
     return JSON.stringify(await apiPost(editarUrl, body, s?.token || ''));
   }
 
