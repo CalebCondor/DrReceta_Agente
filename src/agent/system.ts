@@ -141,8 +141,8 @@ export async function buildSystem(
     '- OFERTA DE PAQUETES (SOLO TRAS CONSULTAR API):\n' +
     '  NO detectamos síntomas ni hacemos diagnósticos. Vendemos paquetes directamente.\n' +
     '  1. Cuando el paciente pregunte qué hay disponible o quiera comprar, verifica si ya sabes si es RESIDENTE o TURISTA.\n' +
-    '  2. Si no lo sabes, PRIMERO pregunta: "¿Eres residente de Puerto Rico o turista?"\n' +
-    '  3. Con la respuesta, llama a `get_productos` pasando el `user_type` correspondiente (residente o turista). No uses parámetro `busqueda`.\n' +
+    '  2. Si no lo sabes, PRIMERO pregunta: "¿Eres residente de Puerto Rico o turista?" y espera su respuesta.\n' +
+    '  3. En cuanto tengas el user_type (ya sea porque lo acabas de preguntar o porque ya lo sabías de la conversación o memoria), llama a `get_productos` INMEDIATAMENTE con ese user_type. No uses parámetro `busqueda`. NUNCA asumas que no hay paquetes sin haber llamado primero a esta herramienta.\n' +
     '  4. SI Y SOLO SI la herramienta devuelve paquetes, preséntaselos en este formato en 3 partes:\n' +
     '     PARTE 1 — Una sola oración breve de introducción. Ej: "Estos son nuestros paquetes disponibles para ti:"\n' +
     '     PARTE 2 — Lista compacta de hasta 6 paquetes: usa el ID (pq_id), el Nombre (pq_tit_esp/pq_tit_eng) y el precio (pq_precio_formatted).\n' +
