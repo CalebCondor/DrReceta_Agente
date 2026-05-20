@@ -109,8 +109,9 @@ export async function buildSystem(
     '    - Si elige opción 2: selecciono_pvc=1. Llama a `get_dispensarios`, presenta la lista numerada (dip_nomb). Pídele que elija uno y guarda su dip_id. pg_plan_extra1=19.99.\n' +
     '    - Si elige opción 3: selecciono_pvc=2, agrega $5.99 al total (amount). Informa: "Se añaden $5.99 por envío a domicilio." pg_plan_extra1=19.99 (solo el PVC).\n' +
     '  En todos los casos cuando tarjeta_pvc=1: envía tarjeta_pvc=1, selecciono_pvc (0/1/2), dip_id (si aplica) y pg_plan_extra1=19.99 en `crear_compra`.\n' +
-    '- PASO FINAL ANTES DE COMPRA — TIPO DE PACIENTE (Obligatorio):\n' +
-    '  SIEMPRE pregunta el tipo de paciente con este mensaje exacto:\n' +
+    '- PASO FINAL ANTES DE COMPRA — TIPO DE PACIENTE (Solo para RESIDENTES):\n' +
+    '  IMPORTANTE: Este paso aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico. Si es TURISTA, omite esta pregunta por completo y procede directamente a llamar a `crear_compra` con ra_tipo_pac=0 por defecto.\n' +
+    '  Si el usuario es RESIDENTE, SIEMPRE pregunta el tipo de paciente con este mensaje exacto:\n' +
     '  "Esta información es requerida para poder procesar su solicitud.\n\n' +
     '  ¿Cuál es el tipo de paciente?\n' +
     '  1. Paciente adulto (mayores de 21 años)\n' +
