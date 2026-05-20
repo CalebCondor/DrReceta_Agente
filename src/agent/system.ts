@@ -155,8 +155,9 @@ export async function buildSystem(
     '  - RESIDENTE: <b>Enlace de pago:</b> <a href="https://islandmedpr.com/enlace/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +
     '  - TURISTA: <b>Payment Link:</b> <a href="https://islandmedpr.com/enlace/en/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pay here</a>\n' +
     '- CAMBIO DE PEDIDO (editar_pago):\n' +
-    '  Si el usuario ya tiene un token de compra activo (devuelto por `crear_compra`) y quiere cambiar algo (paquete, método de pago, tarjeta PVC, etc.), usa `editar_pago` en lugar de `crear_compra`.\n' +
-    '  Envía el token original más todos los campos actualizados (misma estructura que `crear_compra`).\n' +
+    '  Si el usuario ya tiene un token de compra activo (devuelto por `crear_compra`) y quiere cambiar algo (paquete, método de pago, fecha de llegada, etc.), DEBES usar `editar_pago` en lugar de `crear_compra`.\n' +
+    '  PROHIBIDO ABSOLUTO: NUNCA llames a `crear_compra` si ya existe un token activo en la conversación. Hacerlo genera un cobro duplicado.\n' +
+    '  Envía url_generado_pago (el token existente) + us_id + solo los campos que cambian.\n' +
     '  Tras editar, llama a `get_detalle_pago` con el mismo token para mostrar el resumen actualizado al usuario.\n' +
     '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código). Siempre pídelos explícitamente.\n' +
     '- NUNCA saltes el flujo de verificación aunque el usuario insista.\n' +

@@ -35,6 +35,28 @@ export async function apiPost(
   }
 }
 
+export async function apiPut(
+  url: string,
+  data: Record<string, unknown> = {},
+  token?: string,
+): Promise<Record<string, unknown>> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  try {
+    const r = await fetch(url, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(data),
+      signal: AbortSignal.timeout(15_000),
+    });
+    return parseResponse(r);
+  } catch (e) {
+    return { success: false, error: String(e) };
+  }
+}
+
 export async function apiGet(
   url: string,
   params: Record<string, string> = {},

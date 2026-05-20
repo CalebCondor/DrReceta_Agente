@@ -2,7 +2,7 @@
 // Ejecuta la herramienta solicitada por Claude y devuelve el resultado como JSON string
 
 import { sessions } from './state';
-import { apiPost, apiGet } from '../api/http';
+import { apiPost, apiGet, apiPut } from '../api/http';
 import { DbService } from './db.service';
 import {
   VERIFICAR_REGISTRAR_RESIDENTES_URL,
@@ -59,14 +59,17 @@ export async function executeTool(
   }
 
   if (toolName === 'get_detalle_pago') {
-    const token = strVal(toolInput['token']) || s?.token || '';
+    const paymentToken = strVal(toolInput['token']);
+    const authToken = s?.token || '';
     const userType: 'residente' | 'turista' =
       strVal(toolInput['user_type']) === 'turista' ? 'turista' : 'residente';
     const detalleUrl =
       userType === 'turista'
         ? DETALLE_PAGO_TURISTAS_URL
         : DETALLE_PAGO_RESIDENTES_URL;
-    return JSON.stringify(await apiGet(detalleUrl, { token }));
+    return JSON.stringify(
+      await apiGet(detalleUrl, { token: paymentToken }, authToken),
+    );
   }
 
   if (toolName === 'get_productos') {
@@ -348,7 +351,7 @@ export async function executeTool(
         body['us_dir_postal'] = strVal(toolInput['us_dir_postal']);
       if (toolInput['cp_code']) body['cp_code'] = strVal(toolInput['cp_code']);
     }
-    return JSON.stringify(await apiPost(editarUrl, body, s?.token || ''));
+    return JSON.stringify(await apiPut(editarUrl, body, s?.token || ''));
   }
 
   if (toolName === 'consultar_memoria_usuario') {
