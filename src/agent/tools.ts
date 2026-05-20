@@ -235,11 +235,17 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Tipo de paciente: 0=Paciente adulto (default), 1=Paciente menor de edad con acompañante, 2=Paciente mayor que necesita acompañante.',
         },
+        selecciono_pvc: {
+          type: 'integer',
+          enum: [0, 1],
+          description:
+            'Indica si el usuario seleccionó Tarjeta PVC: 0=No la quiere, 1=Sí la quiere. SIEMPRE enviar este campo.',
+        },
         tarjeta_pvc: {
           type: 'integer',
           enum: [0, 1, 2],
           description:
-            'Opción de entrega de Tarjeta PVC: 0=Recoger en oficina (default), 1=Recoger en dispensario, 2=Envío a domicilio. Solo incluir si el usuario la solicitó.',
+            'Opción de entrega de Tarjeta PVC: 0=Recoger en oficina (default), 1=Recoger en dispensario, 2=Envío a domicilio. Solo incluir si selecciono_pvc=1.',
         },
         pg_plan_extra1: {
           type: 'number',
