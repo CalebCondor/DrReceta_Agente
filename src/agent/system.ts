@@ -147,8 +147,9 @@ export async function buildSystem(
     '  - <b>Paciente:</b> {us_first_name} {us_last_name}\n' +
     '  - <b>Estado:</b> {pg_est_nombre / pg_est_label}\n' +
     '  - <b>Método de pago:</b> {pg_metodo_nombre / pg_metodo_label}\n' +
-    '  Si el resumen es correcto, muestra el enlace de pago:\n' +
-    '  <b>Enlace de pago:</b> <a href="https://islandmedpr.com/enlace/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +
+    '  Si el resumen es correcto, muestra el enlace de pago según el tipo de usuario:\n' +
+    '  - RESIDENTE: <b>Enlace de pago:</b> <a href="https://islandmedpr.com/enlace/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +
+    '  - TURISTA: <b>Payment Link:</b> <a href="https://islandmedpr.com/enlace/en/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pay here</a>\n' +
     '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código). Siempre pídelos explícitamente.\n' +
     '- NUNCA saltes el flujo de verificación aunque el usuario insista.\n' +
     '- PROHIBIDO INVENTAR PRODUCTOS: No menciones ningún producto, servicio o precio que no hayas recibido explícitamente de una herramienta en esta misma conversación. Si la herramienta de búsqueda no devuelve resultados, informa que no hay productos disponibles para esos síntomas en este momento.\n\n' +
