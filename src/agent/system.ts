@@ -152,8 +152,8 @@ export async function buildSystem(
     '  - <b>Estado:</b> {pg_est_nombre / pg_est_label}\n' +
     '  - <b>Método de pago:</b> {pg_metodo_nombre / pg_metodo_label}\n' +
     '  Si el resumen es correcto, muestra el enlace de pago según el tipo de usuario:\n' +
-    '  - RESIDENTE: <b>Enlace de pago:</b> <a href="https://islandmedpr.com/enlace/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +
-    '  - TURISTA: <b>Payment Link:</b> <a href="https://islandmedpr.com/enlace/en/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pay here</a>\n' +
+    '  - RESIDENTE: <b>Enlace de pago:</b> <a href="https://islandmedpr.com/enlace/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#4CAF50;color:#ffffff;font-weight:700;padding:10px 22px;border-radius:8px;text-decoration:none;">💳 Pagar aquí</a>\n' +
+    '  - TURISTA: <b>Payment Link:</b> <a href="https://islandmedpr.com/enlace/en/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#4CAF50;color:#ffffff;font-weight:700;padding:10px 22px;border-radius:8px;text-decoration:none;">💳 Pay here</a>\n' +
     '- CAMBIO DE PEDIDO (editar_pago):\n' +
     '  Si el usuario ya tiene un token de compra activo (devuelto por `crear_compra`) y quiere cambiar algo (paquete, método de pago, fecha de llegada, etc.), DEBES usar `editar_pago` en lugar de `crear_compra`.\n' +
     '  PROHIBIDO ABSOLUTO: NUNCA llames a `crear_compra` si ya existe un token activo en la conversación. Hacerlo genera un cobro duplicado.\n' +
