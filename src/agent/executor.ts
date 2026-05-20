@@ -276,12 +276,10 @@ export async function executeTool(
     if (toolInput['pg_metodo']) body['pg_metodo'] = toolInput['pg_metodo'];
     if (toolInput['ra_tipo_pac'] !== undefined)
       body['ra_tipo_pac'] = toolInput['ra_tipo_pac'];
-    body['selecciono_pvc'] =
-      toolInput['selecciono_pvc'] !== undefined
-        ? toolInput['selecciono_pvc']
-        : 0;
-    if (toolInput['tarjeta_pvc'] !== undefined)
-      body['tarjeta_pvc'] = toolInput['tarjeta_pvc'];
+    body['tarjeta_pvc'] =
+      toolInput['tarjeta_pvc'] !== undefined ? toolInput['tarjeta_pvc'] : 0;
+    if (toolInput['selecciono_pvc'] !== undefined)
+      body['selecciono_pvc'] = toolInput['selecciono_pvc'];
     if (toolInput['pg_plan_extra1'] !== undefined)
       body['pg_plan_extra1'] = toolInput['pg_plan_extra1'];
     if (toolInput['dip_id'] !== undefined) body['dip_id'] = toolInput['dip_id'];

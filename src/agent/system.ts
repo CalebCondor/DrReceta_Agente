@@ -105,10 +105,10 @@ export async function buildSystem(
     '    3. Envío a domicilio o dirección postal\n' +
     '       Proporciona tu dirección postal completa.\n' +
     '       Costo: $5.99 adicionales."\n' +
-    '    - Si elige opción 1: tarjeta_pvc=0, dip_id=0. Sin cargo extra.\n' +
-    '    - Si elige opción 2: tarjeta_pvc=1. Llama a `get_dispensarios`, presenta la lista numerada (dip_nomb). Pídele que elija uno y guarda su dip_id. Sin cargo extra.\n' +
-    '    - Si elige opción 3: tarjeta_pvc=2, agrega $5.99 al total. Informa: "Se añaden $5.99 por envío a domicilio."\n' +
-    '  En todos los casos: selecciono_pvc=1, tarjeta_pvc (0/1/2), dip_id (si aplica) y pg_plan_extra1=19.99 para incluirlos en `crear_compra`.\n' +
+    '    - Si elige opción 1: selecciono_pvc=0, dip_id=0. Sin cargo extra.\n' +
+    '    - Si elige opción 2: selecciono_pvc=1. Llama a `get_dispensarios`, presenta la lista numerada (dip_nomb). Pídele que elija uno y guarda su dip_id. Sin cargo extra.\n' +
+    '    - Si elige opción 3: selecciono_pvc=2, agrega $5.99 al total. Informa: "Se añaden $5.99 por envío a domicilio."\n' +
+    '  En todos los casos: tarjeta_pvc=1, selecciono_pvc (0/1/2), dip_id (si aplica) y pg_plan_extra1=19.99 para incluirlos en `crear_compra`.\n' +
     '- PASO FINAL ANTES DE COMPRA — TIPO DE PACIENTE (Obligatorio):\n' +
     '  SIEMPRE pregunta el tipo de paciente con este mensaje exacto:\n' +
     '  "Esta información es requerida para poder procesar su solicitud.\n\n' +
@@ -123,11 +123,11 @@ export async function buildSystem(
     '- Una vez que tengas todos los datos, llama a `crear_compra` con TODOS los campos recolectados:\n' +
     '  OBLIGATORIOS: pq_id, us_id, amount (total con todos los cargos).\n' +
     '  SIEMPRE incluir:\n' +
-    '  · selecciono_pvc → SIEMPRE: 1 si el usuario eligió Tarjeta PVC, 0 si no la quiso.\n' +
+    '  · tarjeta_pvc → SIEMPRE: 1 si el usuario eligió Tarjeta PVC, 0 si no la quiso.\n' +
     '  · ra_tipo_pac → 0 (adulto), 1 (menor con acompañante), 2 (mayor con acompañante).\n' +
-    '  · tarjeta_pvc → 0 (oficina), 1 (dispensario), 2 (domicilio). Solo si selecciono_pvc=1.\n' +
-    '  · pg_plan_extra1 → 19.99 si selecciono_pvc=1, de lo contrario no lo envíes.\n' +
-    '  · dip_id → ID del dispensario cuando tarjeta_pvc=1. Default 0 en otros casos.\n' +
+    '  · selecciono_pvc → 0 (oficina), 1 (dispensario), 2 (domicilio). Solo si tarjeta_pvc=1.\n' +
+    '  · pg_plan_extra1 → 19.99 si tarjeta_pvc=1, de lo contrario no lo envíes.\n' +
+    '  · dip_id → ID del dispensario cuando selecciono_pvc=1. Default 0 en otros casos.\n' +
     '  · us_dir_postal → dirección postal cuando ra_tipo_pac=2. OBLIGATORIO en ese caso.\n' +
     '  · pg_metodo → 2 (Tarjeta, default). Envía 3 solo si el usuario indicó Efectivo/ATH.\n' +
     '  · cp_code → si el usuario proporcionó cupón.\n' +
