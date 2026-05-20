@@ -267,6 +267,11 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Método de pago: 2 = Tarjeta (default), 3 = Efectivo/ATH.',
         },
+        fecha_llegada: {
+          type: 'string',
+          description:
+            'Fecha de llegada del turista a Puerto Rico. Formato YYYY-MM-DD. Obligatorio para turistas.',
+        },
         cp_code: {
           type: 'string',
           description:

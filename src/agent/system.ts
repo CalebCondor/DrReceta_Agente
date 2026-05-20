@@ -109,6 +109,10 @@ export async function buildSystem(
     '    - Si elige opción 2: selecciono_pvc=1. Llama a `get_dispensarios`, presenta la lista numerada (dip_nomb). Pídele que elija uno y guarda su dip_id. pg_plan_extra1=19.99.\n' +
     '    - Si elige opción 3: selecciono_pvc=2, agrega $5.99 al total (amount). Informa: "Se añaden $5.99 por envío a domicilio." pg_plan_extra1=19.99 (solo el PVC).\n' +
     '  En todos los casos cuando tarjeta_pvc=1: envía tarjeta_pvc=1, selecciono_pvc (0/1/2), dip_id (si aplica) y pg_plan_extra1=19.99 en `crear_compra`.\n' +
+    '- PASO PREVIO A LA COMPRA — FECHA DE LLEGADA (Solo para TURISTAS):\n' +
+    '  IMPORTANTE: Este paso aplica ÚNICAMENTE si el usuario es TURISTA. Si es RESIDENTE, omite y continúa.\n' +
+    '  Si el usuario es TURISTA, SIEMPRE pregunta: "¿Cuál es tu fecha de llegada a Puerto Rico? Por favor indícala en formato YYYY-MM-DD."\n' +
+    '  Espera la respuesta y guarda la fecha como fecha_llegada para incluirla en `crear_compra`. NUNCA saltes esta pregunta para turistas.\n' +
     '- PASO FINAL ANTES DE COMPRA — TIPO DE PACIENTE (Solo para RESIDENTES):\n' +
     '  IMPORTANTE: Este paso aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico. Si es TURISTA, omite esta pregunta por completo y procede directamente a llamar a `crear_compra` con ra_tipo_pac=0 por defecto.\n' +
     '  Si el usuario es RESIDENTE, SIEMPRE pregunta el tipo de paciente con este mensaje exacto:\n' +
@@ -131,6 +135,7 @@ export async function buildSystem(
     '  · dip_id → ID del dispensario cuando selecciono_pvc=1. Default 0 en otros casos.\n' +
     '  · us_dir_postal → dirección postal cuando ra_tipo_pac=2. OBLIGATORIO en ese caso.\n' +
     '  · pg_metodo → 2 (Tarjeta, default). Envía 3 solo si el usuario indicó Efectivo/ATH.\n' +
+    '  · fecha_llegada → fecha de llegada del turista (YYYY-MM-DD). OBLIGATORIO para TURISTAS.\n' +
     '  · cp_code → si el usuario proporcionó cupón.\n' +
     '  · cod_vend → se envía automáticamente como IAWEB por defecto.\n' +
     '  La API devuelve un `token` y `url_generado_pago`.\n' +

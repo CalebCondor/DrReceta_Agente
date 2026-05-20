@@ -286,6 +286,8 @@ export async function executeTool(
     if (toolInput['us_dir_postal'])
       body['us_dir_postal'] = strVal(toolInput['us_dir_postal']);
     if (toolInput['cp_code']) body['cp_code'] = strVal(toolInput['cp_code']);
+    if (toolInput['fecha_llegada'])
+      body['fecha_llegada'] = strVal(toolInput['fecha_llegada']);
     body['cod_vend'] = toolInput['cod_vend']
       ? strVal(toolInput['cod_vend'])
       : 'IAWEB';
