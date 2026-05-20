@@ -16,6 +16,8 @@ import {
   DISPENSARIOS_RESIDENTES_URL,
   DETALLE_PAGO_RESIDENTES_URL,
   DETALLE_PAGO_TURISTAS_URL,
+  EDITAR_PAGO_RESIDENTES_URL,
+  EDITAR_PAGO_TURISTAS_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -34,6 +36,7 @@ const AUTH_REQUIRED = new Set([
   'get_ordenes',
   'get_pagos',
   'crear_compra',
+  'editar_pago',
 ]);
 
 export async function executeTool(
@@ -292,6 +295,50 @@ export async function executeTool(
       ? strVal(toolInput['cod_vend'])
       : 'IAWEB';
     return JSON.stringify(await apiPost(pagoUrl, body, token));
+  }
+
+  if (toolName === 'editar_pago') {
+    const token = strVal(toolInput['token']) || s?.token || '';
+    const pqId = toolInput['pq_id'];
+    const usId = toolInput['us_id'] ?? s?.user_id;
+    const amount = toolInput['amount'];
+    if (!token || !pqId || !usId || !amount) {
+      return JSON.stringify({
+        success: false,
+        error: 'Se requieren token, pq_id, us_id y amount.',
+      });
+    }
+    const userType: 'residente' | 'turista' =
+      s?.user_type === 'turista' ? 'turista' : 'residente';
+    const editarUrl =
+      userType === 'turista'
+        ? EDITAR_PAGO_TURISTAS_URL
+        : EDITAR_PAGO_RESIDENTES_URL;
+    const body: Record<string, unknown> = {
+      token,
+      us_id: usId,
+      pq_id: pqId,
+      amount,
+    };
+    if (toolInput['pg_metodo']) body['pg_metodo'] = toolInput['pg_metodo'];
+    if (toolInput['ra_tipo_pac'] !== undefined)
+      body['ra_tipo_pac'] = toolInput['ra_tipo_pac'];
+    body['tarjeta_pvc'] =
+      toolInput['tarjeta_pvc'] !== undefined ? toolInput['tarjeta_pvc'] : 0;
+    if (toolInput['selecciono_pvc'] !== undefined)
+      body['selecciono_pvc'] = toolInput['selecciono_pvc'];
+    if (toolInput['pg_plan_extra1'] !== undefined)
+      body['pg_plan_extra1'] = toolInput['pg_plan_extra1'];
+    if (toolInput['dip_id'] !== undefined) body['dip_id'] = toolInput['dip_id'];
+    if (toolInput['us_dir_postal'])
+      body['us_dir_postal'] = strVal(toolInput['us_dir_postal']);
+    if (toolInput['cp_code']) body['cp_code'] = strVal(toolInput['cp_code']);
+    if (toolInput['fecha_llegada'])
+      body['fecha_llegada'] = strVal(toolInput['fecha_llegada']);
+    body['cod_vend'] = toolInput['cod_vend']
+      ? strVal(toolInput['cod_vend'])
+      : 'IAWEB';
+    return JSON.stringify(await apiPost(editarUrl, body, s?.token || ''));
   }
 
   if (toolName === 'consultar_memoria_usuario') {

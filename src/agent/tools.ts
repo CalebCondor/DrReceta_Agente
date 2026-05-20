@@ -286,6 +286,85 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'editar_pago',
+    description:
+      'Edita una compra existente en IslandMedPR (ej. cambio de paquete, monto, tarjeta PVC, método de pago, etc.). ' +
+      'Úsalo cuando el usuario quiera modificar algo de su pedido ya creado. ' +
+      'Requiere el token del pago original y los mismos campos que `crear_compra`. ' +
+      'Enruta automáticamente al endpoint de residentes o turistas según el tipo de usuario.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        token: {
+          type: 'string',
+          description: 'Token único del pago a editar (formato IS…M).',
+        },
+        pq_id: {
+          type: 'number',
+          description: 'ID del paquete a adquirir.',
+        },
+        us_id: {
+          type: 'number',
+          description: 'ID del usuario.',
+        },
+        amount: {
+          type: 'number',
+          description:
+            'Monto total actualizado (incluye todos los cargos adicionales).',
+        },
+        ra_tipo_pac: {
+          type: 'integer',
+          enum: [0, 1, 2],
+          description:
+            'Tipo de paciente: 0=adulto, 1=menor con acompañante, 2=mayor con acompañante.',
+        },
+        tarjeta_pvc: {
+          type: 'integer',
+          enum: [0, 1],
+          description: '0=No quiere PVC, 1=Sí quiere PVC.',
+        },
+        selecciono_pvc: {
+          type: 'integer',
+          enum: [0, 1, 2],
+          description:
+            'Opción de entrega PVC: 0=oficina, 1=dispensario, 2=domicilio. Solo si tarjeta_pvc=1.',
+        },
+        pg_plan_extra1: {
+          type: 'number',
+          description:
+            'Monto extra por Tarjeta PVC (19.99). No enviar si tarjeta_pvc=0.',
+        },
+        dip_id: {
+          type: 'integer',
+          description:
+            'ID del dispensario. Obligatorio cuando selecciono_pvc=1.',
+        },
+        us_dir_postal: {
+          type: 'string',
+          description: 'Dirección postal. Obligatorio cuando ra_tipo_pac=2.',
+        },
+        pg_metodo: {
+          type: 'number',
+          description: 'Método de pago: 2=Tarjeta (default), 3=Efectivo/ATH.',
+        },
+        fecha_llegada: {
+          type: 'string',
+          description:
+            'Fecha de llegada del turista (YYYY-MM-DD). Solo para turistas.',
+        },
+        cp_code: {
+          type: 'string',
+          description: 'Código de cupón. Solo si el usuario lo proporciona.',
+        },
+        cod_vend: {
+          type: 'string',
+          description: 'Código de vendedor.',
+        },
+      },
+      required: ['token', 'pq_id', 'us_id', 'amount'],
+    },
+  },
+  {
     name: 'get_detalle_pago',
     description:
       'Obtiene el detalle completo de un pago usando el token devuelto por `crear_compra`. ' +

@@ -11,6 +11,12 @@ export const CREAR_COMPRA_RESIDENTES_URL =
 export const CREAR_COMPRA_TURISTAS_URL =
   'https://islandmedpr.com/apiia/api/turistas/iniciar_pago.php';
 
+export const EDITAR_PAGO_RESIDENTES_URL =
+  'https://islandmedpr.com/apiia/api/residentes/editar_pago.php';
+
+export const EDITAR_PAGO_TURISTAS_URL =
+  'https://islandmedpr.com/apiia/api/turistas/editar_pago.php';
+
 export const VERIFICAR_CODIGO_RESIDENTES_URL =
   'https://islandmedpr.com/apiia/api/residentes/verificar_codigo.php';
 
