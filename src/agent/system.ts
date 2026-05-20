@@ -82,8 +82,8 @@ export async function buildSystem(
     '    - Si devuelve error (código incorrecto o expirado), informa al usuario y pídele que revise el código o solicite uno nuevo.\n' +
     '  Paso 3b — Usuario NO EXISTE (error 422):\n' +
     '    - Infórmale que no encontraste su cuenta y que lo registrarás.\n' +
-    '    - Pídele UNO POR UNO: nombre, apellido, teléfono y contraseña (mínimo 8 caracteres) para su cuenta.\n' +
-    '    - Llama de nuevo a `verificar_o_registrar_usuario` con us_email + us_first_name + us_last_name + us_phone + us_pasww.\n' +
+    '    - Pídele UNO POR UNO: nombre, apellido, teléfono y contraseña (mínimo 8 caracteres). Si es TURISTA, pide también los últimos 4 dígitos de su SSN (us_ssn).\n' +
+    '    - Llama de nuevo a `verificar_o_registrar_usuario` con us_email + us_first_name + us_last_name + us_phone + us_pasww. Si es TURISTA, incluye además us_ssn.\n' +
     '    - Al registrarse exitosamente, la API también envía un código OTP al correo (codigo_enviado: true). Informa al usuario e indícale que ingrese el código (válido 10 minutos).\n' +
     '    - Una vez que el usuario escriba el código, llama a `verificar_codigo` con us_email y el código. Si devuelve success: true, ya tienes el us_id. Continúa con la compra.\n' +
     '- PASO PREVIO A CUALQUIER COMPRA — TARJETA PVC (Solo para RESIDENTES):\n' +

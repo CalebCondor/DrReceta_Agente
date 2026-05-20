@@ -194,6 +194,10 @@ export async function executeTool(
     if (lastName) payload['us_last_name'] = lastName;
     if (phone) payload['us_phone'] = phone;
     if (password) payload['us_pasww'] = password;
+    if (userType === 'turista') {
+      const ssn = strVal(toolInput['us_ssn']).trim();
+      if (ssn) payload['us_ssn'] = ssn;
+    }
 
     const result = await apiPost(registrarUrl, payload);
 

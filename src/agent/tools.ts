@@ -154,6 +154,11 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Contraseña elegida por el usuario (mínimo 8 caracteres). Solo incluir cuando el usuario no existe y ya la proporcionó.',
         },
+        us_ssn: {
+          type: 'string',
+          description:
+            'Últimos 4 dígitos del SSN del usuario. Solo para TURISTAS y solo cuando el usuario no existe y ya los proporcionó.',
+        },
         user_type: {
           type: 'string',
           enum: ['residente', 'turista'],
