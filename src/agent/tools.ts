@@ -343,7 +343,7 @@ export const TOOLS: Anthropic.Tool[] = [
           type: 'integer',
           enum: [0, 1, 2],
           description:
-            'Entrega PVC: 0=Oficina, 1=Dispensario, 2=Domicilio. Recalcula pvc_tipo_name. Solo residentes.',
+            'Entrega PVC: 0=Oficina, 1=Dispensario, 2=Domicilio, ""=sin selección. Recalcula pvc_tipo_name. Solo residentes. Puede ser entero (0,1,2) o string vacío ("").',
         },
         ra_tipo_pac: {
           type: 'integer',
