@@ -157,7 +157,8 @@ export async function buildSystem(
     '- CAMBIO DE PEDIDO (editar_pago):\n' +
     '  Si el usuario ya tiene un token de compra activo (devuelto por `crear_compra`) y quiere cambiar algo (paquete, método de pago, fecha de llegada, etc.), DEBES usar `editar_pago` en lugar de `crear_compra`.\n' +
     '  PROHIBIDO ABSOLUTO: NUNCA llames a `crear_compra` si ya existe un token activo en la conversación. Hacerlo genera un cobro duplicado.\n' +
-    '  PARA RESIDENTES: Envía SIEMPRE todos estos campos en cada llamada a `editar_pago`: us_id, url_generado_pago, pq_id, amount, ra_tipo_pac, tarjeta_pvc, selecciono_pvc (puede ser 0, 1, 2 o ""), pg_plan_extra1, dip_id, pg_metodo, us_dir_postal. Usa los valores actuales del pedido para los campos que no cambian.\n' +
+    '  PARA RESIDENTES: Envía SIEMPRE todos estos campos en cada llamada a `editar_pago`: us_id, url_generado_pago, pq_id, amount, ra_tipo_pac, tarjeta_pvc, selecciono_pvc, pg_plan_extra1, dip_id, pg_metodo, us_dir_postal. Usa los valores actuales del pedido para los campos que no cambian.\n' +
+    '  VALORES NULOS EN EDITAR (RESIDENTES): Cuando el usuario NO quiere una opción, envía "" (string vacío) en lugar de 0. Reglas: tarjeta_pvc="" si no quiere tarjeta PVC; selecciono_pvc="" si no seleccionó método de entrega PVC; dip_id="" si no eligió dispensario; pg_plan_extra1="" si no hay cargo extra. Solo usa valores numéricos (0,1,2) cuando el usuario explícitamente eligió esa opción.\n' +
     '  PARA TURISTAS: Envía us_id, url_generado_pago y solo los campos que cambian.\n' +
     '  Tras editar, llama a `get_detalle_pago` con el mismo token para mostrar el resumen actualizado al usuario.\n' +
     '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código). Siempre pídelos explícitamente.\n' +
