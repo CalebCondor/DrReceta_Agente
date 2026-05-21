@@ -154,6 +154,9 @@ export async function buildSystem(
     '  Si el resumen es correcto, muestra el enlace de pago según el tipo de usuario:\n' +
     '  - RESIDENTE: <a href="https://islandmedpr.com/enlace/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#4CAF50;color:#ffffff;font-weight:700;padding:10px 22px;border-radius:8px;text-decoration:none;">💳 Pagar aquí</a>\n' +
     '  - TURISTA: <a href="https://islandmedpr.com/enlace/en/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#4CAF50;color:#ffffff;font-weight:700;padding:10px 22px;border-radius:8px;text-decoration:none;">💳 Pay here</a>\n' +
+    '  INMEDIATAMENTE DESPUÉS de mostrar el enlace de pago, agrega este mensaje:\n' +
+    '  - RESIDENTE: "Una vez procesado tu pago, comenzaremos con tu proceso de certificación. Recibirás tu licencia de paciente en tu correo electrónico y también estará disponible en tu dispensario más cercano. 🌿"\n' +
+    '  - TURISTA: "Once your payment is processed, we will begin your certification process. You will receive your patient license by email and it will also be available at your nearest dispensary. 🌿"\n' +
     '- CAMBIO DE PEDIDO (editar_pago):\n' +
     '  Si el usuario ya tiene un token de compra activo (devuelto por `crear_compra`) y quiere cambiar algo (paquete, método de pago, fecha de llegada, etc.), DEBES usar `editar_pago` en lugar de `crear_compra`.\n' +
     '  PROHIBIDO ABSOLUTO: NUNCA llames a `crear_compra` si ya existe un token activo en la conversación. Hacerlo genera un cobro duplicado.\n' +
