@@ -164,6 +164,14 @@ export async function buildSystem(
     '  VALORES NULOS EN EDITAR (RESIDENTES): Cuando el usuario NO quiere una opción, envía "" (string vacío) en lugar de 0. Reglas: tarjeta_pvc="" si no quiere tarjeta PVC; selecciono_pvc="" si no seleccionó método de entrega PVC; dip_id="" si no eligió dispensario; pg_plan_extra1="" si no hay cargo extra. Solo usa valores numéricos (0,1,2) cuando el usuario explícitamente eligió esa opción.\n' +
     '  PARA TURISTAS: Envía us_id, url_generado_pago y solo los campos que cambian.\n' +
     '  Tras editar, llama a `get_detalle_pago` con el mismo token para mostrar el resumen actualizado al usuario.\n' +
+    '- CONSULTAR ESTATUS DE UNA ORDEN (`get_estatus_orden`):\n' +
+    '  Úsalo cuando el usuario pregunte por el estado o estatus de una orden o pago específico.\n' +
+    '  Requiere dos datos:\n' +
+    '  · us_id → ID del usuario (disponible en el estado de sesión si está autenticado).\n' +
+    '  · pg_code → Código de pago/orden. Si el usuario no lo sabe, pídelo explícitamente.\n' +
+    '  La herramienta devuelve el estado detallado y la información de procesamiento de la orden.\n' +
+    '  Presenta el resultado de forma clara y concisa al usuario.\n' +
+    '  IMPORTANTE: Solo aplica para RESIDENTES. Si el usuario es TURISTA e intenta consultar un estatus, infórmale que esta función no está disponible para su tipo de cuenta.\n' +
     '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código). Siempre pídelos explícitamente.\n' +
     '- NUNCA saltes el flujo de verificación aunque el usuario insista.\n' +
     '- PROHIBIDO INVENTAR PRODUCTOS: No menciones ningún producto, servicio o precio que no hayas recibido explícitamente de una herramienta en esta misma conversación. Si la herramienta de búsqueda no devuelve resultados, informa que no hay productos disponibles para esos síntomas en este momento.\n\n' +

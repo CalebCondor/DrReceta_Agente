@@ -18,6 +18,7 @@ import {
   DETALLE_PAGO_TURISTAS_URL,
   EDITAR_PAGO_RESIDENTES_URL,
   EDITAR_PAGO_TURISTAS_URL,
+  STATUS_RESIDENTES_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -52,6 +53,24 @@ export async function executeTool(
       error:
         'Usuario no autenticado. Debe iniciar sesión en IslandMedPR.com para acceder a sus datos personales.',
     });
+  }
+
+  if (toolName === 'get_estatus_orden') {
+    const usId = strVal(toolInput['us_id']);
+    const pgCode = strVal(toolInput['pg_code']).trim();
+    if (!usId || !pgCode) {
+      return JSON.stringify({
+        success: false,
+        error: 'Se requieren us_id y pg_code.',
+      });
+    }
+    return JSON.stringify(
+      await apiGet(
+        STATUS_RESIDENTES_URL,
+        { us_id: usId, pg_code: pgCode },
+        s?.token || '',
+      ),
+    );
   }
 
   if (toolName === 'get_dispensarios') {

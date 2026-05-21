@@ -397,4 +397,25 @@ export const TOOLS: Anthropic.Tool[] = [
       required: ['token', 'user_type'],
     },
   },
+  {
+    name: 'get_estatus_orden',
+    description:
+      'Obtiene el estado detallado y la información del procesamiento de una orden específica. ' +
+      'Úsalo cuando el usuario quiera saber en qué estado está su orden o pago. ' +
+      'Requiere el ID del usuario (us_id) y el código de pago/orden (pg_code).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        us_id: {
+          type: 'integer',
+          description: 'ID del usuario.',
+        },
+        pg_code: {
+          type: 'string',
+          description: 'Código de pago / orden a consultar.',
+        },
+      },
+      required: ['us_id', 'pg_code'],
+    },
+  },
 ];
