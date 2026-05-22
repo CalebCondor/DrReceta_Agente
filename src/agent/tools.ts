@@ -398,6 +398,24 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'get_my_orders',
+    description:
+      'Lista todas las órdenes del usuario residente. ' +
+      'Úsalo cuando el usuario NO sepa su pg_code o quiera ver sus órdenes disponibles. ' +
+      'Devuelve solo un resumen (código, fecha, paquete, monto, tipo de PVC) para que el usuario seleccione cuál consultar. ' +
+      'Requiere us_id del usuario autenticado.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        us_id: {
+          type: 'integer',
+          description: 'ID del usuario residente autenticado.',
+        },
+      },
+      required: ['us_id'],
+    },
+  },
+  {
     name: 'get_estatus_orden',
     description:
       'Obtiene el estado detallado y la información del procesamiento de una orden específica. ' +

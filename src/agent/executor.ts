@@ -19,6 +19,7 @@ import {
   EDITAR_PAGO_RESIDENTES_URL,
   EDITAR_PAGO_TURISTAS_URL,
   STATUS_RESIDENTES_URL,
+  ORDERS_RESIDENTES_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -53,6 +54,34 @@ export async function executeTool(
       error:
         'Usuario no autenticado. Debe iniciar sesión en IslandMedPR.com para acceder a sus datos personales.',
     });
+  }
+
+  if (toolName === 'get_my_orders') {
+    const usId = strVal(toolInput['us_id']);
+    if (!usId) {
+      return JSON.stringify({ success: false, error: 'Se requiere us_id.' });
+    }
+    const raw = await apiGet(
+      ORDERS_RESIDENTES_URL,
+      { us_id: usId },
+      s?.token || '',
+    );
+    const data = raw['data'] as Record<string, unknown> | undefined;
+    const orders: unknown[] = Array.isArray(data?.['orders'])
+      ? (data['orders'] as unknown[])
+      : [];
+    const summary = orders.map((o) => {
+      const order = o as Record<string, unknown>;
+      const pkg = (order['package'] ?? {}) as Record<string, unknown>;
+      return {
+        order_code: order['order_code'],
+        order_date_formatted: order['order_date_formatted'],
+        package_name: pkg['name'],
+        total_amount_formatted: order['total_amount_formatted'],
+        pvc_type: order['pvc_type'],
+      };
+    });
+    return JSON.stringify({ success: raw['success'], orders: summary });
   }
 
   if (toolName === 'get_estatus_orden') {

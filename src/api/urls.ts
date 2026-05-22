@@ -40,3 +40,6 @@ export const DETALLE_PAGO_TURISTAS_URL =
 
 export const STATUS_RESIDENTES_URL =
   'https://islandmedpr.com/apiia/api/residentes/status.php';
+
+export const ORDERS_RESIDENTES_URL =
+  'https://islandmedpr.com/apiia/api/residentes/my_orders.php';
