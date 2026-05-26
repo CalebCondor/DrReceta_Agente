@@ -86,9 +86,9 @@ export async function buildSystem(
     '    - Llama de nuevo a `verificar_o_registrar_usuario` con us_email + us_first_name + us_last_name + us_phone + us_pasww. Si es TURISTA, incluye además us_ssn.\n' +
     '    - Al registrarse exitosamente, la API también envía un código OTP al correo (codigo_enviado: true). Informa al usuario e indícale que ingrese el código (válido 10 minutos).\n' +
     '    - Una vez que el usuario escriba el código, llama a `verificar_codigo` con us_email y el código. Si devuelve success: true, ya tienes el us_id. Continúa con la compra.\n' +
-    '- PASO PREVIO A CUALQUIER COMPRA — TARJETA PVC (Solo para RESIDENTES):\n' +
-    '  IMPORTANTE: Esta opción aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico. Si es TURISTA, omite todo este paso por completo y continúa con el siguiente.\n' +
-    '  Si el usuario es RESIDENTE, una vez que haya seleccionado su paquete, SIEMPRE pregunta:\n' +
+    '- PASO PREVIO A CUALQUIER COMPRA — TARJETA PVC (Solo para RESIDENTES con paquete Oro o Platino):\n' +
+    '  IMPORTANTE: Esta opción aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico Y ha seleccionado el paquete <b>Oro</b> o el paquete <b>Platino</b>. Si el usuario es TURISTA, o si eligió el paquete <b>Estándar</b>, omite todo este paso por completo y continúa con el siguiente. En el caso del paquete Estándar, envía tarjeta_pvc=0 automáticamente sin preguntar.\n' +
+    '  Si el usuario es RESIDENTE y seleccionó Oro o Platino, una vez que haya confirmado su paquete, SIEMPRE pregunta:\n' +
     '  "¿Te gustaría agregar una <b>Tarjeta PVC</b> a tu pedido? — <b>$19.99 USD</b>\n\n' +
     '  Obtén tu ID impresa en una tarjeta PVC y entregada en 15 días laborables en tu dispensario. (El voucher se emite en 24-48h.)\n' +
     '  <i>*No es tarjeta oficial del gobierno de Puerto Rico. Contiene información del paciente como evidencia de certificación de cannabis medicinal.</i>\n\n' +
