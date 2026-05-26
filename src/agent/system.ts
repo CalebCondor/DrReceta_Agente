@@ -129,6 +129,18 @@ export async function buildSystem(
     '  - Opción 2 → ra_tipo_pac=1. Agrega $60.00 al total. Informa: "Se añaden $60.00 por acompañante requerido."\n' +
     '  - Opción 3 → ra_tipo_pac=2. Agrega $60.00 al total. Además DEBES pedir la dirección postal del paciente (us_dir_postal) antes de continuar.\n' +
     '  NUNCA saltes esta pregunta. Espera la respuesta antes de continuar con la compra.\n' +
+    '- PASO OPCIONAL — CÓDIGO DE DESCUENTO (Solo para RESIDENTES):\n' +
+    '  IMPORTANTE: NUNCA ofrezcas ni sugieras códigos de descuento. Solo actúa si el usuario lo menciona espontáneamente.\n' +
+    '  Si el usuario proporciona un código de descuento en cualquier momento del flujo:\n' +
+    '  1. Llama a `verificar_codigo_descuento` con dc_code (el código que escribió el usuario) y pq_id (si ya lo tienes).\n' +
+    '  2. INTERPRETACIÓN DEL RESULTADO:\n' +
+    '     - VÁLIDO: La API devuelve un objeto con dc_code, dc_monto y monto_final. Si esos campos están presentes, el código ES VÁLIDO.\n' +
+    '       · Informa: "¡Código aplicado! Descuento de ${dc_monto} {dc_tipo === "$" ? "dólares" : "%"}. Tu nuevo total es $${monto_final}."\n' +
+    '       · Guarda monto_final como el nuevo amount para crear_compra.\n' +
+    '       · Guarda el código como cp_code para incluirlo en crear_compra.\n' +
+    '     - INVÁLIDO: La API devuelve array vacío [], objeto vacío {} o un mensaje de error.\n' +
+    '       · Informa: "El código que ingresaste no es válido o no aplica a este paquete." y continúa con el precio original.\n' +
+    '  3. NUNCA confundas cp_code (cupón de descuento del usuario) con cod_vend (código IAWEB de vendedor que siempre se envía). Son campos distintos.\n' +
     '- Una vez que tengas todos los datos, llama a `crear_compra` con TODOS los campos recolectados:\n' +
     '  OBLIGATORIOS: pq_id, us_id, amount (total con todos los cargos).\n' +
     '  SIEMPRE incluir:\n' +
@@ -140,8 +152,8 @@ export async function buildSystem(
     '  · us_dir_postal → dirección postal cuando ra_tipo_pac=2. OBLIGATORIO en ese caso.\n' +
     '  · pg_metodo → 2 (Tarjeta, default). Envía 3 solo si el usuario indicó Efectivo/ATH.\n' +
     '  · fecha_llegada → fecha de llegada del turista (YYYY-MM-DD). OBLIGATORIO para TURISTAS.\n' +
-    '  · cp_code → si el usuario proporcionó cupón.\n' +
-    '  · cod_vend → se envía automáticamente como IAWEB por defecto.\n' +
+    '  · cp_code → código de cupón/descuento si el usuario lo proporcionó y fue validado por `verificar_codigo_descuento`.\n' +
+    '  · cod_vend → se envía automáticamente como IAWEB por defecto. NOTA: cod_vend es el código de vendedor/canal, distinto al cp_code de descuento.\n' +
     '  La API devuelve un `token` y `url_generado_pago`.\n' +
     '  INMEDIATAMENTE después, llama a `get_detalle_pago` con ese token y el user_type para obtener el resumen completo.\n' +
     '  Muestra al usuario el resumen con este formato ANTES de enviar el enlace de pago:\n' +

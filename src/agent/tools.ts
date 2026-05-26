@@ -442,7 +442,14 @@ export const TOOLS: Anthropic.Tool[] = [
       'Verifica si un código de descuento proporcionado por el usuario es válido en IslandMedPR (solo residentes). ' +
       'NUNCA ofrezcas ni menciones códigos de descuento — úsalo ÚNICAMENTE cuando el usuario escriba espontáneamente un código. ' +
       'Opcionalmente verifica si el código aplica a un paquete específico enviando pq_id. ' +
-      'Si el código es válido la API devuelve los detalles del descuento para aplicarlo al monto de compra.',
+      'INTERPRETACIÓN DE RESPUESTA: ' +
+      '- CÓDIGO VÁLIDO: La API devuelve un objeto con los campos dc_code, dc_tipo, dc_monto, descuento_aplicado y monto_final. ' +
+      '  Si el objeto contiene dc_code y monto_final, el código ES VÁLIDO. Aplica el descuento así: ' +
+      '  · Si dc_tipo="$": el descuento es fijo (dc_monto). Nuevo amount = monto_final. ' +
+      '  · Si dc_tipo="%": el descuento es porcentual (dc_monto%). Nuevo amount = monto_final. ' +
+      '  · SIEMPRE usa el campo monto_final como el nuevo amount para crear_compra. ' +
+      '  · Pasa el código como cp_code en crear_compra. ' +
+      '- CÓDIGO INVÁLIDO: La API devuelve array vacío [], objeto vacío {}, error o message de error. En ese caso informa que el código no es válido.',
     input_schema: {
       type: 'object',
       properties: {
