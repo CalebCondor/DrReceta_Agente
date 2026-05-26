@@ -436,4 +436,27 @@ export const TOOLS: Anthropic.Tool[] = [
       required: ['us_id', 'pg_code'],
     },
   },
+  {
+    name: 'verificar_codigo_descuento',
+    description:
+      'Verifica si un código de descuento proporcionado por el usuario es válido en IslandMedPR (solo residentes). ' +
+      'NUNCA ofrezcas ni menciones códigos de descuento — úsalo ÚNICAMENTE cuando el usuario escriba espontáneamente un código. ' +
+      'Opcionalmente verifica si el código aplica a un paquete específico enviando pq_id. ' +
+      'Si el código es válido la API devuelve los detalles del descuento para aplicarlo al monto de compra.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        dc_code: {
+          type: 'string',
+          description: 'Código de descuento que el usuario proporcionó.',
+        },
+        pq_id: {
+          type: 'integer',
+          description:
+            'ID del paquete que el usuario está comprando. Opcional: si se envía, la API valida que el código aplique a ese paquete.',
+        },
+      },
+      required: ['dc_code'],
+    },
+  },
 ];

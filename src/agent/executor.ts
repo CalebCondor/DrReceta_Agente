@@ -20,6 +20,7 @@ import {
   EDITAR_PAGO_TURISTAS_URL,
   STATUS_RESIDENTES_URL,
   ORDERS_RESIDENTES_URL,
+  DISCOUNTS_RESIDENTES_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -400,6 +401,19 @@ export async function executeTool(
       if (toolInput['cp_code']) body['cp_code'] = strVal(toolInput['cp_code']);
     }
     return JSON.stringify(await apiPut(editarUrl, body, s?.token || ''));
+  }
+
+  if (toolName === 'verificar_codigo_descuento') {
+    const dcCode = strVal(toolInput['dc_code']).trim();
+    if (!dcCode) {
+      return JSON.stringify({
+        success: false,
+        error: 'Se requiere dc_code.',
+      });
+    }
+    const params: Record<string, string> = { dc_code: dcCode };
+    if (toolInput['pq_id']) params['pq_id'] = strVal(toolInput['pq_id']);
+    return JSON.stringify(await apiGet(DISCOUNTS_RESIDENTES_URL, params));
   }
 
   if (toolName === 'consultar_memoria_usuario') {

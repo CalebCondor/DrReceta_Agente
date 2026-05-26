@@ -43,3 +43,6 @@ export const STATUS_RESIDENTES_URL =
 
 export const ORDERS_RESIDENTES_URL =
   'https://islandmedpr.com/apiia/api/residentes/my_orders.php';
+
+export const DISCOUNTS_RESIDENTES_URL =
+  'https://islandmedpr.com/apiia/api/discount_codes.php';
