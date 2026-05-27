@@ -257,6 +257,11 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Monto extra adicional al paquete (ej. 19.99 por Tarjeta PVC). Default 0.',
         },
+        pg_plan_extra2: {
+          type: 'number',
+          description:
+            'Monto de la Cita de Seguimiento (29.99). Solo incluir si el usuario aceptó la Cita de Seguimiento.',
+        },
         dip_id: {
           type: 'integer',
           description:

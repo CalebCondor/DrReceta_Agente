@@ -341,6 +341,8 @@ export async function executeTool(
       body['selecciono_pvc'] = toolInput['selecciono_pvc'];
     if (toolInput['pg_plan_extra1'] !== undefined)
       body['pg_plan_extra1'] = toolInput['pg_plan_extra1'];
+    if (toolInput['pg_plan_extra2'] !== undefined)
+      body['pg_plan_extra2'] = toolInput['pg_plan_extra2'];
     if (toolInput['dip_id'] !== undefined) body['dip_id'] = toolInput['dip_id'];
     if (toolInput['us_dir_postal'])
       body['us_dir_postal'] = strVal(toolInput['us_dir_postal']);

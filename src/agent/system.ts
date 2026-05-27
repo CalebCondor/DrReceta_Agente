@@ -149,8 +149,8 @@ export async function buildSystem(
     '  <b>$29.99</b>\n' +
     '  / USD"\n' +
     '  Este producto es NO dinámico: NO lo consultes en `get_productos` y NO cambies ni el nombre ni el precio.\n' +
-    '  Si el usuario acepta, suma $29.99 al amount e incluye el concepto en el resumen final.\n' +
-    '  Si el usuario rechaza, continúa sin ese cargo.\n' +
+    '  Si el usuario acepta, suma $29.99 al amount, incluye el concepto en el resumen final y guarda pg_plan_extra2=29.99 para enviarlo en `crear_compra`.\n' +
+    '  Si el usuario rechaza, continúa sin ese cargo y NO envíes pg_plan_extra2.\n' +
     '- Una vez que tengas todos los datos, llama a `crear_compra` con TODOS los campos recolectados:\n' +
     '  OBLIGATORIOS: pq_id, us_id, amount (total con todos los cargos).\n' +
     '  SIEMPRE incluir:\n' +
@@ -158,6 +158,7 @@ export async function buildSystem(
     '  · ra_tipo_pac → 0 (adulto), 1 (menor con acompañante), 2 (mayor con acompañante).\n' +
     '  · selecciono_pvc → 0 (oficina), 1 (dispensario), 2 (domicilio). Solo si tarjeta_pvc=1.\n' +
     '  · pg_plan_extra1 → 19.99 si tarjeta_pvc=1 (precio del PVC solamente, sin incluir envío). No lo envíes si tarjeta_pvc=0.\n' +
+    '  · pg_plan_extra2 → 29.99 si el usuario aceptó la Cita de Seguimiento. No lo envíes si la rechazó.\n' +
     '  · dip_id → ID del dispensario cuando selecciono_pvc=1. Default 0 en otros casos.\n' +
     '  · us_dir_postal → dirección postal cuando ra_tipo_pac=2. OBLIGATORIO en ese caso.\n' +
     '  · pg_metodo → 2 (Tarjeta, default). Envía 3 solo si el usuario indicó Efectivo/ATH.\n' +
