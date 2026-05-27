@@ -141,6 +141,16 @@ export async function buildSystem(
     '     - INVÁLIDO: La API devuelve array vacío [], objeto vacío {} o un mensaje de error.\n' +
     '       · Informa: "El código que ingresaste no es válido o no aplica a este paquete." y continúa con el precio original.\n' +
     '  3. NUNCA confundas cp_code (cupón de descuento del usuario) con cod_vend (código IAWEB de vendedor que siempre se envía). Son campos distintos.\n' +
+    '- OFERTA FINAL OBLIGATORIA — CITA DE SEGUIMIENTO (Solo para RESIDENTES):\n' +
+    '  IMPORTANTE: Esta opción aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico. Si es TURISTA, omite este paso por completo.\n' +
+    '  Después de completar TODAS las preguntas obligatorias del flujo, y ANTES de cerrar la compra, DEBES ofrecer esta opción con este contenido:\n' +
+    '  "<b>Cita de Seguimiento</b>\n' +
+    '  Citas de seguimiento especializadas para trabajar y ajustar las dosis de manera segura, personalizada y supervisada por profesionales.\n\n' +
+    '  <b>$29.99</b>\n' +
+    '  / USD"\n' +
+    '  Este producto es NO dinámico: NO lo consultes en `get_productos` y NO cambies ni el nombre ni el precio.\n' +
+    '  Si el usuario acepta, suma $29.99 al amount e incluye el concepto en el resumen final.\n' +
+    '  Si el usuario rechaza, continúa sin ese cargo.\n' +
     '- Una vez que tengas todos los datos, llama a `crear_compra` con TODOS los campos recolectados:\n' +
     '  OBLIGATORIOS: pq_id, us_id, amount (total con todos los cargos).\n' +
     '  SIEMPRE incluir:\n' +
