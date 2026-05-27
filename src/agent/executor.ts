@@ -390,6 +390,8 @@ export async function executeTool(
       // Campos exclusivos de residentes
       if (toolInput['pg_plan_extra1'] !== undefined)
         body['pg_plan_extra1'] = toolInput['pg_plan_extra1'];
+      if (toolInput['pg_plan_extra2'] !== undefined)
+        body['pg_plan_extra2'] = toolInput['pg_plan_extra2'];
       if (toolInput['tarjeta_pvc'] !== undefined)
         body['tarjeta_pvc'] = toolInput['tarjeta_pvc'];
       if (toolInput['selecciono_pvc'] !== undefined)

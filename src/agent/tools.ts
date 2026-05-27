@@ -338,6 +338,11 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Monto extra (ej. 19.99 por Tarjeta PVC). Solo residentes.',
         },
+        pg_plan_extra2: {
+          type: 'number',
+          description:
+            'Monto de la Cita de Seguimiento (29.99). Solo incluir si el usuario aceptó la Cita de Seguimiento. Solo residentes.',
+        },
         tarjeta_pvc: {
           type: 'integer',
           enum: [0, 1],
