@@ -343,6 +343,30 @@ export async function executeTool(
     }
   }
 
+  if (toolName === 'registrar_derivacion') {
+    const motivo = strVal(toolInput['motivo']).trim();
+    const mensajeUsuario = strVal(toolInput['mensaje_usuario']).trim();
+    const respuestaIa = strVal(toolInput['respuesta_ia']).trim();
+    if (!motivo || !mensajeUsuario) {
+      return JSON.stringify({
+        success: false,
+        error: 'Se requieren motivo y mensaje_usuario.',
+      });
+    }
+    try {
+      await db.query(
+        'INSERT INTO derivaciones_humano (chat_id, motivo, mensaje_usuario, respuesta_ia) VALUES ($1, $2, $3, $4)',
+        [chatId, motivo, mensajeUsuario, respuestaIa || null],
+      );
+      return JSON.stringify({
+        success: true,
+        message: 'Derivación registrada.',
+      });
+    } catch (e: unknown) {
+      return JSON.stringify({ success: false, error: errMsg(e) });
+    }
+  }
+
   return JSON.stringify({
     success: false,
     error: `Herramienta desconocida: ${toolName}`,

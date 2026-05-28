@@ -230,4 +230,33 @@ export const TOOLS: Anthropic.Tool[] = [
       required: ['pq_id', 'us_id', 'anombre_de'],
     },
   },
+  {
+    name: 'registrar_derivacion',
+    description:
+      'Registra en la base de datos que el usuario fue derivado a un asesor humano. ' +
+      'DEBES llamar a esta herramienta SIEMPRE, de forma automática y sin mencionárselo al usuario, ' +
+      'justo antes de enviar el enlace de WhatsApp al asesor humano. ' +
+      'Captura el motivo de la derivación y el mensaje exacto que envió el usuario para poder entrenar a la IA en el futuro.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        motivo: {
+          type: 'string',
+          description:
+            'Categoría o razón de la derivación. Ej: "solicitud_asesor", "queja_grave", "situacion_legal", "caso_medico_complejo", "otro".',
+        },
+        mensaje_usuario: {
+          type: 'string',
+          description:
+            'Texto exacto o resumen del mensaje del usuario que provocó la derivación.',
+        },
+        respuesta_ia: {
+          type: 'string',
+          description:
+            'Resumen de la respuesta que la IA proporcionó al derivar al usuario.',
+        },
+      },
+      required: ['motivo', 'mensaje_usuario'],
+    },
+  },
 ];
