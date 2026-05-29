@@ -21,6 +21,8 @@ import {
   STATUS_RESIDENTES_URL,
   ORDERS_RESIDENTES_URL,
   DISCOUNTS_RESIDENTES_URL,
+  RESIDENTES_URL_FOTOS,
+  TURISTAS_URL_FOTOS,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -416,8 +418,23 @@ export async function executeTool(
       });
     }
     const params: Record<string, string> = { dc_code: dcCode };
-    if (toolInput['pq_id']) params['pq_id'] = strVal(toolInput['pq_id']);
     return JSON.stringify(await apiGet(DISCOUNTS_RESIDENTES_URL, params));
+  }
+
+  if (toolName === 'get_foto_link') {
+    const pgCode = strVal(toolInput['pg_code']).trim();
+    if (!pgCode) {
+      return JSON.stringify({ success: false, error: 'Se requiere pg_code.' });
+    }
+    const userType: 'residente' | 'turista' =
+      strVal(toolInput['user_type']).trim() === 'turista'
+        ? 'turista'
+        : 'residente';
+    const fotoUrl =
+      userType === 'turista' ? TURISTAS_URL_FOTOS : RESIDENTES_URL_FOTOS;
+    return JSON.stringify(
+      await apiGet(fotoUrl, { pg_code: pgCode }, s?.token || ''),
+    );
   }
 
   if (toolName === 'consultar_memoria_usuario') {

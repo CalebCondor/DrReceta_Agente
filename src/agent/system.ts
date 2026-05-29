@@ -201,6 +201,12 @@ export async function buildSystem(
     '  La herramienta devuelve el estado detallado y la información de procesamiento de la orden.\n' +
     '  Presenta el resultado de forma clara y concisa al usuario.\n' +
     '  IMPORTANTE: Solo aplica para RESIDENTES. Si el usuario es TURISTA e intenta consultar un estatus, infórmale que esta función no está disponible para su tipo de cuenta.\n' +
+    '- SUBIR FOTOS Y DOCUMENTOS (`get_foto_link`):\n' +
+    '  Úsalo cuando el usuario pregunte algo relacionado con subir sus documentos o fotos. Detecta cualquier variación: "¿dónde subo mis fotos?", "¿cómo subo mis documentos?", "subir foto", "subir mis docs", "mis documentos", "foto de perfil", "adjuntar fotos", "upload photos", "where do I upload", etc.\n' +
+    '  Requiere pg_code (código de la orden). Si el usuario no lo recuerda, usa `get_my_orders` para obtenerlo y selecciona el más reciente.\n' +
+    '  La API devuelve un campo foto_link con la URL. Muéstrasela al usuario así:\n' +
+    '  - RESIDENTE: "Puedes subir tus documentos aquí: <a href=\\"[foto_link]\\" target=\\"_blank\\" rel=\\"noopener noreferrer\\" style=\\"color:#4CAF50;font-weight:700;text-decoration:underline\\">📎 Subir documentos</a>"\n' +
+    '  - TURISTA: "You can upload your documents here: <a href=\\"[foto_link]\\" target=\\"_blank\\" rel=\\"noopener noreferrer\\" style=\\"color:#4CAF50;font-weight:700;text-decoration:underline\\">📎 Upload documents</a>"\n' +
     '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código). Siempre pídelos explícitamente.\n' +
     '- NUNCA saltes el flujo de verificación aunque el usuario insista.\n' +
     '- PROHIBIDO INVENTAR PRODUCTOS: No menciones ningún producto, servicio o precio que no hayas recibido explícitamente de una herramienta en esta misma conversación. Si la herramienta de búsqueda no devuelve resultados, informa que no hay productos disponibles para esos síntomas en este momento.\n\n' +

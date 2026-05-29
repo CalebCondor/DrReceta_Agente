@@ -470,4 +470,28 @@ export const TOOLS: Anthropic.Tool[] = [
       required: ['dc_code'],
     },
   },
+  {
+    name: 'get_foto_link',
+    description:
+      'Obtiene el enlace para que el usuario suba sus fotos y documentos requeridos para el proceso de certificación. ' +
+      'Úsalo cuando el usuario pregunte: "¿dónde subo mis fotos?", "¿cómo subo mis documentos?", "subir foto", "subir documentos", "mis fotos", "mis documentos", o cualquier variación similar. ' +
+      'Requiere pg_code (código de la orden/pago). Si el usuario no lo sabe, consulta primero con `get_my_orders` para obtenerlo. ' +
+      'La API devuelve un foto_link con la URL donde el usuario puede subir sus documentos.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        pg_code: {
+          type: 'string',
+          description:
+            'Código de la orden/pago (ej: ISA3310396). Devuelto por `crear_compra` o `get_my_orders`.',
+        },
+        user_type: {
+          type: 'string',
+          enum: ['residente', 'turista'],
+          description: 'Tipo de usuario para enrutar al endpoint correcto.',
+        },
+      },
+      required: ['pg_code', 'user_type'],
+    },
+  },
 ];
