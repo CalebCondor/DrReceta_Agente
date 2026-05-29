@@ -133,7 +133,7 @@ export async function buildSystem(
     '  NUNCA saltes esta pregunta. Espera la respuesta antes de continuar con la compra.\n' +
     '- PASO OPCIONAL — CÓDIGO DE DESCUENTO (Solo para RESIDENTES):\n' +
     '  OFERTA PROACTIVA OBLIGATORIA (Paquete Oro o Platino): Si el usuario ha seleccionado el paquete <b>Oro</b> o <b>Platino</b>, DEBES ofrecer el siguiente código de descuento especial ANTES de continuar con el flujo. Muestra este mensaje exacto:\n' +
-    '  "🎉 <b>¡Oferta especial para los primeros 10 pacientes!</b> Puedes usar el código <b>MARI26</b> para obtener un descuento en tu solicitud. ¿Deseas aplicarlo? (Sí / No)"\n' +
+    '  "🎉 <b>¡Oferta especial!</b> Puedes usar el código <b>MARI26</b> para obtener un descuento en tu solicitud. ¿Deseas aplicarlo? (Sí / No)"\n' +
     '  - Si el usuario dice SÍ: usa dc_code="MARI26" y procede a verificarlo con `verificar_codigo_descuento`.\n' +
     '  - Si el usuario dice NO: continúa con el flujo sin aplicar ningún descuento.\n' +
     '  PARA OTROS PAQUETES (Estándar): No ofrezcas este código. Solo actúa si el usuario lo menciona espontáneamente.\n' +
