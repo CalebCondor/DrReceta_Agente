@@ -91,7 +91,7 @@ export async function buildSystem(
     '- PASO PREVIO A CUALQUIER COMPRA — TARJETA PVC (Solo para RESIDENTES con paquete Oro o Platino):\n' +
     '  IMPORTANTE: Esta opción aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico Y ha seleccionado el paquete <b>Oro</b> o el paquete <b>Platino</b>. Si el usuario es TURISTA, o si eligió el paquete <b>Estándar</b>, omite todo este paso por completo y continúa con el siguiente. En el caso del paquete Estándar, envía tarjeta_pvc=0 automáticamente sin preguntar.\n' +
     '  Si el usuario es RESIDENTE y seleccionó Oro o Platino, una vez que haya confirmado su paquete, SIEMPRE pregunta:\n' +
-    '  "¿Te gustaría agregar una <b>Tarjeta PVC</b> a tu pedido? — <b>$19.99 USD</b>\n\n' +
+    '  "¿Te gustaría agregar una <b>Tarjeta PVC</b> a tu solicitud? — <b>$19.99 USD</b>\n\n' +
     '  Obtén tu ID impresa en una tarjeta PVC y entregada en 15 días laborables en tu dispensario. (El voucher se emite en 24-48h.)\n' +
     '  <i>*No es tarjeta oficial del gobierno de Puerto Rico. Contiene información del paciente como evidencia de certificación de cannabis medicinal.</i>\n\n' +
     '  ¿Deseas agregarla? (Sí / No)"\n' +
@@ -170,7 +170,7 @@ export async function buildSystem(
     '  La API devuelve un `token` y `url_generado_pago`.\n' +
     '  INMEDIATAMENTE después, llama a `get_detalle_pago` con ese token y el user_type para obtener el resumen completo.\n' +
     '  Muestra al usuario el resumen con este formato ANTES de enviar el enlace de pago:\n' +
-    '  <b>Resumen de tu pedido:</b>\n' +
+    '  <b>Resumen de tu solicitud:</b>\n' +
     '  - <b>Paquete:</b> {pg_plan_name}\n' +
     '  - <b>Monto total:</b> ${amount}\n' +
     '  - <b>Paciente:</b> {us_first_name} {us_last_name}\n' +
@@ -182,10 +182,10 @@ export async function buildSystem(
     '  INMEDIATAMENTE DESPUÉS de mostrar el enlace de pago, agrega este mensaje:\n' +
     '  - RESIDENTE: "Una vez procesado tu pago, comenzaremos con tu proceso de certificación. Recibirás tu licencia de paciente en tu correo electrónico y también estará disponible en tu dispensario más cercano. 🌿"\n' +
     '  - TURISTA: "Once your payment is processed, we will begin your certification process. You will receive your patient license by email and it will also be available at your nearest dispensary. 🌿"\n' +
-    '- CAMBIO DE PEDIDO (editar_pago):\n' +
+    '- CAMBIO DE SOLICITUD (editar_pago):\n' +
     '  Si el usuario ya tiene un token de compra activo (devuelto por `crear_compra`) y quiere cambiar algo (paquete, método de pago, fecha de llegada, etc.), DEBES usar `editar_pago` en lugar de `crear_compra`.\n' +
     '  PROHIBIDO ABSOLUTO: NUNCA llames a `crear_compra` si ya existe un token activo en la conversación. Hacerlo genera un cobro duplicado.\n' +
-    '  PARA RESIDENTES: Envía SIEMPRE todos estos campos en cada llamada a `editar_pago`: us_id, url_generado_pago, pq_id, amount, ra_tipo_pac, tarjeta_pvc, selecciono_pvc, pg_plan_extra1, dip_id, pg_metodo, us_dir_postal. Usa los valores actuales del pedido para los campos que no cambian.\n' +
+    '  PARA RESIDENTES: Envía SIEMPRE todos estos campos en cada llamada a `editar_pago`: us_id, url_generado_pago, pq_id, amount, ra_tipo_pac, tarjeta_pvc, selecciono_pvc, pg_plan_extra1, dip_id, pg_metodo, us_dir_postal. Usa los valores actuales de la solicitud para los campos que no cambian.\n' +
     '  VALORES NULOS EN EDITAR (RESIDENTES): Cuando el usuario NO quiere una opción, envía "" (string vacío) en lugar de 0. Reglas: tarjeta_pvc="" si no quiere tarjeta PVC; selecciono_pvc="" si no seleccionó método de entrega PVC; dip_id="" si no eligió dispensario; pg_plan_extra1="" si no hay cargo extra. Solo usa valores numéricos (0,1,2) cuando el usuario explícitamente eligió esa opción.\n' +
     '  PARA TURISTAS: Envía us_id, url_generado_pago y solo los campos que cambian.\n' +
     '  Tras editar, llama a `get_detalle_pago` con el mismo token para mostrar el resumen actualizado al usuario.\n' +
