@@ -451,26 +451,20 @@ export const TOOLS: Anthropic.Tool[] = [
     description:
       'Verifica si un código de descuento proporcionado por el usuario es válido en IslandMedPR (solo residentes). ' +
       'NUNCA ofrezcas ni menciones códigos de descuento — úsalo ÚNICAMENTE cuando el usuario escriba espontáneamente un código. ' +
-      'Opcionalmente verifica si el código aplica a un paquete específico enviando pq_id. ' +
-      'INTERPRETACIÓN DE RESPUESTA: ' +
-      '- CÓDIGO VÁLIDO: La API devuelve un objeto con los campos dc_code, dc_tipo, dc_monto, descuento_aplicado y monto_final. ' +
-      '  Si el objeto contiene dc_code y monto_final, el código ES VÁLIDO. Aplica el descuento así: ' +
-      '  · Si dc_tipo="$": el descuento es fijo (dc_monto). Nuevo amount = monto_final. ' +
-      '  · Si dc_tipo="%": el descuento es porcentual (dc_monto%). Nuevo amount = monto_final. ' +
-      '  · SIEMPRE usa el campo monto_final como el nuevo amount para crear_compra. ' +
-      '  · Pasa el código como cp_code en crear_compra. ' +
-      '- CÓDIGO INVÁLIDO: La API devuelve array vacío [], objeto vacío {}, error o message de error. En ese caso informa que el código no es válido.',
+      'SOLO envía dc_code. NO envíes pq_id ni ningún otro campo. ' +
+      'FORMATO DE RESPUESTA: La API siempre devuelve { success: true, data: [...], pagination: {...} }. El descuento está DENTRO del array data[], NO en el nivel raíz. ' +
+      'INTERPRETACIÓN: ' +
+      '- CÓDIGO VÁLIDO: data[] contiene al menos un objeto (data.length > 0). Ejemplo real: { success:true, data:[{ dc_code:"MARI26", dc_tipo:"$", dc_monto:34, monto_final:35, descuento_aplicado:34 }] }. ' +
+      '  Usa data[0].monto_final como el nuevo amount para crear_compra. Pasa data[0].dc_code como cp_code. ' +
+      '  · Si data[0].dc_tipo="$": descuento fijo de data[0].dc_monto dólares. ' +
+      '  · Si data[0].dc_tipo="%": descuento porcentual de data[0].dc_monto%. ' +
+      '- CÓDIGO INVÁLIDO: data[] es array vacío [] (aunque success sea true y message diga "exitosamente"). En ese caso el código no es válido.',
     input_schema: {
       type: 'object',
       properties: {
         dc_code: {
           type: 'string',
           description: 'Código de descuento que el usuario proporcionó.',
-        },
-        pq_id: {
-          type: 'integer',
-          description:
-            'ID del paquete que el usuario está comprando. Opcional: si se envía, la API valida que el código aplique a ese paquete.',
         },
       },
       required: ['dc_code'],

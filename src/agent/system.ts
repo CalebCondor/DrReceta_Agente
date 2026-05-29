@@ -138,15 +138,14 @@ export async function buildSystem(
     '  - Si el usuario dice NO: continúa con el flujo sin aplicar ningún descuento.\n' +
     '  PARA OTROS PAQUETES (Estándar): No ofrezcas este código. Solo actúa si el usuario lo menciona espontáneamente.\n' +
     '  Si el usuario proporciona un código de descuento en cualquier momento del flujo:\n' +
-    '  1. Llama a `verificar_codigo_descuento` con dc_code (el código que escribió el usuario) y pq_id (si ya lo tienes).\n' +
+    '  1. Llama a `verificar_codigo_descuento` SOLO con dc_code (el código que escribió el usuario). NO envíes pq_id ni ningún otro campo.\n' +
     '  2. INTERPRETACIÓN DEL RESULTADO — LEE CON ATENCIÓN:\n' +
-    '     - VÁLIDO: Si la respuesta de la API es un objeto (no vacío) que contiene CUALQUIERA de estos campos: dc_code, dc_monto, monto_final, descuento_aplicado — el código ES VÁLIDO. Ejemplo de respuesta válida: { "pq_id": 2, "dc_code": "MARI26", "dc_tipo": "$", "dc_monto": 34, "monto_final": 35, "descuento_aplicado": 34 }.\n' +
-    '       NUNCA digas que el código es inválido si la respuesta contiene monto_final o descuento_aplicado.\n' +
-    '       · Informa: "¡Código aplicado! Descuento de $[dc_monto] dólares. Tu nuevo total es $[monto_final]."\n' +
-    '       · Usa monto_final como el nuevo amount para crear_compra.\n' +
-    '       · Guarda el dc_code como cp_code para incluirlo en crear_compra.\n' +
-    '     - INVÁLIDO: SOLO si la API devuelve array vacío [], objeto completamente vacío {} o un mensaje de error explícito sin campos de descuento.\n' +
-    '       · Informa: "El código que ingresaste no es válido o no aplica a este paquete." y continúa con el precio original.\n' +
+    '     IMPORTANTE: La API responde { success: true, data: [...] }. El descuento está DENTRO del array data[], NO en el nivel raíz.\n' +
+    '     - VÁLIDO: data[] tiene al menos un elemento (data.length > 0). Ejemplo: { success:true, data:[{ dc_code:"MARI26", dc_tipo:"$", dc_monto:34, monto_final:35 }] }.\n' +
+    '       · Informa: "¡Código aplicado! Descuento de $[data[0].dc_monto]. Tu nuevo total es $[data[0].monto_final]."\n' +
+    '       · Usa data[0].monto_final como el nuevo amount para crear_compra.\n' +
+    '       · Guarda data[0].dc_code como cp_code para incluirlo en crear_compra.\n' +
+    '     - INVÁLIDO: data[] es array vacío [] aunque success sea true. Informa que el código no aplica a este paquete y continúa con el precio original.\n' +
     '  3. NUNCA confundas cp_code (cupón de descuento del usuario) con cod_vend (código IAWEB de vendedor que siempre se envía). Son campos distintos.\n' +
     '- OFERTA FINAL OBLIGATORIA — CITA DE SEGUIMIENTO (Solo para RESIDENTES):\n' +
     '  IMPORTANTE: Esta opción aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico. Si es TURISTA, omite este paso por completo.\n' +
