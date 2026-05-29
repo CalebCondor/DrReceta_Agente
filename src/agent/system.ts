@@ -139,12 +139,13 @@ export async function buildSystem(
     '  PARA OTROS PAQUETES (Estándar): No ofrezcas este código. Solo actúa si el usuario lo menciona espontáneamente.\n' +
     '  Si el usuario proporciona un código de descuento en cualquier momento del flujo:\n' +
     '  1. Llama a `verificar_codigo_descuento` con dc_code (el código que escribió el usuario) y pq_id (si ya lo tienes).\n' +
-    '  2. INTERPRETACIÓN DEL RESULTADO:\n' +
-    '     - VÁLIDO: La API devuelve un objeto con dc_code, dc_monto y monto_final. Si esos campos están presentes, el código ES VÁLIDO.\n' +
-    '       · Informa: "¡Código aplicado! Descuento de ${dc_monto} {dc_tipo === "$" ? "dólares" : "%"}. Tu nuevo total es $${monto_final}."\n' +
-    '       · Guarda monto_final como el nuevo amount para crear_compra.\n' +
-    '       · Guarda el código como cp_code para incluirlo en crear_compra.\n' +
-    '     - INVÁLIDO: La API devuelve array vacío [], objeto vacío {} o un mensaje de error.\n' +
+    '  2. INTERPRETACIÓN DEL RESULTADO — LEE CON ATENCIÓN:\n' +
+    '     - VÁLIDO: Si la respuesta de la API es un objeto (no vacío) que contiene CUALQUIERA de estos campos: dc_code, dc_monto, monto_final, descuento_aplicado — el código ES VÁLIDO. Ejemplo de respuesta válida: { "pq_id": 2, "dc_code": "MARI26", "dc_tipo": "$", "dc_monto": 34, "monto_final": 35, "descuento_aplicado": 34 }.\n' +
+    '       NUNCA digas que el código es inválido si la respuesta contiene monto_final o descuento_aplicado.\n' +
+    '       · Informa: "¡Código aplicado! Descuento de $[dc_monto] dólares. Tu nuevo total es $[monto_final]."\n' +
+    '       · Usa monto_final como el nuevo amount para crear_compra.\n' +
+    '       · Guarda el dc_code como cp_code para incluirlo en crear_compra.\n' +
+    '     - INVÁLIDO: SOLO si la API devuelve array vacío [], objeto completamente vacío {} o un mensaje de error explícito sin campos de descuento.\n' +
     '       · Informa: "El código que ingresaste no es válido o no aplica a este paquete." y continúa con el precio original.\n' +
     '  3. NUNCA confundas cp_code (cupón de descuento del usuario) con cod_vend (código IAWEB de vendedor que siempre se envía). Son campos distintos.\n' +
     '- OFERTA FINAL OBLIGATORIA — CITA DE SEGUIMIENTO (Solo para RESIDENTES):\n' +
