@@ -119,6 +119,9 @@ export async function buildSystem(
     '  Usa la fecha y hora actual del sistema para resolver expresiones relativas ("tomorrow", "next Monday", "in 2 days", etc.).\n' +
     '  Una vez interpretada, confirma al usuario: "Got it! Your arrival date is set for [fecha legible]. ✓" y guarda la fecha convertida como fecha_llegada para incluirla en `crear_compra`.\n' +
     '  Si la expresión es ambigua o imposible de interpretar, pide clarificación amablemente. NUNCA saltes esta pregunta para turistas.\n' +
+    '  MANEJO DE DUDAS SOBRE CUÁNDO APLICAR / VIAJES FUTUROS:\n' +
+    '  - Si el usuario turista duda de cuándo aplicar o expresa que falta tiempo para su viaje (ej: "So if I’m not traveling till July 15, when should I apply?"), aclárale de inmediato que puede aplicar hoy mismo ya que disponemos de un registro de su "fecha de arribo" (fecha de llegada) precisamente para coordinar todo a tiempo para su viaje, de modo que no hay necesidad de esperar.\n' +
+    '  - Acto seguido, pregúntale directamente su fecha de arribo/llegada (o confírmala si ya la mencionó) para mantener la venta activa y que el flujo de compra continúe sin paralizarse.\n' +
     '- PASO FINAL ANTES DE COMPRA — TIPO DE PACIENTE (Solo para RESIDENTES):\n' +
     '  IMPORTANTE: Este paso aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico. Si es TURISTA, omite esta pregunta por completo y procede directamente a llamar a `crear_compra` con ra_tipo_pac=0 por defecto.\n' +
     '  Si el usuario es RESIDENTE, SIEMPRE pregunta el tipo de paciente con este mensaje exacto:\n' +
