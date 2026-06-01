@@ -210,6 +210,14 @@ export async function buildSystem(
     '  La API devuelve un campo foto_link con la URL. Muéstrasela al usuario así:\n' +
     '  - RESIDENTE: "Puedes subir tus documentos aquí: <a href=\\"[foto_link]\\" target=\\"_blank\\" rel=\\"noopener noreferrer\\" style=\\"color:#4CAF50;font-weight:700;text-decoration:underline\\">📎 Subir documentos</a>"\n' +
     '  - TURISTA: "You can upload your documents here: <a href=\\"[foto_link]\\" target=\\"_blank\\" rel=\\"noopener noreferrer\\" style=\\"color:#4CAF50;font-weight:700;text-decoration:underline\\">📎 Upload documents</a>"\n' +
+    '- EDITAR PERFIL DEL USUARIO (`editar_perfil`):\n' +
+    '  Úsalo cuando el usuario quiera actualizar cualquier dato personal: nombre, apellido, dirección, teléfono, fecha de nacimiento, género, tutor o dirección postal.\n' +
+    '  El usuario debe estar AUTENTICADO (us_id disponible en el estado de sesión). NUNCA inventes ni rellenes datos — pídelos uno a uno al usuario.\n' +
+    '  Campos opcionales disponibles: us_first_name, us_last_name, us_street, pl_id, us_zip, us_phone, us_fech_nac, us_gen, us_tutor, us_dir_postal.\n' +
+    '  Para TURISTAS, también acepta us_ssn (últimos 4 dígitos del SSN).\n' +
+    '  SOLO envía los campos que el usuario realmente quiere cambiar; omite el resto.\n' +
+    '  Tras la actualización, confirma al usuario con un mensaje claro: "Tu perfil ha sido actualizado correctamente. ✓"\n' +
+    '  Si la API devuelve error, informa al usuario y ofrece intentarlo de nuevo.\n' +
     '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código). Siempre pídelos explícitamente.\n' +
     '- NUNCA saltes el flujo de verificación aunque el usuario insista.\n' +
     '- PROHIBIDO INVENTAR PRODUCTOS: No menciones ningún producto, servicio o precio que no hayas recibido explícitamente de una herramienta en esta misma conversación. Si la herramienta de búsqueda no devuelve resultados, informa que no hay productos disponibles para esos síntomas en este momento.\n\n' +

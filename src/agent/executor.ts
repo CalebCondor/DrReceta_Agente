@@ -23,6 +23,8 @@ import {
   DISCOUNTS_RESIDENTES_URL,
   RESIDENTES_URL_FOTOS,
   TURISTAS_URL_FOTOS,
+  RESIDENTES_EDIT_PROFILE_URL,
+  TURISTAS_EDIT_PROFILE_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -42,6 +44,7 @@ const AUTH_REQUIRED = new Set([
   'get_pagos',
   'crear_compra',
   'editar_pago',
+  'editar_perfil',
 ]);
 
 export async function executeTool(
@@ -435,6 +438,44 @@ export async function executeTool(
     return JSON.stringify(
       await apiGet(fotoUrl, { pg_code: pgCode }, s?.token || ''),
     );
+  }
+
+  if (toolName === 'editar_perfil') {
+    const usId = toolInput['us_id'] ?? s?.user_id;
+    if (!usId) {
+      return JSON.stringify({ success: false, error: 'Se requiere us_id.' });
+    }
+    const userType: 'residente' | 'turista' =
+      strVal(toolInput['user_type']).trim() === 'turista'
+        ? 'turista'
+        : 'residente';
+    const profileUrl =
+      userType === 'turista'
+        ? TURISTAS_EDIT_PROFILE_URL
+        : RESIDENTES_EDIT_PROFILE_URL;
+    const body: Record<string, unknown> = { us_id: usId };
+    const optionalFields = [
+      'us_first_name',
+      'us_last_name',
+      'us_street',
+      'pl_id',
+      'us_zip',
+      'us_phone',
+      'us_fech_nac',
+      'us_gen',
+      'us_tutor',
+      'us_dir_postal',
+    ];
+    for (const field of optionalFields) {
+      if (toolInput[field] !== undefined && toolInput[field] !== '') {
+        body[field] = toolInput[field];
+      }
+    }
+    if (userType === 'turista') {
+      const ssn = strVal(toolInput['us_ssn']).trim();
+      if (ssn) body['us_ssn'] = ssn;
+    }
+    return JSON.stringify(await apiPut(profileUrl, body, s?.token || ''));
   }
 
   if (toolName === 'consultar_memoria_usuario') {

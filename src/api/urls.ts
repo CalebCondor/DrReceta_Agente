@@ -52,3 +52,9 @@ export const RESIDENTES_URL_FOTOS =
 
 export const TURISTAS_URL_FOTOS =
   'https://islandmedpr.com/apiia/api/turistas/foto_link.php';
+
+export const RESIDENTES_EDIT_PROFILE_URL =
+  'https://islandmedpr.com/apiia/api/residentes/edit_profile.php';
+
+export const TURISTAS_EDIT_PROFILE_URL =
+  'https://islandmedpr.com/apiia/api/turistas/edit_profile.php';

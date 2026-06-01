@@ -494,4 +494,72 @@ export const TOOLS: Anthropic.Tool[] = [
       required: ['pg_code', 'user_type'],
     },
   },
+  {
+    name: 'editar_perfil',
+    description:
+      'Actualiza los datos del perfil del usuario autenticado (residente o turista). ' +
+      'Úsalo cuando el usuario quiera actualizar su información personal: nombre, apellido, dirección, teléfono, fecha de nacimiento, género, tutor, etc. ' +
+      'Requiere us_id (disponible en el estado de sesión). Todos los demás campos son opcionales; solo envía los que el usuario quiere cambiar. ' +
+      'Para TURISTAS también acepta us_ssn (últimos 4 dígitos del SSN). ' +
+      'Enruta automáticamente al endpoint de residentes o turistas según el tipo de usuario.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        user_type: {
+          type: 'string',
+          enum: ['residente', 'turista'],
+          description: 'Tipo de usuario para enrutar al endpoint correcto.',
+        },
+        us_id: {
+          type: 'integer',
+          description: 'ID del usuario autenticado (obligatorio).',
+        },
+        us_first_name: {
+          type: 'string',
+          description: 'Nombre del usuario.',
+        },
+        us_last_name: {
+          type: 'string',
+          description: 'Apellido del usuario.',
+        },
+        us_street: {
+          type: 'string',
+          description: 'Dirección de calle del usuario.',
+        },
+        pl_id: {
+          type: 'integer',
+          description: 'ID del pueblo/municipio.',
+        },
+        us_zip: {
+          type: 'string',
+          description: 'Código postal del usuario.',
+        },
+        us_phone: {
+          type: 'string',
+          description: 'Número de teléfono del usuario.',
+        },
+        us_fech_nac: {
+          type: 'string',
+          description: 'Fecha de nacimiento del usuario (formato YYYY-MM-DD).',
+        },
+        us_gen: {
+          type: 'string',
+          description: 'Género del usuario.',
+        },
+        us_tutor: {
+          type: 'string',
+          description: 'Nombre del tutor (para pacientes menores de edad).',
+        },
+        us_dir_postal: {
+          type: 'string',
+          description: 'Dirección postal del usuario.',
+        },
+        us_ssn: {
+          type: 'string',
+          description: 'Últimos 4 dígitos del SSN. Solo aplica para TURISTAS.',
+        },
+      },
+      required: ['user_type', 'us_id'],
+    },
+  },
 ];
