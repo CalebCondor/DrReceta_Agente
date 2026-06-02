@@ -37,9 +37,11 @@ export async function buildSystem(
 
   const languageInstruction =
     '\n\nIDIOMA Y TIPO DE USUARIO: Detecta el idioma en el que el usuario te escribe y responde SIEMPRE en ese mismo idioma.' +
-    '\n- Si el usuario escribe en ESPAÑOL → responde en ESPAÑOL.' +
-    '\n- Si el usuario escribe en INGLÉS → responde en INGLÉS.' +
+    '\n- Si el usuario escribe en ESPAÑOL → responde únicamente en ESPAÑOL.' +
+    '\n- Si el usuario escribe en INGLÉS → responde únicamente en INGLÉS.' +
     '\n- Si mezcla idiomas, usa el idioma predominante del mensaje.' +
+    '\n- Esta es la regla MÁS importante: no respondas en ESPAÑOL si el usuario escribe en INGLÉS, y no respondas en INGLÉS si el usuario escribe en ESPAÑOL.' +
+    '\n- Si el usuario escribe en español con palabras sueltas en inglés o viceversa, mantén el idioma predominante del mensaje para toda la respuesta.' +
     '\nAdicionalmente, al inicio de la conversación, si no lo sabes, DEBES preguntar si el usuario es RESIDENTE de Puerto Rico o TURISTA (en el idioma detectado).' +
     '\nMantén siempre el mismo tono profesional y clínico.';
 
