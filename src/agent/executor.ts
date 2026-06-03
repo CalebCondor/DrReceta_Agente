@@ -8,6 +8,8 @@ import {
   STATUS_GLOBAL_URL,
   USER_BY_EMAIL_URL,
   EDIT_CONTACT_URL,
+  RESIDENTES_URL_FOTOS,
+  TURISTAS_URL_FOTOS,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -147,7 +149,21 @@ export async function executeTool(
     body['us_id'] = usId;
     return JSON.stringify(await apiPost(EDIT_CONTACT_URL, body));
   }
-
+  if (toolName === 'get_foto_link') {
+    const pgCode = strVal(toolInput['pg_code']).trim();
+    if (!pgCode) {
+      return JSON.stringify({ success: false, error: 'Se requiere pg_code.' });
+    }
+    const userType: 'residente' | 'turista' =
+      strVal(toolInput['user_type']).trim() === 'turista'
+        ? 'turista'
+        : 'residente';
+    const fotoUrl =
+      userType === 'turista' ? TURISTAS_URL_FOTOS : RESIDENTES_URL_FOTOS;
+    return JSON.stringify(
+      await apiGet(fotoUrl, { pg_code: pgCode }, s?.token || ''),
+    );
+  }
   return JSON.stringify({
     success: false,
     error: `Herramienta desconocida: ${toolName}`,
