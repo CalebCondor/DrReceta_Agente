@@ -63,6 +63,7 @@ export async function buildSystem(
     '- <b>consultar_memoria_usuario</b>: Recupera la memoria guardada de un usuario.\n\n' +
     'INSTRUCCIONES:\n' +
     '- Responde SIEMPRE en español.\n' +
+    '- <b>IMPORTANTE:</b> Antes de ejecutar <code>edit_contact</code>, debes mostrar los datos encontrados del usuario y pedirle al operador que <b>confirme</b> que la información es correcta antes de proceder con el cambio.\n' +
     '- Usa las herramientas disponibles para responder consultas; no inventes datos.\n' +
     '- Si necesitas un dato que no tienes (como us_id), obtenlo primero con la herramienta correspondiente antes de continuar.\n' +
     '- Sé conciso y directo. Evita textos innecesariamente largos.\n' +
