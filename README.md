@@ -31,6 +31,25 @@
 $ npm install
 ```
 
+## Telegram bot
+
+This API can also reply via Telegram using `node-telegram-bot-api` (polling mode).
+
+Environment variables:
+
+- `TELEGRAM_BOT_TOKEN`: required (from @BotFather)
+- `TELEGRAM_ENABLED`: optional, set to `false` to disable (default: `true`)
+
+Run:
+
+```bash
+# Example
+export TELEGRAM_BOT_TOKEN="<your-token>"
+export TELEGRAM_ENABLED=true
+
+npm run start:dev
+```
+
 ## Compile and run the project
 
 ```bash

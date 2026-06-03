@@ -9,5 +9,6 @@ import { ChatService } from './chat.service';
 @Module({
   controllers: [ChatController],
   providers: [DbService, AgentService, ChatService],
+  exports: [DbService, AgentService, ChatService],
 })
 export class ChatModule {}

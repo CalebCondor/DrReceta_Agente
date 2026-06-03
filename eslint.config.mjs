@@ -32,4 +32,17 @@ export default tseslint.config(
       "prettier/prettier": ["error", { endOfLine: "auto" }],
     },
   },
+  // node-telegram-bot-api uses `export = TelegramBot` (CJS), which ESLint's
+  // type-checker cannot resolve via default import. tsc compiles fine.
+  // These unsafe-* rules are disabled only for the telegram service file.
+  {
+    files: ['src/telegram/telegram.service.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-redundant-type-constituents': 'off',
+    },
+  },
 );
