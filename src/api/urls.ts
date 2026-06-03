@@ -58,3 +58,6 @@ export const RESIDENTES_EDIT_PROFILE_URL =
 
 export const TURISTAS_EDIT_PROFILE_URL =
   'https://islandmedpr.com/apiia/api/turistas/edit_profile.php';
+
+export const STATUS_GLOBAL_URL =
+  'https://islandmedpr.com/apiia/api/status_by_code.php';
