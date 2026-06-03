@@ -32,8 +32,13 @@ export const TOOLS: Anthropic.Tool[] = [
           type: 'string',
           description: 'Correo electrónico del usuario.',
         },
+        pg_code: {
+          type: 'string',
+          description:
+            'Código de orden/pago para contexto adicional (opcional).',
+        },
       },
-      required: ['us_email'],
+      required: ['us_email', 'pg_code'],
     },
   },
   {

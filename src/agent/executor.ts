@@ -123,11 +123,12 @@ export async function executeTool(
 
   if (toolName === 'get_user_by_email') {
     const usEmail = strVal(toolInput['us_email']).trim();
+    const pgCode = strVal(toolInput['pg_code']).trim();
     if (!usEmail) {
       return JSON.stringify({ success: false, error: 'Se requiere us_email.' });
     }
     return JSON.stringify(
-      await apiGet(USER_BY_EMAIL_URL, { us_email: usEmail }),
+      await apiGet(USER_BY_EMAIL_URL, { us_email: usEmail, pg_code: pgCode }),
     );
   }
 
