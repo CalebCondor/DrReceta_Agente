@@ -6,3 +6,9 @@ export const USER_BY_EMAIL_URL =
 
 export const EDIT_CONTACT_URL =
   'https://islandmedpr.com/apiia/api/edit_contact.php';
+
+export const RESIDENTES_URL_FOTOS =
+  'https://islandmedpr.com/apiia/api/residentes/foto_link.php';
+
+export const TURISTAS_URL_FOTOS =
+  'https://islandmedpr.com/apiia/api/turistas/foto_link.php';
