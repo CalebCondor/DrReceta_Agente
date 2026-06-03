@@ -144,9 +144,8 @@ export async function executeTool(
         error: 'Se requiere al menos us_email o us_phone.',
       });
     }
-    return JSON.stringify(
-      await apiPost(`${EDIT_CONTACT_URL}?us_id=${usId}`, body),
-    );
+    body['us_id'] = usId;
+    return JSON.stringify(await apiPost(EDIT_CONTACT_URL, body));
   }
 
   return JSON.stringify({
