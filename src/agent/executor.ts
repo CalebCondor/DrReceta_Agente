@@ -2,29 +2,12 @@
 // Ejecuta la herramienta solicitada por Claude y devuelve el resultado como JSON string
 
 import { sessions } from './state';
-import { apiPost, apiGet, apiPut } from '../api/http';
+import { apiPost, apiGet } from '../api/http';
 import { DbService } from './db.service';
 import {
-  VERIFICAR_REGISTRAR_RESIDENTES_URL,
-  VERIFICAR_REGISTRAR_TURISTAS_URL,
-  CREAR_COMPRA_RESIDENTES_URL,
-  CREAR_COMPRA_TURISTAS_URL,
-  VERIFICAR_CODIGO_RESIDENTES_URL,
-  VERIFICAR_CODIGO_TURISTAS_URL,
-  RESIDENTES_PACKAGES_URL,
-  TURISTAS_PACKAGES_URL,
-  DISPENSARIOS_RESIDENTES_URL,
-  DETALLE_PAGO_RESIDENTES_URL,
-  DETALLE_PAGO_TURISTAS_URL,
-  EDITAR_PAGO_RESIDENTES_URL,
-  EDITAR_PAGO_TURISTAS_URL,
-  STATUS_RESIDENTES_URL,
-  ORDERS_RESIDENTES_URL,
-  DISCOUNTS_RESIDENTES_URL,
-  RESIDENTES_URL_FOTOS,
-  TURISTAS_URL_FOTOS,
-  RESIDENTES_EDIT_PROFILE_URL,
-  TURISTAS_EDIT_PROFILE_URL,
+  STATUS_GLOBAL_URL,
+  USER_BY_EMAIL_URL,
+  EDIT_CONTACT_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -59,125 +42,6 @@ export async function executeTool(
       success: false,
       error:
         'Usuario no autenticado. Debe iniciar sesión en IslandMedPR.com para acceder a sus datos personales.',
-    });
-  }
-
-  if (toolName === 'get_my_orders') {
-    const usId = strVal(toolInput['us_id']);
-    if (!usId) {
-      return JSON.stringify({ success: false, error: 'Se requiere us_id.' });
-    }
-    const raw = await apiGet(
-      ORDERS_RESIDENTES_URL,
-      { us_id: usId },
-      s?.token || '',
-    );
-    const data = raw['data'] as Record<string, unknown> | undefined;
-    const orders: unknown[] = Array.isArray(data?.['orders'])
-      ? (data['orders'] as unknown[])
-      : [];
-    const summary = orders.map((o) => {
-      const order = o as Record<string, unknown>;
-      const pkg = (order['package'] ?? {}) as Record<string, unknown>;
-      return {
-        order_code: order['order_code'],
-        order_date_formatted: order['order_date_formatted'],
-        package_name: pkg['name'],
-        total_amount_formatted: order['total_amount_formatted'],
-        pvc_type: order['pvc_type'],
-      };
-    });
-    return JSON.stringify({ success: raw['success'], orders: summary });
-  }
-
-  if (toolName === 'get_estatus_orden') {
-    const usId = strVal(toolInput['us_id']);
-    const pgCode = strVal(toolInput['pg_code']).trim();
-    if (!usId || !pgCode) {
-      return JSON.stringify({
-        success: false,
-        error: 'Se requieren us_id y pg_code.',
-      });
-    }
-    return JSON.stringify(
-      await apiGet(
-        STATUS_RESIDENTES_URL,
-        { us_id: usId, pg_code: pgCode },
-        s?.token || '',
-      ),
-    );
-  }
-
-  if (toolName === 'get_dispensarios') {
-    return JSON.stringify(await apiGet(DISPENSARIOS_RESIDENTES_URL, {}));
-  }
-
-  if (toolName === 'get_detalle_pago') {
-    const paymentToken = strVal(toolInput['token']);
-    const authToken = s?.token || '';
-    const userType: 'residente' | 'turista' =
-      strVal(toolInput['user_type']) === 'turista' ? 'turista' : 'residente';
-    const detalleUrl =
-      userType === 'turista'
-        ? DETALLE_PAGO_TURISTAS_URL
-        : DETALLE_PAGO_RESIDENTES_URL;
-    return JSON.stringify(
-      await apiGet(detalleUrl, { token: paymentToken }, authToken),
-    );
-  }
-
-  if (toolName === 'get_productos') {
-    const userType: 'residente' | 'turista' =
-      strVal(toolInput['user_type']).trim() === 'turista'
-        ? 'turista'
-        : 'residente';
-    const packagesUrl =
-      userType === 'turista' ? TURISTAS_PACKAGES_URL : RESIDENTES_PACKAGES_URL;
-
-    const queryParams: Record<string, string> = {};
-    if (toolInput['pq_id']) queryParams['pq_id'] = strVal(toolInput['pq_id']);
-    if (toolInput['limit']) queryParams['limit'] = strVal(toolInput['limit']);
-    if (toolInput['offset'])
-      queryParams['offset'] = strVal(toolInput['offset']);
-
-    const raw = await apiGet(packagesUrl, queryParams);
-
-    const packages: unknown[] = Array.isArray(raw['data'])
-      ? (raw['data'] as unknown[])
-      : [];
-
-    // Filtrado opcional por busqueda sobre pq_tit_esp / pq_tit_eng / pq_det_esp
-    const busqueda = strVal(toolInput['busqueda']).toLowerCase().trim();
-    const normalize = (s: string) =>
-      s
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '');
-
-    const filtered = busqueda
-      ? (() => {
-          const terms = normalize(busqueda)
-            .split(/\s+/)
-            .filter((t) => t.length > 2);
-          if (terms.length === 0) return packages;
-          return packages.filter((p) => {
-            if (!p || typeof p !== 'object') return false;
-            const product = p as Record<string, unknown>;
-            const haystack =
-              normalize(strVal(product['pq_tit_esp'])) +
-              ' ' +
-              normalize(strVal(product['pq_tit_eng'])) +
-              ' ' +
-              normalize(strVal(product['pq_det_esp']));
-            return terms.some((t) => haystack.includes(t));
-          });
-        })()
-      : packages;
-
-    return JSON.stringify({
-      success: true,
-      total: filtered.length,
-      data: filtered,
     });
   }
 
@@ -227,257 +91,6 @@ export async function executeTool(
       return JSON.stringify({ success: false, error: errMsg(e) });
     }
   }
-
-  if (toolName === 'verificar_o_registrar_usuario') {
-    const email = strVal(toolInput['us_email']).trim();
-    if (!email) {
-      return JSON.stringify({ success: false, error: 'Se requiere us_email.' });
-    }
-    const userType: 'residente' | 'turista' =
-      strVal(toolInput['user_type']).trim() === 'turista'
-        ? 'turista'
-        : 'residente';
-    const registrarUrl =
-      userType === 'turista'
-        ? VERIFICAR_REGISTRAR_TURISTAS_URL
-        : VERIFICAR_REGISTRAR_RESIDENTES_URL;
-
-    const payload: Record<string, unknown> = { us_email: email };
-    const firstName = strVal(toolInput['us_first_name']).trim();
-    const lastName = strVal(toolInput['us_last_name']).trim();
-    const phone = strVal(toolInput['us_phone']).trim();
-    const password = strVal(toolInput['us_pasww']).trim();
-    if (firstName) payload['us_first_name'] = firstName;
-    if (lastName) payload['us_last_name'] = lastName;
-    if (phone) payload['us_phone'] = phone;
-    if (password) payload['us_pasww'] = password;
-    if (userType === 'turista') {
-      const ssn = strVal(toolInput['us_ssn']).trim();
-      if (ssn) payload['us_ssn'] = ssn;
-    }
-
-    const result = await apiPost(registrarUrl, payload);
-
-    // Si la API devolvió un token, almacenarlo en sesión para peticiones autenticadas
-    const data = result['data'] as Record<string, unknown> | undefined;
-    const auth = result['auth'] as Record<string, unknown> | undefined;
-    const accessToken = strVal(auth?.['access_token'] ?? data?.['token'] ?? '');
-    if (accessToken) {
-      sessions.set(chatId, {
-        token: accessToken,
-        user_id: strVal(data?.['us_id'] ?? ''),
-        name: strVal(data?.['us_first_name'] ?? data?.['us_nombres'] ?? ''),
-        es_vip: false,
-        user_type: userType,
-      });
-    }
-
-    return JSON.stringify(result);
-  }
-
-  if (toolName === 'verificar_codigo') {
-    const email = strVal(toolInput['us_email']).trim();
-    const codigo = strVal(toolInput['codigo']).trim();
-    if (!email || !codigo) {
-      return JSON.stringify({
-        success: false,
-        error: 'Se requieren us_email y codigo.',
-      });
-    }
-    const userType: 'residente' | 'turista' =
-      strVal(toolInput['user_type']).trim() === 'turista'
-        ? 'turista'
-        : 'residente';
-    const verificarUrl =
-      userType === 'turista'
-        ? VERIFICAR_CODIGO_TURISTAS_URL
-        : VERIFICAR_CODIGO_RESIDENTES_URL;
-
-    const result = await apiPost(verificarUrl, {
-      us_email: email,
-      codigo,
-    });
-
-    // Si el código es correcto, guardar la sesión autenticada
-    const data = result['data'] as Record<string, unknown> | undefined;
-    const auth = result['auth'] as Record<string, unknown> | undefined;
-    const accessToken = strVal(auth?.['access_token'] ?? data?.['token'] ?? '');
-    if (result['success'] && accessToken) {
-      sessions.set(chatId, {
-        token: accessToken,
-        user_id: strVal(data?.['us_id'] ?? ''),
-        name: strVal(data?.['us_first_name'] ?? data?.['us_nombres'] ?? ''),
-        es_vip: false,
-        user_type: userType,
-      });
-    }
-
-    return JSON.stringify(result);
-  }
-
-  if (toolName === 'crear_compra') {
-    const token = strVal(toolInput['token']) || s?.token || '';
-    const pqId = toolInput['pq_id'];
-    const usId = toolInput['us_id'] ?? s?.user_id;
-    const amount = toolInput['amount'];
-    if (!pqId || !usId || !amount) {
-      return JSON.stringify({
-        success: false,
-        error: 'Se requieren pq_id, us_id y amount.',
-      });
-    }
-    const userType: 'residente' | 'turista' =
-      s?.user_type === 'turista' ? 'turista' : 'residente';
-    const pagoUrl =
-      userType === 'turista'
-        ? CREAR_COMPRA_TURISTAS_URL
-        : CREAR_COMPRA_RESIDENTES_URL;
-    const body: Record<string, unknown> = {
-      us_id: usId,
-      pq_id: pqId,
-      amount,
-    };
-    if (toolInput['pg_metodo']) body['pg_metodo'] = toolInput['pg_metodo'];
-    if (toolInput['ra_tipo_pac'] !== undefined)
-      body['ra_tipo_pac'] = toolInput['ra_tipo_pac'];
-    body['tarjeta_pvc'] =
-      toolInput['tarjeta_pvc'] !== undefined ? toolInput['tarjeta_pvc'] : 0;
-    if (toolInput['selecciono_pvc'] !== undefined)
-      body['selecciono_pvc'] = toolInput['selecciono_pvc'];
-    if (toolInput['pg_plan_extra1'] !== undefined)
-      body['pg_plan_extra1'] = toolInput['pg_plan_extra1'];
-    if (toolInput['pg_plan_extra2'] !== undefined)
-      body['pg_plan_extra2'] = toolInput['pg_plan_extra2'];
-    if (toolInput['dip_id'] !== undefined) body['dip_id'] = toolInput['dip_id'];
-    if (toolInput['us_dir_postal'])
-      body['us_dir_postal'] = strVal(toolInput['us_dir_postal']);
-    if (toolInput['cp_code']) body['cp_code'] = strVal(toolInput['cp_code']);
-    if (toolInput['fecha_llegada'])
-      body['fecha_llegada'] = strVal(toolInput['fecha_llegada']);
-    body['cod_vend'] = toolInput['cod_vend']
-      ? strVal(toolInput['cod_vend'])
-      : 'IAWEB';
-    return JSON.stringify(await apiPost(pagoUrl, body, token));
-  }
-
-  if (toolName === 'editar_pago') {
-    const urlGeneradoPago = strVal(toolInput['url_generado_pago']);
-    const usId = toolInput['us_id'] ?? s?.user_id;
-    if (!urlGeneradoPago || !usId) {
-      return JSON.stringify({
-        success: false,
-        error: 'Se requieren us_id y url_generado_pago.',
-      });
-    }
-    const userType: 'residente' | 'turista' =
-      s?.user_type === 'turista' ? 'turista' : 'residente';
-    const editarUrl =
-      userType === 'turista'
-        ? EDITAR_PAGO_TURISTAS_URL
-        : EDITAR_PAGO_RESIDENTES_URL;
-    const body: Record<string, unknown> = {
-      us_id: usId,
-      url_generado_pago: urlGeneradoPago,
-    };
-    // Campos compartidos
-    if (toolInput['pq_id'] !== undefined) body['pq_id'] = toolInput['pq_id'];
-    if (toolInput['amount'] !== undefined) body['amount'] = toolInput['amount'];
-    if (toolInput['pg_metodo'] !== undefined)
-      body['pg_metodo'] = toolInput['pg_metodo'];
-    body['cod_vend'] = toolInput['cod_vend']
-      ? strVal(toolInput['cod_vend'])
-      : 'IAWEB';
-    if (userType === 'turista') {
-      // Campos exclusivos de turistas
-      if (toolInput['fecha_llegada'])
-        body['fecha_llegada'] = strVal(toolInput['fecha_llegada']);
-    } else {
-      // Campos exclusivos de residentes
-      if (toolInput['pg_plan_extra1'] !== undefined)
-        body['pg_plan_extra1'] = toolInput['pg_plan_extra1'];
-      if (toolInput['pg_plan_extra2'] !== undefined)
-        body['pg_plan_extra2'] = toolInput['pg_plan_extra2'];
-      if (toolInput['tarjeta_pvc'] !== undefined)
-        body['tarjeta_pvc'] = toolInput['tarjeta_pvc'];
-      if (toolInput['selecciono_pvc'] !== undefined)
-        body['selecciono_pvc'] = toolInput['selecciono_pvc'];
-      if (toolInput['ra_tipo_pac'] !== undefined)
-        body['ra_tipo_pac'] = toolInput['ra_tipo_pac'];
-      if (toolInput['dip_id'] !== undefined)
-        body['dip_id'] = toolInput['dip_id'];
-      if (toolInput['us_dir_postal'])
-        body['us_dir_postal'] = strVal(toolInput['us_dir_postal']);
-      if (toolInput['cp_code']) body['cp_code'] = strVal(toolInput['cp_code']);
-    }
-    return JSON.stringify(await apiPut(editarUrl, body, s?.token || ''));
-  }
-
-  if (toolName === 'verificar_codigo_descuento') {
-    const dcCode = strVal(toolInput['dc_code']).trim();
-    if (!dcCode) {
-      return JSON.stringify({
-        success: false,
-        error: 'Se requiere dc_code.',
-      });
-    }
-    const params: Record<string, string> = { dc_code: dcCode };
-    return JSON.stringify(await apiGet(DISCOUNTS_RESIDENTES_URL, params));
-  }
-
-  if (toolName === 'get_foto_link') {
-    const pgCode = strVal(toolInput['pg_code']).trim();
-    if (!pgCode) {
-      return JSON.stringify({ success: false, error: 'Se requiere pg_code.' });
-    }
-    const userType: 'residente' | 'turista' =
-      strVal(toolInput['user_type']).trim() === 'turista'
-        ? 'turista'
-        : 'residente';
-    const fotoUrl =
-      userType === 'turista' ? TURISTAS_URL_FOTOS : RESIDENTES_URL_FOTOS;
-    return JSON.stringify(
-      await apiGet(fotoUrl, { pg_code: pgCode }, s?.token || ''),
-    );
-  }
-
-  if (toolName === 'editar_perfil') {
-    const usId = toolInput['us_id'] ?? s?.user_id;
-    if (!usId) {
-      return JSON.stringify({ success: false, error: 'Se requiere us_id.' });
-    }
-    const userType: 'residente' | 'turista' =
-      strVal(toolInput['user_type']).trim() === 'turista'
-        ? 'turista'
-        : 'residente';
-    const profileUrl =
-      userType === 'turista'
-        ? TURISTAS_EDIT_PROFILE_URL
-        : RESIDENTES_EDIT_PROFILE_URL;
-    const body: Record<string, unknown> = { us_id: usId };
-    const optionalFields = [
-      'us_first_name',
-      'us_last_name',
-      'us_street',
-      'pl_id',
-      'us_zip',
-      'us_phone',
-      'us_fech_nac',
-      'us_gen',
-      'us_tutor',
-      'us_dir_postal',
-    ];
-    for (const field of optionalFields) {
-      if (toolInput[field] !== undefined && toolInput[field] !== '') {
-        body[field] = toolInput[field];
-      }
-    }
-    if (userType === 'turista') {
-      const ssn = strVal(toolInput['us_ssn']).trim();
-      if (ssn) body['us_ssn'] = ssn;
-    }
-    return JSON.stringify(await apiPut(profileUrl, body, s?.token || ''));
-  }
-
   if (toolName === 'consultar_memoria_usuario') {
     const rawClave = toolInput['clave'];
     const k =
@@ -495,6 +108,45 @@ export async function executeTool(
     } catch (e: unknown) {
       return JSON.stringify({ success: false, error: errMsg(e) });
     }
+  }
+
+  if (toolName === 'get_status_by_code') {
+    const pgCode = strVal(toolInput['pg_code']).trim();
+    if (!pgCode) {
+      return JSON.stringify({ success: false, error: 'Se requiere pg_code.' });
+    }
+    return JSON.stringify(await apiGet(STATUS_GLOBAL_URL, { pg_code: pgCode }));
+  }
+
+  if (toolName === 'get_user_by_email') {
+    const usEmail = strVal(toolInput['us_email']).trim();
+    if (!usEmail) {
+      return JSON.stringify({ success: false, error: 'Se requiere us_email.' });
+    }
+    return JSON.stringify(
+      await apiGet(USER_BY_EMAIL_URL, { us_email: usEmail }),
+    );
+  }
+
+  if (toolName === 'edit_contact') {
+    const usId = strVal(toolInput['us_id']).trim();
+    if (!usId) {
+      return JSON.stringify({ success: false, error: 'Se requiere us_id.' });
+    }
+    const body: Record<string, unknown> = {};
+    if (toolInput['us_email'] !== undefined)
+      body['us_email'] = strVal(toolInput['us_email']);
+    if (toolInput['us_phone'] !== undefined)
+      body['us_phone'] = strVal(toolInput['us_phone']);
+    if (Object.keys(body).length === 0) {
+      return JSON.stringify({
+        success: false,
+        error: 'Se requiere al menos us_email o us_phone.',
+      });
+    }
+    return JSON.stringify(
+      await apiPost(`${EDIT_CONTACT_URL}?us_id=${usId}`, body),
+    );
   }
 
   return JSON.stringify({
