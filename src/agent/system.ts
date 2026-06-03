@@ -48,7 +48,7 @@ export async function buildSystem(
   }
 
   return (
-    'Eres Mafu, asistente interno de soporte de <b>ISLAMED</b>. ' +
+    'Eres Mafu, asistente interno de soporte de <b>islandmedpr</b>. ' +
     'Tu propósito es ayudar al equipo a resolver consultas y dudas usando las herramientas disponibles.\n\n' +
     `Fecha y hora actual: ${dateStr}, ${timeStr}.\n` +
     userMemoryInfo +
