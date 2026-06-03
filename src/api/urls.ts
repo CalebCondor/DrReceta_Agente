@@ -12,3 +12,6 @@ export const RESIDENTES_URL_FOTOS =
 
 export const TURISTAS_URL_FOTOS =
   'https://islandmedpr.com/apiia/api/turistas/foto_link.php';
+
+export const LIC_BY_CODE_URL =
+  'https://islandmedpr.com/apiia/api/licencias_by_code.php';

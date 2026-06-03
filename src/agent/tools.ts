@@ -56,6 +56,10 @@ export const TOOLS: Anthropic.Tool[] = [
           type: 'string',
           description: 'Nuevo número de teléfono (opcional).',
         },
+        us_dir: {
+          type: 'string',
+          description: 'Nueva dirección (opcional).',
+        },
       },
       required: ['us_id'],
     },
@@ -82,6 +86,23 @@ export const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['pg_code', 'user_type'],
+    },
+  },
+
+  {
+    name: 'lic_by_code',
+    description:
+      'Consulta la información de una licencia usando su pg_code. ' +
+      'Úsalo cuando alguien pregunte por los detalles de una licencia.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        pg_code: {
+          type: 'string',
+          description: 'Código de la orden/pago.',
+        },
+      },
+      required: ['pg_code'],
     },
   },
 ];

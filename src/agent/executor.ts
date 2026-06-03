@@ -10,6 +10,7 @@ import {
   EDIT_CONTACT_URL,
   RESIDENTES_URL_FOTOS,
   TURISTAS_URL_FOTOS,
+  LIC_BY_CODE_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -163,6 +164,14 @@ export async function executeTool(
     return JSON.stringify(
       await apiGet(fotoUrl, { pg_code: pgCode }, s?.token || ''),
     );
+  }
+
+  if (toolName === 'lic_by_code') {
+    const pgCode = strVal(toolInput['pg_code']).trim();
+    if (!pgCode) {
+      return JSON.stringify({ success: false, error: 'Se requiere pg_code.' });
+    }
+    return JSON.stringify(await apiGet(LIC_BY_CODE_URL, { pg_code: pgCode }));
   }
   return JSON.stringify({
     success: false,
