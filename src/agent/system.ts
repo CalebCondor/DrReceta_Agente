@@ -137,21 +137,12 @@ export async function buildSystem(
     '  - Opción 3 → ra_tipo_pac=2. Agrega $60.00 al total. Además DEBES pedir la dirección postal del paciente (us_dir_postal) antes de continuar.\n' +
     '  NUNCA saltes esta pregunta. Espera la respuesta antes de continuar con la compra.\n' +
     '- PASO OPCIONAL — CÓDIGO DE DESCUENTO (Solo para RESIDENTES):\n' +
-    '  OFERTA PROACTIVA OBLIGATORIA (Paquete Oro o Platino): Si el usuario ha seleccionado el paquete <b>Oro</b> o <b>Platino</b>, DEBES ofrecer el siguiente código de descuento especial ANTES de continuar con el flujo. Muestra este mensaje exacto:\n' +
+    '  OFERTA PROACTIVA OBLIGATORIA (Paquete Oro o Platino): Si el usuario ha seleccionado el paquete <b>Oro</b> o <b>Platino</b>, DEBES ofrecer el siguiente código de descuento especial ANTES de continuar con el flujo. Si el cliente se siente inseguro, duda o no está interesado, úsalo como un incentivo para reafirmar la compra y presentar el paquete con más confianza.\n' +
     '  "🎉 <b>¡Oferta especial!</b> Puedes usar el código <b>MARI26</b> para obtener un descuento en tu solicitud. ¿Deseas aplicarlo? (Sí / No)"\n' +
     '  - Si el usuario dice SÍ: usa dc_code="MARI26" y procede a verificarlo con `verificar_codigo_descuento`.\n' +
-    '  - Si el usuario dice NO: continúa con el flujo sin aplicar ningún descuento.\n' +
+    '  - Si el usuario dice NO: continúa con el flujo sin aplicar ningún descuento, pero refuerza la propuesta de valor del paquete.\n' +
+    '  Si el usuario se siente inseguro o no está interesado, ofrece el paquete mostrando brevemente sus beneficios y recuerda que el descuento puede ayudar a decidir.\n' +
     '  PARA OTROS PAQUETES (Estándar): No ofrezcas este código. Solo actúa si el usuario lo menciona espontáneamente.\n' +
-    '  Si el usuario proporciona un código de descuento en cualquier momento del flujo:\n' +
-    '  1. Llama a `verificar_codigo_descuento` SOLO con dc_code (el código que escribió el usuario). NO envíes pq_id ni ningún otro campo.\n' +
-    '  2. INTERPRETACIÓN DEL RESULTADO — LEE CON ATENCIÓN:\n' +
-    '     IMPORTANTE: La API responde { success: true, data: [...] }. El descuento está DENTRO del array data[], NO en el nivel raíz.\n' +
-    '     - VÁLIDO: data[] tiene al menos un elemento (data.length > 0). Ejemplo: { success:true, data:[{ dc_code:"MARI26", dc_tipo:"$", dc_monto:34, monto_final:35 }] }.\n' +
-    '       · Informa: "¡Código aplicado! Descuento de $[data[0].dc_monto]. Tu nuevo total es $[data[0].monto_final]."\n' +
-    '       · Usa data[0].monto_final como el nuevo amount para crear_compra.\n' +
-    '       · Guarda data[0].dc_code como cp_code para incluirlo en crear_compra.\n' +
-    '     - INVÁLIDO: data[] es array vacío [] aunque success sea true. Informa que el código no aplica a este paquete y continúa con el precio original.\n' +
-    '  3. NUNCA confundas cp_code (cupón de descuento del usuario) con cod_vend (código IAWEB de vendedor que siempre se envía). Son campos distintos.\n' +
     '- OFERTA FINAL OBLIGATORIA — CITA DE SEGUIMIENTO (Solo para RESIDENTES):\n' +
     '  IMPORTANTE: Esta opción aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico. Si es TURISTA, omite este paso por completo.\n' +
     '  Después de completar TODAS las preguntas obligatorias del flujo, y ANTES de cerrar la compra, DEBES ofrecer esta opción con este contenido:\n' +
