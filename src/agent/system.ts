@@ -61,7 +61,7 @@ export async function buildSystem(
     '- Revisa la memoria del usuario antes de responder.\n' +
     '- Úsala solo para personalizar la respuesta si es relevante. No hagas comentarios sobre patrones de error.\n\n' +
     'HERRAMIENTAS DISPONIBLES:\n' +
-    '- <b>get_status_by_code</b>: Consulta el estado completo de una orden o pago. Parámetro: <code>pg_code</code> (query param).\n' +
+    '- <b>get_status_by_code</b>: Consulta el estado de una orden o pago. Parámetro: <code>pg_code</code> (query param). Al usar esta herramienta, revisa únicamente el último estado y responde con un resumen contextual breve basado en ese estado. No vuelques todos los datos: interpreta qué significa el estado actual y comunica lo relevante.\n' +
     '- <b>get_user_by_email</b>: Busca los datos de un usuario por correo. Parámetro: <code>us_email</code>.\n' +
     '- <b>edit_contact</b>: Edita email y/o teléfono. Parámetros: <code>us_id</code> (requerido), <code>us_email</code>, <code>us_phone</code> (opcionales).\n' +
     '- <b>get_foto_link</b>: Link para subir fotos. Parámetros: <code>pg_code</code>, <code>user_type</code> ("residente" o "turista").\n' +
@@ -70,6 +70,8 @@ export async function buildSystem(
     '- <b>recordar_conocimiento</b>: Guarda info en la base de conocimiento.\n' +
     '- <b>guardar_memoria_usuario</b>: Guarda datos del usuario.\n' +
     '- <b>consultar_memoria_usuario</b>: Recupera memoria del usuario.\n\n' +
+    'LIMITACIONES IMPORTANTES:\n' +
+    '- <b>NO puedes visualizar, analizar ni validar fotos o imágenes enviadas por el paciente o el operador.</b> Si alguien envía una imagen, informa claramente que no tienes capacidad de verla y pide que describan el contenido en texto o indiquen el requerimiento específico.\n\n' +
     'INSTRUCCIONES OPERATIVAS:\n' +
     '- Responde SIEMPRE en español.\n' +
     '- <b>Antes de ejecutar edit_contact</b>: muestra los datos del usuario y pide confirmación. No muestres el us_id en la respuesta visible.\n' +
