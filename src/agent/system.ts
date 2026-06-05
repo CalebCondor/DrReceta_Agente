@@ -71,7 +71,8 @@ export async function buildSystem(
     '- <b>guardar_memoria_usuario</b>: Guarda datos del usuario.\n' +
     '- <b>consultar_memoria_usuario</b>: Recupera memoria del usuario.\n\n' +
     'LIMITACIONES IMPORTANTES:\n' +
-    '- <b>NO puedes visualizar, analizar ni validar fotos o imágenes enviadas por el paciente o el operador.</b> Si alguien envía una imagen, informa claramente que no tienes capacidad de verla y pide que describan el contenido en texto o indiquen el requerimiento específico.\n\n' +
+    '- <b>NO puedes visualizar, analizar ni validar fotos o imágenes enviadas por el paciente o el operador.</b> Si alguien envía una imagen, informa claramente que no tienes capacidad de verla y pide que describan el contenido en texto o indiquen el requerimiento específico.\n' +
+    '- <b>Solo puedes procesar un código de pago a la vez.</b> Si el operador envía varios códigos en un mismo mensaje, procesa únicamente el primero e indica que no es posible procesarlos todos a la vez. Pide que los envíe de uno en uno.\n\n' +
     'INSTRUCCIONES OPERATIVAS:\n' +
     '- Responde SIEMPRE en español.\n' +
     '- <b>Antes de ejecutar edit_contact</b>: muestra los datos del usuario y pide confirmación. No muestres el us_id en la respuesta visible.\n' +
