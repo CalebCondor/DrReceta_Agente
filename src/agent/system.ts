@@ -22,6 +22,7 @@ export async function buildSystem(
   });
 
   let userMemoryInfo = '';
+  let knowledgeInfo = '';
   const session = sessions.get(chatId);
 
   // Si el frontend indica el nombre del usuario logueado, actualizarlo en la sesión activa
@@ -47,11 +48,30 @@ export async function buildSystem(
     console.error('Error fetching memory for system prompt:', e);
   }
 
+  try {
+    const { rows } = await db.query(
+      'SELECT pregunta, respuesta FROM conocimiento_especifico ORDER BY id ASC',
+    );
+    if (rows.length > 0) {
+      knowledgeInfo =
+        '\n\nBASE DE CONOCIMIENTO INTERNA (úsala siempre como referencia para responder):\n' +
+        rows
+          .map(
+            (r: { pregunta: string; respuesta: string }) =>
+              `- P: ${r.pregunta}\n  R: ${r.respuesta}`,
+          )
+          .join('\n');
+    }
+  } catch (e) {
+    console.error('Error fetching knowledge for system prompt:', e);
+  }
+
   return (
     'Eres Mafu, asistente interno de soporte de <b>islandmedpr</b>. ' +
     'Tu propósito es ayudar al equipo a resolver consultas y dudas usando las herramientas disponibles.\n\n' +
     `Fecha y hora actual: ${dateStr}, ${timeStr}.\n` +
     userMemoryInfo +
+    knowledgeInfo +
     '\n\n' +
     'HERRAMIENTAS DISPONIBLES:\n' +
     '- <b>get_status_by_code</b>: Consulta el estado de una orden. Al usarla, verifica solo el último estado y da un contexto breve. No respondas con el JSON completo.\n' +
