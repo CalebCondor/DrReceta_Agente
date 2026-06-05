@@ -4,6 +4,7 @@ import {
   HttpCode,
   Post,
   Get,
+  Put,
   Delete,
   Param,
   ParseIntPipe,
@@ -69,6 +70,43 @@ export class ChatController {
         body.pregunta,
         body.respuesta,
       );
+      return result;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Actualizar una pregunta y respuesta
+  @Put('/conocimiento/:id')
+  async updatePreguntaRespuesta(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: PreguntaRespuestaDto,
+  ) {
+    try {
+      const result = await this.chatService.updatePreguntaRespuesta(
+        id,
+        body.pregunta,
+        body.respuesta,
+      );
+      return result;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Eliminar una pregunta y respuesta
+  @Delete('/conocimiento/:id')
+  async deletePreguntaRespuesta(@Param('id', ParseIntPipe) id: number) {
+    try {
+      const result = await this.chatService.deletePreguntaRespuesta(id);
       return result;
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Internal server error';

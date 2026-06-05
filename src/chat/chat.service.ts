@@ -69,4 +69,23 @@ export class ChatService {
       row && typeof row.id !== 'undefined' ? Number(row.id) : undefined;
     return { success: true, id };
   }
+
+  async updatePreguntaRespuesta(
+    id: number,
+    pregunta: string,
+    respuesta: string,
+  ): Promise<{ success: boolean }> {
+    await this.db.query(
+      'UPDATE conocimiento_especifico SET pregunta = $1, respuesta = $2 WHERE id = $3',
+      [pregunta, respuesta, id],
+    );
+    return { success: true };
+  }
+
+  async deletePreguntaRespuesta(id: number): Promise<{ success: boolean }> {
+    await this.db.query('DELETE FROM conocimiento_especifico WHERE id = $1', [
+      id,
+    ]);
+    return { success: true };
+  }
 }
