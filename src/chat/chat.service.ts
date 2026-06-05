@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DbService } from '../agent/db.service';
+import { DEFAULT_SYSTEM_PROMPT } from '../agent/system';
 
 @Injectable()
 export class ChatService {
@@ -87,5 +88,32 @@ export class ChatService {
       id,
     ]);
     return { success: true };
+  }
+
+  async getConfig(clave: string): Promise<{
+    clave: string;
+    valor: string;
+  } | null> {
+    const { rows } = await this.db.query(
+      'SELECT clave, valor FROM configuracion WHERE clave = $1',
+      [clave],
+    );
+    if (rows.length === 0) return null;
+    const row = rows[0] as { clave: string; valor: string };
+    return row;
+  }
+
+  async setConfig(clave: string, valor: string): Promise<{ success: boolean }> {
+    await this.db.query(
+      `INSERT INTO configuracion (clave, valor, updated_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (clave) DO UPDATE SET valor = $2, updated_at = NOW()`,
+      [clave, valor],
+    );
+    return { success: true };
+  }
+
+  getDefaultSystemPrompt(): string {
+    return DEFAULT_SYSTEM_PROMPT;
   }
 }

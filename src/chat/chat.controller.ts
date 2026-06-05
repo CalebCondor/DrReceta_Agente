@@ -15,6 +15,13 @@ import { Type } from 'class-transformer';
 import { IsNumber, IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import { AgentService } from '../agent/agent.service';
 import { ChatService } from './chat.service';
+
+class ConfigDto {
+  @IsString()
+  @IsNotEmpty()
+  valor!: string;
+}
+
 class PreguntaRespuestaDto {
   @IsString()
   @IsNotEmpty()
@@ -176,6 +183,73 @@ export class ChatController {
     try {
       const user_ids = await this.chatService.getAllUserIds();
       return { success: true, total: user_ids.length, user_ids };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Obtener una configuración por clave
+  @Get('/config/:clave')
+  async getConfig(@Param('clave') clave: string) {
+    try {
+      const result = await this.chatService.getConfig(clave);
+      if (!result) {
+        // Si es system_prompt_base y no existe, devuelve el default
+        if (clave === 'system_prompt_base') {
+          return {
+            success: true,
+            clave,
+            valor: this.chatService.getDefaultSystemPrompt(),
+            source: 'default',
+          };
+        }
+        throw new HttpException(
+          { success: false, error: 'Configuración no encontrada' },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+      return { success: true, ...result, source: 'database' };
+    } catch (e) {
+      if (e instanceof HttpException) throw e;
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Actualizar o crear una configuración por clave
+  @Put('/config/:clave')
+  async setConfig(@Param('clave') clave: string, @Body() body: ConfigDto) {
+    try {
+      const result = await this.chatService.setConfig(clave, body.valor);
+      return result;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Restaurar system_prompt_base al valor por defecto
+  @Delete('/config/system_prompt_base')
+  async resetSystemPrompt() {
+    try {
+      await this.chatService.setConfig(
+        'system_prompt_base',
+        this.chatService.getDefaultSystemPrompt(),
+      );
+      return {
+        success: true,
+        message: 'System prompt restaurado al valor por defecto.',
+      };
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Internal server error';
       throw new HttpException(

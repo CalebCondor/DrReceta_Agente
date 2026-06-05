@@ -37,6 +37,10 @@ export class DbService implements OnModuleInit {
         content JSONB NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE INDEX IF NOT EXISTS idx_historial_chat ON historial_mensajes (chat_id, created_at);
+      CREATE TABLE IF NOT EXISTS configuracion (
+        clave TEXT PRIMARY KEY, valor TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
     this.logger.log('Database initialized successfully.');
   }
