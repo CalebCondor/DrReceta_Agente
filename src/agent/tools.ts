@@ -97,6 +97,22 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'get_voucher',
+    description:
+      'Obtiene el enlace a una copia digital (Voucher) de la licencia o recomendación médica del usuario. ' +
+      'Úsalo solo cuando el usuario solicite un duplicado de su licencia, ID, o voucher.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        us_id: {
+          type: 'integer',
+          description: 'ID interno del usuario.',
+        },
+      },
+      required: ['us_id'],
+    },
+  },
+  {
     name: 'consultar_memoria_usuario',
     description:
       'Consulta la memoria a largo plazo del usuario actual para obtener detalles personalizados. ' +

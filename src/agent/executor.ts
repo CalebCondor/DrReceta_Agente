@@ -25,6 +25,7 @@ import {
   TURISTAS_URL_FOTOS,
   RESIDENTES_EDIT_PROFILE_URL,
   TURISTAS_EDIT_PROFILE_URL,
+  VOUCHER_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -45,6 +46,7 @@ const AUTH_REQUIRED = new Set([
   'crear_compra',
   'editar_pago',
   'editar_perfil',
+  'get_voucher',
 ]);
 
 export async function executeTool(
@@ -88,6 +90,15 @@ export async function executeTool(
       };
     });
     return JSON.stringify({ success: raw['success'], orders: summary });
+  }
+
+  if (toolName === 'get_voucher') {
+    const usId = toolInput['us_id'];
+    if (!usId) {
+      return JSON.stringify({ success: false, error: 'Se requiere us_id.' });
+    }
+    const raw = await apiPost(VOUCHER_URL, { us_id: usId }, s?.token || '');
+    return JSON.stringify(raw);
   }
 
   if (toolName === 'get_estatus_orden') {
