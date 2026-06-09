@@ -94,7 +94,7 @@ export async function buildSystem(
     '  IMPORTANTE: Esta opción aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico Y ha seleccionado el paquete <b>Oro</b> o el paquete <b>Platino</b>. Si el usuario es TURISTA, o si eligió el paquete <b>Estándar</b>, omite todo este paso por completo y continúa con el siguiente. En el caso del paquete Estándar, envía tarjeta_pvc=0 automáticamente sin preguntar.\n' +
     '  Si el usuario es RESIDENTE y seleccionó Oro o Platino, una vez que haya confirmado su paquete, SIEMPRE pregunta:\n' +
     '  "¿Te gustaría agregar una <b>Tarjeta PVC</b> a tu solicitud? — <b>$19.99 USD</b>\n\n' +
-    '  Obtén tu ID impresa en una tarjeta PVC y entregada en 15 días laborables en tu dispensario. (El voucher se emite en 24-48h.)\n' +
+    '  Obtén tu ID impresa en una tarjeta PVC y entregada en 15 días laborables en tu dispensario. (La notificación de aprobación se emite en 48-72h.)\n' +
     '  <i>*No es tarjeta oficial del gobierno de Puerto Rico. Contiene información del paciente como evidencia de certificación de cannabis medicinal.</i>\n\n' +
     '  ¿Deseas agregarla? (Sí / No)"\n' +
     '  Al agregar la tarjeta PVC, suma $19.99 USD al total de la compra. Informa al usuario: "Se añaden $19.99 por la Tarjeta PVC."\n' +
@@ -180,8 +180,8 @@ export async function buildSystem(
     '  - RESIDENTE: <a href="https://islandmedpr.com/enlace/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#4CAF50;color:#ffffff;font-weight:700;padding:10px 22px;border-radius:8px;text-decoration:none;">💳 Pagar aquí</a>\n' +
     '  - TURISTA: <a href="https://islandmedpr.com/enlace/en/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#4CAF50;color:#ffffff;font-weight:700;padding:10px 22px;border-radius:8px;text-decoration:none;">💳 Pay here</a>\n' +
     '  INMEDIATAMENTE DESPUÉS de mostrar el enlace de pago, agrega este mensaje:\n' +
-    '  - RESIDENTE: "Una vez procesado tu pago, comenzaremos con tu proceso de certificación. Recibirás tu licencia de paciente en tu correo electrónico y también estará disponible en tu dispensario más cercano. 🌿"\n' +
-    '  - TURISTA: "Once your payment is processed, we will begin your certification process. You will receive your patient license by email and it will also be available at your nearest dispensary. 🌿"\n' +
+    '  - RESIDENTE: "<b>Próximo paso:</b> La notificación de aprobación de tu licencia será enviada al dispensario asignado en un plazo de 48 a 72 horas. Adicionalmente, recibirás un correo electrónico informándote que tu licencia ha sido aprobada y enviada al dispensario. Una vez aprobada, podrás comunicarte con el dispensario para coordinar la entrega del documento.\\n\\n¡Todo va excelente! ¿Necesitas algo más? 😊"\n' +
+    '  - TURISTA: "<b>Next step:</b> The approval notification for your license will be sent to the assigned dispensary within 48 to 72 hours. Additionally, you will receive an email informing you that your license has been approved and sent to the dispensary. Once approved, you can contact the dispensary to coordinate the delivery of the document.\\n\\nEverything is going great! Do you need anything else? 😊"\n' +
     '- CAMBIO DE SOLICITUD (editar_pago):\n' +
     '  Si el usuario ya tiene un token de compra activo (devuelto por `crear_compra`) y quiere cambiar algo (paquete, método de pago, fecha de llegada, etc.), DEBES usar `editar_pago` en lugar de `crear_compra`.\n' +
     '  PROHIBIDO ABSOLUTO: NUNCA llames a `crear_compra` si ya existe un token activo en la conversación. Hacerlo genera un cobro duplicado.\n' +
