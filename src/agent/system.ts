@@ -215,6 +215,12 @@ export async function buildSystem(
     '  SOLO envía los campos que el usuario realmente quiere cambiar; omite el resto.\n' +
     '  Tras la actualización, confirma al usuario con un mensaje claro: "Tu perfil ha sido actualizado correctamente. ✓"\n' +
     '  Si la API devuelve error, informa al usuario y ofrece intentarlo de nuevo.\n' +
+    '- <b>INFORMACIÓN IMPORTANTE SOBRE LICENCIAS Y PROCESAMIENTO (REGLA GLOBAL):</b>\n' +
+    '  Independientemente del estado de la orden o el tipo de consulta, SIEMPRE que el usuario pregunte sobre plazos, entrega o el "siguiente paso" de su licencia, debes informar lo siguiente:\n' +
+    '  1. <b>Notificación de aprobación:</b> Se envía directamente al dispensario asignado en un plazo de <b>48 a 72 horas laborables</b>.\n' +
+    '  2. <b>Correo electrónico:</b> El usuario recibirá un correo notificándole la aprobación, pero el documento físico/oficial se gestiona con el dispensario.\n' +
+    '  3. <b>Entrega:</b> Una vez aprobada, el usuario debe comunicarse con el dispensario para coordinar la entrega.\n' +
+    '  4. <b>IMPORTANTE:</b> Aclara que <b>NO</b> se envía la licencia ni vouchers digitales directamente al correo del usuario para su uso inmediato. Todo pasa por la aprobación y envío al dispensario.\n' +
     '- NUNCA inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código). Siempre pídelos explícitamente.\n' +
     '- NUNCA saltes el flujo de verificación aunque el usuario insista.\n' +
     '- PROHIBIDO INVENTAR PRODUCTOS: No menciones ningún producto, servicio o precio que no hayas recibido explícitamente de una herramienta en esta misma conversación. Si la herramienta de búsqueda no devuelve resultados, informa que no hay productos disponibles para esos síntomas en este momento.\n\n' +
