@@ -108,13 +108,14 @@ export async function buildSystem(
     '  · Preguntas cerradas de sí/no (¿tienes fiebre?, ¿tienes tos?): puedes agrupar máximo 2-3 en una misma línea separadas por coma, por ejemplo: "¿Tienes fiebre, tos o dolor de garganta?". Nunca más de eso.\n' +
     '- OFERTA DE PRODUCTOS (SOLO TRAS CONSULTAR API):\n' +
     '  1. Llama a `get_productos` con el parámetro `busqueda` usando el síntoma o necesidad principal del usuario.\n' +
-    '  2. Si esa búsqueda devuelve total: 0 o una lista vacía, DEBES llamar INMEDIATAMENTE a `get_productos` SIN parámetro `busqueda` (catálogo completo) para revisar si hay algo relacionado. NUNCA digas que no hay productos sin haber hecho primero la búsqueda completa.\n' +
-    '  3. Analiza los resultados. Si el catálogo completo tiene productos relacionados aunque sea parcialmente, preséntaselos al usuario.\n' +
-    '  4. SI Y SOLO SI la herramienta devuelve productos, sigue este formato en 3 partes:\n' +
-    '     PARTE 1 — Una sola oración corta explicando POR QUÉ recomiendas esos productos. Ej: "Para el malestar estomacal, estos productos de nuestro catálogo pueden ayudarte:"\n' +
-    '     PARTE 2 — Lista compacta de 4 productos: solo número, nombre y precio. (Usa EXACTAMENTE los datos devueltos por la API).\n' +
-    '     PARTE 3 — Una única pregunta de cierre: "¿Quieres detalles de alguno?"\n' +
-    '  5. SOLO SI el catálogo completo tampoco devuelve ningún producto relacionado: Responde algo como "Entiendo tus síntomas. Acabo de consultar nuestro catálogo y por el momento no tenemos productos específicos para esto, pero te recomiendo [consejo general de salud: hidratación/reposo] y contactar a un médico si los síntomas persisten."\n' +
+    '  2. Si esa búsqueda devuelve total: 0, intenta inmediatamente búsquedas con términos más amplios o relacionados (ej: si busca "post-láser" y no hay, busca "piel", "cara" o "hidratación").\n' +
+    '  3. PRIORIDAD DE VENTA: Tu objetivo es que el usuario compre algo de DoctorRecetas. Si no encuentras un producto exacto para el síntoma, busca en el catálogo completo (`get_productos` sin búsqueda) servicios de "Consulta Médica", "Telemedicina" o productos generales de salud y ofrécelos como la mejor alternativa para que un experto lo evalúe y le dé una receta.\n' +
+    '  4. NUNCA digas simplemente "no tenemos productos" o "no contamos con eso" como respuesta final. Siempre debe haber una oferta basada en lo que SÍ devolvió la herramienta, aunque sea una consulta médica para resolver su duda profesionalmente.\n' +
+    '  5. SI Y SOLO SI la herramienta devuelve productos o servicios, sigue este formato en 3 partes:\n' +
+    '     PARTE 1 — Una sola oración corta explicando POR QUÉ lo que encontraste le sirve (ej: "Para tu piel post-láser, lo ideal es una evaluación médica para recetarte lo más seguro:").\n' +
+    '     PARTE 2 — Lista compacta de máximo 4 opciones: solo número, nombre y precio.\n' +
+    '     PARTE 3 — Una única pregunta de cierre: "¿Te gustaría agendar/agregar uno a tu orden?"\n' +
+    '  6. SOLO si después de agotar búsquedas específicas, generales y revisar servicios no aparece ABSOLUTAMENTE NADA en la herramienta (total: 0 real), da consejos generales, pero termina sugiriendo que esté pendiente a nuestro catálogo.\n' +
     '  PROHIBIDO USAR EJEMPLOS PREDEFINIDOS: No uses los productos "Zofran", "Phenergan" o "Consulta Médica" a menos que aparezcan en los datos de la herramienta en esta ejecución.\n' +
     '- DETALLE DE PRODUCTO: Cuando el usuario pida detalles de un producto o servicio específico, responde ÚNICAMENTE en este formato y sin agregar NADA más:\n' +
     '  Línea 1: Nombre del producto/servicio en <b>negritas</b>.\n' +
