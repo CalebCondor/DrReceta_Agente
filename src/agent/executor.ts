@@ -5,27 +5,14 @@ import { sessions } from './state';
 import { apiPost, apiGet, apiPut } from '../api/http';
 import { DbService } from './db.service';
 import {
-  VERIFICAR_REGISTRAR_RESIDENTES_URL,
   VERIFICAR_REGISTRAR_TURISTAS_URL,
-  CREAR_COMPRA_RESIDENTES_URL,
   CREAR_COMPRA_TURISTAS_URL,
-  VERIFICAR_CODIGO_RESIDENTES_URL,
   VERIFICAR_CODIGO_TURISTAS_URL,
-  RESIDENTES_PACKAGES_URL,
   TURISTAS_PACKAGES_URL,
-  DISPENSARIOS_RESIDENTES_URL,
-  DETALLE_PAGO_RESIDENTES_URL,
   DETALLE_PAGO_TURISTAS_URL,
-  EDITAR_PAGO_RESIDENTES_URL,
   EDITAR_PAGO_TURISTAS_URL,
-  STATUS_RESIDENTES_URL,
-  ORDERS_RESIDENTES_URL,
-  DISCOUNTS_RESIDENTES_URL,
-  RESIDENTES_URL_FOTOS,
   TURISTAS_URL_FOTOS,
-  RESIDENTES_EDIT_PROFILE_URL,
   TURISTAS_EDIT_PROFILE_URL,
-  VOUCHER_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -64,86 +51,17 @@ export async function executeTool(
     });
   }
 
-  if (toolName === 'get_my_orders') {
-    const usId = strVal(toolInput['us_id']);
-    if (!usId) {
-      return JSON.stringify({ success: false, error: 'Se requiere us_id.' });
-    }
-    const raw = await apiGet(
-      ORDERS_RESIDENTES_URL,
-      { us_id: usId },
-      s?.token || '',
-    );
-    const data = raw['data'] as Record<string, unknown> | undefined;
-    const orders: unknown[] = Array.isArray(data?.['orders'])
-      ? (data['orders'] as unknown[])
-      : [];
-    const summary = orders.map((o) => {
-      const order = o as Record<string, unknown>;
-      const pkg = (order['package'] ?? {}) as Record<string, unknown>;
-      return {
-        order_code: order['order_code'],
-        order_date_formatted: order['order_date_formatted'],
-        package_name: pkg['name'],
-        total_amount_formatted: order['total_amount_formatted'],
-        pvc_type: order['pvc_type'],
-      };
-    });
-    return JSON.stringify({ success: raw['success'], orders: summary });
-  }
-
-  if (toolName === 'get_voucher') {
-    const usId = toolInput['us_id'];
-    if (!usId) {
-      return JSON.stringify({ success: false, error: 'Se requiere us_id.' });
-    }
-    const raw = await apiPost(VOUCHER_URL, { us_id: usId }, s?.token || '');
-    return JSON.stringify(raw);
-  }
-
-  if (toolName === 'get_estatus_orden') {
-    const usId = strVal(toolInput['us_id']);
-    const pgCode = strVal(toolInput['pg_code']).trim();
-    if (!usId || !pgCode) {
-      return JSON.stringify({
-        success: false,
-        error: 'Se requieren us_id y pg_code.',
-      });
-    }
-    return JSON.stringify(
-      await apiGet(
-        STATUS_RESIDENTES_URL,
-        { us_id: usId, pg_code: pgCode },
-        s?.token || '',
-      ),
-    );
-  }
-
-  if (toolName === 'get_dispensarios') {
-    return JSON.stringify(await apiGet(DISPENSARIOS_RESIDENTES_URL, {}));
-  }
-
   if (toolName === 'get_detalle_pago') {
     const paymentToken = strVal(toolInput['token']);
     const authToken = s?.token || '';
-    const userType: 'residente' | 'turista' =
-      strVal(toolInput['user_type']) === 'turista' ? 'turista' : 'residente';
-    const detalleUrl =
-      userType === 'turista'
-        ? DETALLE_PAGO_TURISTAS_URL
-        : DETALLE_PAGO_RESIDENTES_URL;
+    const detalleUrl = DETALLE_PAGO_TURISTAS_URL;
     return JSON.stringify(
       await apiGet(detalleUrl, { token: paymentToken }, authToken),
     );
   }
 
   if (toolName === 'get_productos') {
-    const userType: 'residente' | 'turista' =
-      strVal(toolInput['user_type']).trim() === 'turista'
-        ? 'turista'
-        : 'residente';
-    const packagesUrl =
-      userType === 'turista' ? TURISTAS_PACKAGES_URL : RESIDENTES_PACKAGES_URL;
+    const packagesUrl = TURISTAS_PACKAGES_URL;
 
     const queryParams: Record<string, string> = {};
     if (toolInput['pq_id']) queryParams['pq_id'] = strVal(toolInput['pq_id']);
@@ -244,14 +162,7 @@ export async function executeTool(
     if (!email) {
       return JSON.stringify({ success: false, error: 'Se requiere us_email.' });
     }
-    const userType: 'residente' | 'turista' =
-      strVal(toolInput['user_type']).trim() === 'turista'
-        ? 'turista'
-        : 'residente';
-    const registrarUrl =
-      userType === 'turista'
-        ? VERIFICAR_REGISTRAR_TURISTAS_URL
-        : VERIFICAR_REGISTRAR_RESIDENTES_URL;
+    const registrarUrl = VERIFICAR_REGISTRAR_TURISTAS_URL;
 
     const payload: Record<string, unknown> = { us_email: email };
     const firstName = strVal(toolInput['us_first_name']).trim();
@@ -262,10 +173,8 @@ export async function executeTool(
     if (lastName) payload['us_last_name'] = lastName;
     if (phone) payload['us_phone'] = phone;
     if (password) payload['us_pasww'] = password;
-    if (userType === 'turista') {
-      const ssn = strVal(toolInput['us_ssn']).trim();
-      if (ssn) payload['us_ssn'] = ssn;
-    }
+    const ssn = strVal(toolInput['us_ssn']).trim();
+    if (ssn) payload['us_ssn'] = ssn;
 
     const result = await apiPost(registrarUrl, payload);
 
@@ -279,7 +188,6 @@ export async function executeTool(
         user_id: strVal(data?.['us_id'] ?? ''),
         name: strVal(data?.['us_first_name'] ?? data?.['us_nombres'] ?? ''),
         es_vip: false,
-        user_type: userType,
       });
     }
 
@@ -295,14 +203,7 @@ export async function executeTool(
         error: 'Se requieren us_email y codigo.',
       });
     }
-    const userType: 'residente' | 'turista' =
-      strVal(toolInput['user_type']).trim() === 'turista'
-        ? 'turista'
-        : 'residente';
-    const verificarUrl =
-      userType === 'turista'
-        ? VERIFICAR_CODIGO_TURISTAS_URL
-        : VERIFICAR_CODIGO_RESIDENTES_URL;
+    const verificarUrl = VERIFICAR_CODIGO_TURISTAS_URL;
 
     const result = await apiPost(verificarUrl, {
       us_email: email,
@@ -319,7 +220,6 @@ export async function executeTool(
         user_id: strVal(data?.['us_id'] ?? ''),
         name: strVal(data?.['us_first_name'] ?? data?.['us_nombres'] ?? ''),
         es_vip: false,
-        user_type: userType,
       });
     }
 
@@ -337,12 +237,7 @@ export async function executeTool(
         error: 'Se requieren pq_id, us_id y amount.',
       });
     }
-    const userType: 'residente' | 'turista' =
-      s?.user_type === 'turista' ? 'turista' : 'residente';
-    const pagoUrl =
-      userType === 'turista'
-        ? CREAR_COMPRA_TURISTAS_URL
-        : CREAR_COMPRA_RESIDENTES_URL;
+    const pagoUrl = CREAR_COMPRA_TURISTAS_URL;
     const body: Record<string, unknown> = {
       us_id: usId,
       pq_id: pqId,
@@ -380,12 +275,7 @@ export async function executeTool(
         error: 'Se requieren us_id y url_generado_pago.',
       });
     }
-    const userType: 'residente' | 'turista' =
-      s?.user_type === 'turista' ? 'turista' : 'residente';
-    const editarUrl =
-      userType === 'turista'
-        ? EDITAR_PAGO_TURISTAS_URL
-        : EDITAR_PAGO_RESIDENTES_URL;
+    const editarUrl = EDITAR_PAGO_TURISTAS_URL;
     const body: Record<string, unknown> = {
       us_id: usId,
       url_generado_pago: urlGeneradoPago,
@@ -398,28 +288,9 @@ export async function executeTool(
     body['cod_vend'] = toolInput['cod_vend']
       ? strVal(toolInput['cod_vend'])
       : 'IAWEB';
-    if (userType === 'turista') {
-      // Campos exclusivos de turistas
-      if (toolInput['fecha_llegada'])
-        body['fecha_llegada'] = strVal(toolInput['fecha_llegada']);
-    } else {
-      // Campos exclusivos de residentes
-      if (toolInput['pg_plan_extra1'] !== undefined)
-        body['pg_plan_extra1'] = toolInput['pg_plan_extra1'];
-      if (toolInput['pg_plan_extra2'] !== undefined)
-        body['pg_plan_extra2'] = toolInput['pg_plan_extra2'];
-      if (toolInput['tarjeta_pvc'] !== undefined)
-        body['tarjeta_pvc'] = toolInput['tarjeta_pvc'];
-      if (toolInput['selecciono_pvc'] !== undefined)
-        body['selecciono_pvc'] = toolInput['selecciono_pvc'];
-      if (toolInput['ra_tipo_pac'] !== undefined)
-        body['ra_tipo_pac'] = toolInput['ra_tipo_pac'];
-      if (toolInput['dip_id'] !== undefined)
-        body['dip_id'] = toolInput['dip_id'];
-      if (toolInput['us_dir_postal'])
-        body['us_dir_postal'] = strVal(toolInput['us_dir_postal']);
-      if (toolInput['cp_code']) body['cp_code'] = strVal(toolInput['cp_code']);
-    }
+    // Campos exclusivos de turistas
+    if (toolInput['fecha_llegada'])
+      body['fecha_llegada'] = strVal(toolInput['fecha_llegada']);
     return JSON.stringify(await apiPut(editarUrl, body, s?.token || ''));
   }
 
@@ -432,7 +303,7 @@ export async function executeTool(
       });
     }
     const params: Record<string, string> = { dc_code: dcCode };
-    return JSON.stringify(await apiGet(DISCOUNTS_RESIDENTES_URL, params));
+    return JSON.stringify(await apiGet(TURISTAS_URL_FOTOS, params));
   }
 
   if (toolName === 'get_foto_link') {
@@ -440,12 +311,7 @@ export async function executeTool(
     if (!pgCode) {
       return JSON.stringify({ success: false, error: 'Se requiere pg_code.' });
     }
-    const userType: 'residente' | 'turista' =
-      strVal(toolInput['user_type']).trim() === 'turista'
-        ? 'turista'
-        : 'residente';
-    const fotoUrl =
-      userType === 'turista' ? TURISTAS_URL_FOTOS : RESIDENTES_URL_FOTOS;
+    const fotoUrl = TURISTAS_URL_FOTOS;
     return JSON.stringify(
       await apiGet(fotoUrl, { pg_code: pgCode }, s?.token || ''),
     );
@@ -456,14 +322,7 @@ export async function executeTool(
     if (!usId) {
       return JSON.stringify({ success: false, error: 'Se requiere us_id.' });
     }
-    const userType: 'residente' | 'turista' =
-      strVal(toolInput['user_type']).trim() === 'turista'
-        ? 'turista'
-        : 'residente';
-    const profileUrl =
-      userType === 'turista'
-        ? TURISTAS_EDIT_PROFILE_URL
-        : RESIDENTES_EDIT_PROFILE_URL;
+    const profileUrl = TURISTAS_EDIT_PROFILE_URL;
     const body: Record<string, unknown> = { us_id: usId };
     const optionalFields = [
       'us_first_name',
@@ -482,10 +341,8 @@ export async function executeTool(
         body[field] = toolInput[field];
       }
     }
-    if (userType === 'turista') {
-      const ssn = strVal(toolInput['us_ssn']).trim();
-      if (ssn) body['us_ssn'] = ssn;
-    }
+    const ssn = strVal(toolInput['us_ssn']).trim();
+    if (ssn) body['us_ssn'] = ssn;
     return JSON.stringify(await apiPut(profileUrl, body, s?.token || ''));
   }
 

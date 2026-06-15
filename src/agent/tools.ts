@@ -7,19 +7,12 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'get_productos',
     description:
-      'Obtiene el catálogo de paquetes disponibles. ' +
-      'Enruta automáticamente al endpoint de residentes o turistas según el tipo de usuario. ' +
+      'Obtiene el catálogo de paquetes disponibles para residentes. ' +
       'Úsalo cuando el usuario pregunte qué paquetes hay, qué venden, o quiera buscar algo. ' +
       'Puedes filtrar por pq_id para obtener un paquete específico.',
     input_schema: {
       type: 'object',
       properties: {
-        user_type: {
-          type: 'string',
-          enum: ['residente', 'turista'],
-          description:
-            'Tipo de usuario: residente o turista. Obligatorio para enrutar al catálogo correcto.',
-        },
         busqueda: {
           type: 'string',
           description:
@@ -38,7 +31,7 @@ export const TOOLS: Anthropic.Tool[] = [
           description: 'Desplazamiento para paginación.',
         },
       },
-      required: ['user_type'],
+      required: [],
     },
   },
   {
@@ -206,14 +199,8 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Código de 6 dígitos que el usuario recibió en su correo.',
         },
-        user_type: {
-          type: 'string',
-          enum: ['residente', 'turista'],
-          description:
-            'Tipo de usuario: residente o turista. Debe coincidir con el usado en verificar_o_registrar_usuario.',
-        },
       },
-      required: ['us_email', 'codigo', 'user_type'],
+      required: ['us_email', 'codigo'],
     },
   },
   {
@@ -306,6 +293,11 @@ export const TOOLS: Anthropic.Tool[] = [
         cod_vend: {
           type: 'string',
           description: 'Código de vendedor. Solo incluir si aplica.',
+        },
+        prefix_word: {
+          type: 'string',
+          description: 'Prefijo de palabra (ej: TETRA).',
+          default: 'TETRA',
         },
       },
       required: ['pq_id', 'us_id', 'amount'],
