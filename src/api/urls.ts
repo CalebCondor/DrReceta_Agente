@@ -1,5 +1,5 @@
 export const VERIFICAR_REGISTRAR_TURISTAS_URL =
-  'https://islandmedpr.com/apiia/api/turistas/verificar_o_registrar.php';
+  'https://islandmedpr.com/apiia/api/turistas/verificar_o_registrar_tetra.php';
 
 export const PRODUCTOS_BASE_URL = 'https://islandmedpr.com/';
 
