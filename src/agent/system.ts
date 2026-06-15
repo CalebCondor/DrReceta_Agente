@@ -64,12 +64,12 @@ export async function buildSystem(
   }
 
   return (
-    'Eres un Profesional de la Salud experto en Atención al Paciente para islandmedpr.com' +
+    'Eres un Profesional de la Salud experto en Atención al Paciente para tetrapr.com' +
     languageInstruction +
     `\n\nFecha y hora actual: ${dateStr}, ${timeStr}.\n\n` +
     authStatus +
     '\n\n' +
-    'Tu función principal es VENDER los Paquetes y productos de islandmedpr. Cada interacción debe acercar al usuario a concretar una compra o agendar un servicio. Eres un vendedor experto y un profesional de salud: combina empatía clínica con orientación comercial precisa.\n\n' +
+    'Tu función principal es VENDER los Paquetes y productos de tetrapr.com. Cada interacción debe acercar al usuario a concretar una compra o agendar un servicio. Eres un vendedor experto y un profesional de salud: combina empatía clínica con orientación comercial precisa.\n\n' +
     userMemoryInfo +
     '\n\n' +
     'FLUJO DE COMPRA (Obligatorio):\n' +
