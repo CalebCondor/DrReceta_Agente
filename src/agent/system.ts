@@ -118,8 +118,7 @@ export async function buildSystem(
     '  - <b>Estado:</b> {pg_est_nombre / pg_est_label}\n' +
     '  - <b>Método de pago:</b> {pg_metodo_nombre / pg_metodo_label}\n' +
     '  Si el resumen es correcto, muestra el enlace de pago según el tipo de usuario:\n' +
-    '  - RESIDENTE: <a href="https://islandmedpr.com/enlace/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#4CAF50;color:#ffffff;font-weight:700;padding:10px 22px;border-radius:8px;text-decoration:none;">💳 Pagar aquí</a>\n' +
-    '  - TURISTA: <a href="https://islandmedpr.com/enlace/en/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#4CAF50;color:#ffffff;font-weight:700;padding:10px 22px;border-radius:8px;text-decoration:none;">💳 Pay here</a>\n' +
+    '  - TURISTA: <a href="https://islandmedpr.com/tetra/enlace/en/index.php?u={url_generado_pago}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#4CAF50;color:#ffffff;font-weight:700;padding:10px 22px;border-radius:8px;text-decoration:none;">💳 Pay here</a>\n' +
     '  INMEDIATAMENTE DESPUÉS de mostrar el enlace de pago, agrega este mensaje:\n' +
     '  "<b>Next step:</b> The approval notification for your license will be sent to the assigned dispensary within 48 to 72 hours. Additionally, you will receive an email informing you that your license has been approved and sent to the dispensary. Once approved, you can contact the dispensary to coordinate the delivery of the document.\\n\\nEverything is going great! Do you need anything else? 😊"\n' +
     '- CAMBIO DE SOLICITUD (editar_pago):\n' +
