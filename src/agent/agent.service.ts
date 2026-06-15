@@ -22,7 +22,7 @@ export class AgentService {
     if (!conversations.has(chatId)) {
       try {
         const { rows } = await this.db.query(
-          'SELECT role, content FROM historial_mensajes WHERE chat_id = $1 ORDER BY created_at ASC LIMIT 50',
+          'SELECT role, content FROM historial_mensajes WHERE chat_id = $1 ORDER BY created_at ASC LIMIT 200',
           [chatId],
         );
         const history = rows.map(
@@ -48,14 +48,14 @@ export class AgentService {
   }
 
   /**
-   * Elimina pares tool_use/tool_result huérfanos y normaliza todo content a string o array.
-   * Anthropic rechaza: content null/undefined/object-no-array, y tool_use sin su tool_result.
+   * Normaliza content a string o array sin descartar mensajes válidos.
+   * Preserva el historial para evitar pérdida de conversación.
    */
   private normalizeMessages(
     msgs: Anthropic.MessageParam[],
   ): Anthropic.MessageParam[] {
-    // Paso 1: normalizar content de cada mensaje individualmente
-    const fixed = msgs.map((m) => {
+    // Normalizar content de cada mensaje sin descartar
+    return msgs.map((m) => {
       let content: Anthropic.MessageParam['content'] = m.content;
 
       if (content === null || content === undefined) {
@@ -74,70 +74,6 @@ export class AgentService {
 
       return { role: m.role, content } as Anthropic.MessageParam;
     });
-
-    // Paso 2: eliminar pares huérfanos
-    const result: Anthropic.MessageParam[] = [];
-    for (let i = 0; i < fixed.length; i++) {
-      const m = fixed[i];
-
-      if (m.role === 'assistant' && Array.isArray(m.content)) {
-        const hasToolUse = m.content.some(
-          (b) =>
-            typeof b === 'object' &&
-            b !== null &&
-            'type' in b &&
-            b.type === 'tool_use',
-        );
-        if (hasToolUse) {
-          const next = fixed[i + 1];
-          const nextHasResult =
-            next?.role === 'user' &&
-            Array.isArray(next.content) &&
-            next.content.some(
-              (b) =>
-                typeof b === 'object' &&
-                b !== null &&
-                'type' in b &&
-                b.type === 'tool_result',
-            );
-          if (!nextHasResult) {
-            this.logger.warn('Dropped orphaned tool_use assistant message');
-            continue;
-          }
-        }
-      }
-
-      if (m.role === 'user' && Array.isArray(m.content)) {
-        const hasToolResult = m.content.some(
-          (b) =>
-            typeof b === 'object' &&
-            b !== null &&
-            'type' in b &&
-            b.type === 'tool_result',
-        );
-        if (hasToolResult) {
-          const prev = result[result.length - 1];
-          const prevHasToolUse =
-            prev?.role === 'assistant' &&
-            Array.isArray(prev.content) &&
-            prev.content.some(
-              (b) =>
-                typeof b === 'object' &&
-                b !== null &&
-                'type' in b &&
-                b.type === 'tool_use',
-            );
-          if (!prevHasToolUse) {
-            this.logger.warn('Dropped orphaned tool_result user message');
-            continue;
-          }
-        }
-      }
-
-      result.push(m);
-    }
-
-    return result;
   }
 
   /** Guarda un mensaje en la base de datos */
@@ -168,7 +104,8 @@ export class AgentService {
     const history = await this.loadHistoryIfEmpty(chatId);
     history.push({ role: 'user', content: userText });
     await this.persistMessage(chatId, 'user', userText);
-    if (history.length > 50) history.splice(0, history.length - 50);
+    // Mantener últimos 200 mensajes para contexto más rico (previene pérdida de conversación)
+    if (history.length > 200) history.splice(0, history.length - 200);
 
     const messages: Anthropic.MessageParam[] = this.normalizeMessages([
       ...history,
