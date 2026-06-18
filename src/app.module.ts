@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ChatModule } from './chat/chat.module';
 import { OllamaModule } from './ollama/ollama.module';
 import { TwilioModule } from './twilio/twilio.module';
+import { VoiceModule } from './voice/voice.module';
 
 @Module({
   imports: [
@@ -10,6 +11,7 @@ import { TwilioModule } from './twilio/twilio.module';
     ChatModule,
     OllamaModule,
     TwilioModule,
+    VoiceModule,
   ],
 })
 export class AppModule {}

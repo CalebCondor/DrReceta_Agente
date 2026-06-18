@@ -1,0 +1,53 @@
+# LiveKit Server Configuration
+# Docs: https://docs.livekit.io/home/self-hosting/config/
+
+port: 7880
+bind_addresses:
+  - ""
+
+logging:
+  level: info
+  json: false
+
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  use_external_ip: false
+
+# API keys — LiveKit genera tokens JWT firmados con estos.
+# El secret se reemplaza en runtime con ${LIVEKIT_API_SECRET} vía envsubst o
+# editando este archivo. En producción generá uno con: openssl rand -hex 32
+keys:
+  devkey: ${LIVEKIT_API_SECRET:-devsecret-change-me-32-chars-minimum}
+
+# SIP server: permite que Twilio entregue llamadas PSTN al agente.
+# Requiere IP pública accesible desde Twilio (debe coincidir con el cert TLS).
+sip:
+  enabled: true
+  # IP pública del VPS donde corre LiveKit. Twilio hace SIP INVITE a esta IP.
+  node_ip: ${LIVEKIT_SIP_NODE_IP}
+  # Puertos SIP. 5060 es estándar; 5060+UDP para signaling, 10000-20000/UDP para media.
+  sip_port: 5060
+  media_port_range_start: 10000
+  media_port_range_end: 20000
+
+# Turn server (TURN) para NAT traversal. Obligatorio para clientes detrás de NAT.
+turn:
+  enabled: true
+  udp_port: 3478
+  tls_port: 5349
+  # Dominio público para TLS. Debe coincidir con el cert.
+  domain: ${LIVEKIT_DOMAIN}
+  # Cert TLS (mismo que el reverse proxy / SIP)
+  cert_file: /etc/livekit/certs/fullchain.pem
+  key_file: /etc/livekit/certs/privkey.pem
+  # Shared secret para generar credenciales TURN
+  shared_secret: ${LIVEKIT_API_SECRET:-devsecret-change-me-32-chars-minimum}
+
+# Almacenamiento opcional de recordings/metadata (filesystem por defecto).
+# Para producción cambiar a S3/GCS. Acá lo dejamos local en /recordings.
+# Egress lo configuramos desde la app, no acá.
+
+# Healthcheck endpoint para verificar que el server está arriba.
+health:
+  pprof_enabled: false

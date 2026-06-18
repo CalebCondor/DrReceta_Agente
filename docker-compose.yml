@@ -9,6 +9,38 @@ services:
     environment:
       - NODE_ENV=production
     restart: always
+    depends_on:
+      - redis
+      - livekit
+
+  redis:
+    image: redis:7-alpine
+    container_name: dr_receta_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  livekit:
+    image: livekit/livekit-server:v1.8.0
+    container_name: dr_receta_livekit
+    restart: always
+    command: --config /etc/livekit.yaml
+    ports:
+      - "7880:7880"        # HTTP API + dashboard
+      - "7881:7881"        # TCP signaling (WebRTC)
+      - "7882:7882/udp"    # TURN/UDP media
+    volumes:
+      - ./livekit:/etc/livekit:ro
+
+volumes:
+  redis_data:
 
 # Descomenta las líneas de abajo si quieres que Docker Compose también gestione PostgreSQL
 #  db:
@@ -23,6 +55,6 @@ services:
 #      - "5432:5432"
 #    volumes:
 #      - pgdata:/var/lib/postgresql/data
-
+#
 # volumes:
 #  pgdata:

@@ -1,0 +1,35 @@
+# SIP Trunk configuration
+# Este archivo NO se monta directamente en LiveKit; es referencia para crear
+# el trunk dinámicamente vía API al primer arranque del agente.
+#
+# Flujo de creación (lo hace agent.entry.ts en Fase 5):
+#   1. Levantar LiveKit con SIP habilitado
+#   2. Llamar a LiveKit SIP API: POST /twirp/livekit.SIP/CreateSIPTrunk
+#   3. Twilio hace SIP INVITE → LiveKit recibe → crea room → spawnea agente
+#
+# Configuración equivalente que la API recibe:
+#
+# Inbound:
+#   name: "Twilio-Trunk"
+#   inbound_addresses:
+#     - sip:<LIVEKIT_SIP_NODE_IP>
+#   inbound_username: ${TWILIO_SIP_USERNAME}
+#   inbound_password: ${TWILIO_SIP_PASSWORD}
+#   inbound_numbers:
+#     - ${TWILIO_PHONE_NUMBER}
+#   room_name_template: "call-{{.Number}}"
+#   participant_identity_template: "caller-{{.From}}"
+#   participant_name_template: "Caller {{.From}}"
+#   krisp_enabled: false
+#
+# Configuración en Twilio Console (UI):
+#   1. Phone Numbers → Manage → Active Numbers → seleccionar número
+#   2. Voice & Fax → "A call comes in" → "SIP Trunk"
+#   3. Seleccionar trunk o crear uno nuevo apuntando a ${LIVEKIT_SIP_NODE_IP}
+#   4. Guardar
+#
+# Test rápido (con sipsak o Twilio CLI):
+#   twilio api:core:calls:create \
+#     --from "+1XXXXXXXXXX" \
+#     --to "${TWILIO_PHONE_NUMBER}" \
+#     --twiml '<Response><Dial><Sip>sip:invite@${LIVEKIT_SIP_NODE_IP}</Sip></Dial></Response>'
