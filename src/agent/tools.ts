@@ -459,7 +459,7 @@ export const TOOLS: Anthropic.Tool[] = [
           description: 'Código de pago / orden a consultar.',
         },
       },
-      required: ['us_id', 'pg_code'],
+      required: ['us_id', 'pg_code', 'user_type'],
     },
   },
   {

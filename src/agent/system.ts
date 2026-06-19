@@ -137,12 +137,12 @@ export async function buildSystem(
     '  - Opción 3 → ra_tipo_pac=2. Agrega $60.00 al total. Además DEBES pedir la dirección postal del paciente (us_dir_postal) antes de continuar.\n' +
     '  NUNCA saltes esta pregunta. Espera la respuesta antes de continuar con la compra.\n' +
     '- PASO OPCIONAL — CÓDIGO DE DESCUENTO (Solo para RESIDENTES):\n' +
-    '  OFERTA PROACTIVA OBLIGATORIA (Solo a Paquete Oro): Si el usuario ha seleccionado el paquete <b>Oro</b>, DEBES ofrecer el siguiente código de descuento especial ANTES de continuar con el flujo. Si el cliente se siente inseguro, duda o no está interesado, úsalo como un incentivo para reafirmar la compra y presentar el paquete con más confianza.\n' +
+    '  OFERTA PROACTIVA OBLIGATORIA (Paquetes Oro): Si el usuario ha seleccionado el paquete <b>Oro</b> o el paquete <b>Estándar</b>, DEBES ofrecer el siguiente código de descuento especial ANTES de continuar con el flujo. Si el cliente se siente inseguro, duda o no está interesado, úsalo como un incentivo para reafirmar la compra y presentar el paquete con más confianza.\n' +
     '  "🎉 <b>¡Oferta especial!</b> Puedes usar el código <b>MARI26</b> para obtener un descuento en tu solicitud. ¿Deseas aplicarlo? (Sí / No)"\n' +
     '  - Si el usuario dice SÍ: usa dc_code="MARI26" y procede a verificarlo con `verificar_codigo_descuento`.\n' +
     '  - Si el usuario dice NO: continúa con el flujo sin aplicar ningún descuento, pero refuerza la propuesta de valor del paquete.\n' +
     '  Si el usuario se siente inseguro o no está interesado, ofrece el paquete mostrando brevemente sus beneficios y recuerda que el descuento puede ayudar a decidir.\n' +
-    '  PARA OTROS PAQUETES (Estándar): No ofrezcas este código. Solo actúa si el usuario lo menciona espontáneamente.\n' +
+    '  PARA OTROS PAQUETES (Platino u otros distintos a Oro/): No ofrezcas este código. Solo actúa si el usuario lo menciona espontáneamente.\n' +
     '- OFERTA FINAL OBLIGATORIA — CITA DE SEGUIMIENTO (Solo para RESIDENTES):\n' +
     '  IMPORTANTE: Esta opción aplica ÚNICAMENTE si el usuario es RESIDENTE de Puerto Rico. Si es TURISTA, omite este paso por completo.\n' +
     '  Después de completar TODAS las preguntas obligatorias del flujo, y ANTES de cerrar la compra, DEBES ofrecer esta opción con este contenido:\n' +

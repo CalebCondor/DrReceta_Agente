@@ -38,7 +38,7 @@ export const DETALLE_PAGO_RESIDENTES_URL =
 export const DETALLE_PAGO_TURISTAS_URL =
   'https://islandmedpr.com/apiia/api/turistas/detalle_pago.php';
 
-export const STATUS_RESIDENTES_URL =
+export const STATUS_RESIDENTES_O_TURISTAS_URL =
   'https://islandmedpr.com/apiia/api/residentes/status.php';
 
 export const ORDERS_RESIDENTES_URL =

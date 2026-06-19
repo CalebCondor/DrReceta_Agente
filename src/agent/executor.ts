@@ -18,7 +18,7 @@ import {
   DETALLE_PAGO_TURISTAS_URL,
   EDITAR_PAGO_RESIDENTES_URL,
   EDITAR_PAGO_TURISTAS_URL,
-  STATUS_RESIDENTES_URL,
+  STATUS_RESIDENTES_O_TURISTAS_URL,
   ORDERS_RESIDENTES_URL,
   DISCOUNTS_RESIDENTES_URL,
   RESIDENTES_URL_FOTOS,
@@ -104,6 +104,9 @@ export async function executeTool(
   if (toolName === 'get_estatus_orden') {
     const usId = strVal(toolInput['us_id']);
     const pgCode = strVal(toolInput['pg_code']).trim();
+    const userType =
+      strVal(toolInput['user_type']) === 'turista' ? 'turista' : 'residente';
+
     if (!usId || !pgCode) {
       return JSON.stringify({
         success: false,
@@ -112,8 +115,8 @@ export async function executeTool(
     }
     return JSON.stringify(
       await apiGet(
-        STATUS_RESIDENTES_URL,
-        { us_id: usId, pg_code: pgCode },
+        STATUS_RESIDENTES_O_TURISTAS_URL,
+        { us_id: usId, pg_code: pgCode, user_type: userType },
         s?.token || '',
       ),
     );
