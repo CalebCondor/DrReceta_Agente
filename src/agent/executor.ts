@@ -133,8 +133,8 @@ export async function executeTool(
       strVal(toolInput['user_type']) === 'turista' ? 'turista' : 'residente';
     const detalleUrl =
       userType === 'turista'
-        ? DETALLE_PAGO_TURISTAS_URL
-        : DETALLE_PAGO_RESIDENTES_URL;
+        ? (DETALLE_PAGO_TURISTAS_URL as string)
+        : (DETALLE_PAGO_RESIDENTES_URL as string);
     return JSON.stringify(
       await apiGet(detalleUrl, { token: paymentToken }, authToken),
     );
@@ -146,7 +146,9 @@ export async function executeTool(
         ? 'turista'
         : 'residente';
     const packagesUrl =
-      userType === 'turista' ? TURISTAS_PACKAGES_URL : RESIDENTES_PACKAGES_URL;
+      userType === 'turista'
+        ? (TURISTAS_PACKAGES_URL as string)
+        : (RESIDENTES_PACKAGES_URL as string);
 
     const queryParams: Record<string, string> = {};
     if (toolInput['pq_id']) queryParams['pq_id'] = strVal(toolInput['pq_id']);
@@ -253,8 +255,8 @@ export async function executeTool(
         : 'residente';
     const registrarUrl =
       userType === 'turista'
-        ? VERIFICAR_REGISTRAR_TURISTAS_URL
-        : VERIFICAR_REGISTRAR_RESIDENTES_URL;
+        ? (VERIFICAR_REGISTRAR_TURISTAS_URL as string)
+        : (VERIFICAR_REGISTRAR_RESIDENTES_URL as string);
 
     const payload: Record<string, unknown> = { us_email: email };
     const firstName = strVal(toolInput['us_first_name']).trim();
@@ -304,8 +306,8 @@ export async function executeTool(
         : 'residente';
     const verificarUrl =
       userType === 'turista'
-        ? VERIFICAR_CODIGO_TURISTAS_URL
-        : VERIFICAR_CODIGO_RESIDENTES_URL;
+        ? (VERIFICAR_CODIGO_TURISTAS_URL as string)
+        : (VERIFICAR_CODIGO_RESIDENTES_URL as string);
 
     const result = await apiPost(verificarUrl, {
       us_email: email,
@@ -344,8 +346,8 @@ export async function executeTool(
       s?.user_type === 'turista' ? 'turista' : 'residente';
     const pagoUrl =
       userType === 'turista'
-        ? CREAR_COMPRA_TURISTAS_URL
-        : CREAR_COMPRA_RESIDENTES_URL;
+        ? (CREAR_COMPRA_TURISTAS_URL as string)
+        : (CREAR_COMPRA_RESIDENTES_URL as string);
     const body: Record<string, unknown> = {
       us_id: usId,
       pq_id: pqId,
@@ -387,8 +389,8 @@ export async function executeTool(
       s?.user_type === 'turista' ? 'turista' : 'residente';
     const editarUrl =
       userType === 'turista'
-        ? EDITAR_PAGO_TURISTAS_URL
-        : EDITAR_PAGO_RESIDENTES_URL;
+        ? (EDITAR_PAGO_TURISTAS_URL as string)
+        : (EDITAR_PAGO_RESIDENTES_URL as string);
     const body: Record<string, unknown> = {
       us_id: usId,
       url_generado_pago: urlGeneradoPago,
@@ -448,7 +450,9 @@ export async function executeTool(
         ? 'turista'
         : 'residente';
     const fotoUrl =
-      userType === 'turista' ? TURISTAS_URL_FOTOS : RESIDENTES_URL_FOTOS;
+      userType === 'turista'
+        ? (TURISTAS_URL_FOTOS as string)
+        : (RESIDENTES_URL_FOTOS as string);
     return JSON.stringify(
       await apiGet(fotoUrl, { pg_code: pgCode }, s?.token || ''),
     );
@@ -465,8 +469,8 @@ export async function executeTool(
         : 'residente';
     const profileUrl =
       userType === 'turista'
-        ? TURISTAS_EDIT_PROFILE_URL
-        : RESIDENTES_EDIT_PROFILE_URL;
+        ? (TURISTAS_EDIT_PROFILE_URL as string)
+        : (RESIDENTES_EDIT_PROFILE_URL as string);
     const body: Record<string, unknown> = { us_id: usId };
     const optionalFields = [
       'us_first_name',
