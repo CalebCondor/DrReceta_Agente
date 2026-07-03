@@ -52,7 +52,10 @@ export const TOOLS: Anthropic.Tool[] = [
     name: 'get_productos',
     description:
       'Obtiene el catalogo de todos los productos disponibles en DoctorRecetas. ' +
-      'Usalo cuando pregunte que productos hay, que venden, que esta disponible o quiera buscar algo.',
+      'Usalo cuando pregunte que productos hay, que venden, que esta disponible o quiera buscar algo. ' +
+      'IMPORTANTE: cada producto devuelto incluye el campo `pq_id` (identificador numérico del paquete). ' +
+      'Usa SIEMPRE ese `pq_id` tal cual viene en la respuesta cuando luego invoques `crear_compra`. ' +
+      'NUNCA inventes un `pq_id` ni le pidas el ID al usuario: ya viene en los datos de esta herramienta.',
     input_schema: {
       type: 'object',
       properties: {

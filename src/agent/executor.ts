@@ -138,6 +138,8 @@ export async function executeTool(
 
     if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
       const allItems: {
+        pq_id: string;
+        slug: string;
         titulo: string;
         resumen: string;
         tags: string;
@@ -155,7 +157,17 @@ export async function executeTool(
               const tags = Array.isArray(rawTags)
                 ? rawTags.map((t: unknown) => strVal(t)).join(' ')
                 : strVal(rawTags);
+              const rawId =
+                product['pq_id'] ?? product['id'] ?? product['paquete_id'];
+              const pqId =
+                typeof rawId === 'number'
+                  ? String(rawId)
+                  : typeof rawId === 'string' && rawId.trim().length > 0
+                    ? rawId.trim()
+                    : '';
               allItems.push({
+                pq_id: pqId,
+                slug: strVal(product['slug']),
                 titulo:
                   strVal(product['titulo']) ||
                   strVal(product['nombre']) ||

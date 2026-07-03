@@ -478,7 +478,9 @@ export class AgentService {
       throw lastError;
     }
     this.logger.warn(
-      `Claude falló (${String(lastError).slice(0, 200)}). Activando fallback MiniMax...`,
+      `claude no responde, minimax toma el control | chat=${chatId} | error=${String(
+        lastError,
+      ).slice(0, 200)}`,
     );
     try {
       const result = await this.runMinimaxAgentCore(chatId, userText, userName);
