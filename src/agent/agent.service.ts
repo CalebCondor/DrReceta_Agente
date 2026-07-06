@@ -239,9 +239,9 @@ export class AgentService {
         return collected.join('\n');
       }
 
+      // tool_use: mantener en memoria para esta ejecución, pero NO persistir a la BD
       messages.push({ role: 'assistant', content: response.content });
       history.push({ role: 'assistant', content: response.content });
-      await this.persistMessage(chatId, 'assistant', response.content);
 
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
       for (const tu of toolUses) {
@@ -285,9 +285,9 @@ export class AgentService {
           content: resultForClaude,
         });
       }
+      // tool_result: mantener en memoria, pero NO persistir a la BD
       messages.push({ role: 'user', content: toolResults });
       history.push({ role: 'user', content: toolResults });
-      await this.persistMessage(chatId, 'user', toolResults);
     }
 
     return collected.join('\n');
@@ -396,14 +396,10 @@ export class AgentService {
         return collected.join('\n');
       }
 
-      // Persistir el turno del asistente con sus tool_calls
+      // tool_calls: mantener en memoria, pero NO persistir a la BD
       history.push({
         role: 'assistant',
         content: assistantText || null,
-        tool_calls: toolCalls,
-      });
-      await this.persistMessage(chatId, 'assistant', {
-        text: assistantText,
         tool_calls: toolCalls,
       });
 
@@ -452,12 +448,9 @@ export class AgentService {
           /* no es JSON */
         }
 
+        // mensajes tool: mantener en memoria, pero NO persistir a la BD
         history.push({
           role: 'tool',
-          tool_call_id: tc.id,
-          content: resultForModel,
-        });
-        await this.persistMessage(chatId, 'tool', {
           tool_call_id: tc.id,
           content: resultForModel,
         });
