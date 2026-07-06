@@ -83,11 +83,7 @@ export class ChatController {
   @HttpCode(200)
   async chat(@Body() body: ChatDto) {
     try {
-      const response = await this.agentService.chat(
-        body.chat_id,
-        body.message,
-        body.user_name,
-      );
+      const response = await this.agentService.chat(body.chat_id, body.message);
       return { success: true, response };
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Internal server error';
