@@ -1,41 +1,13 @@
+// src/agent/agent.service.ts
+// Núcleo del agente Claude, desacoplado de cualquier transporte
+
 import { Injectable, Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import {
-  client,
-  ANTHROPIC_MODEL,
-  conversations,
-  minimaxConversations,
-  callMiniMax,
-  MINIMAX_MODEL,
-  MINIMAX_ENABLED,
-} from './state';
+import { client, ANTHROPIC_MODEL, conversations } from './state';
 import { TOOLS } from './tools';
 import { executeTool } from './executor';
 import { buildSystem } from './system';
 import { DbService } from './db.service';
-
-interface OpenAITool {
-  type: 'function';
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-  };
-}
-
-function anthropicToolsToOpenAI(tools: Anthropic.Tool[]): OpenAITool[] {
-  return tools.map((t) => ({
-    type: 'function' as const,
-    function: {
-      name: t.name,
-      description: t.description ?? '',
-      parameters: (t.input_schema ?? {
-        type: 'object',
-        properties: {},
-      }) as Record<string, unknown>,
-    },
-  }));
-}
 
 @Injectable()
 export class AgentService {
@@ -172,7 +144,7 @@ export class AgentService {
   private async persistMessage(
     chatId: number,
     role: string,
-    content: unknown,
+    content: any,
   ): Promise<void> {
     try {
       await this.db.query(
@@ -185,13 +157,12 @@ export class AgentService {
   }
 
   /**
-   * Núcleo del agente Claude. Desacoplado del transporte.
+   * Núcleo del agente. Desacoplado del transporte.
    * Devuelve el texto final consolidado.
    */
   private async runAgentCore(
     chatId: number,
     userText: string,
-    userName?: string,
   ): Promise<string> {
     const history = await this.loadHistoryIfEmpty(chatId);
     history.push({ role: 'user', content: userText });
@@ -204,7 +175,7 @@ export class AgentService {
     const collected: string[] = [];
 
     for (let round = 0; round < 10; round++) {
-      const systemPrompt = await buildSystem(chatId, this.db, userName);
+      const systemPrompt = await buildSystem(chatId, this.db);
       const response = await client.messages.create({
         model: ANTHROPIC_MODEL,
         max_tokens: 4096,
@@ -236,7 +207,7 @@ export class AgentService {
 
       messages.push({ role: 'assistant', content: response.content });
       history.push({ role: 'assistant', content: response.content });
-      // NO persistir tool_use a la BD — es interno del agente
+      await this.persistMessage(chatId, 'assistant', response.content);
 
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
       for (const tu of toolUses) {
@@ -282,7 +253,7 @@ export class AgentService {
       }
       messages.push({ role: 'user', content: toolResults });
       history.push({ role: 'user', content: toolResults });
-      // NO persistir tool_result a la BD — es interno del agente
+      await this.persistMessage(chatId, 'user', toolResults);
     }
 
     return collected.join('\n');
@@ -336,161 +307,11 @@ export class AgentService {
   }
 
   /**
-   * Fallback MiniMax (OpenAI-compat). Replica el comportamiento del agente Claude
-   * (incluyendo tools via function-calling). Usa su propio mapa de conversación
-   * en memoria; no interfiere con el historial de Claude.
-   */
-  private async runMinimaxAgentCore(
-    chatId: number,
-    userText: string,
-    userName?: string,
-  ): Promise<string> {
-    if (!MINIMAX_ENABLED) {
-      throw new Error(
-        'MiniMax fallback no está configurado (falta MINIMAX_API_KEY)',
-      );
-    }
-
-    let history = minimaxConversations.get(chatId);
-    if (!history) {
-      history = [];
-      minimaxConversations.set(chatId, history);
-    }
-    history.push({ role: 'user', content: userText });
-    await this.persistMessage(chatId, 'user', userText);
-    if (history.length > 50) history.splice(0, history.length - 50);
-
-    const openaiTools = anthropicToolsToOpenAI(TOOLS);
-    const collected: string[] = [];
-
-    for (let round = 0; round < 10; round++) {
-      const systemPrompt = await buildSystem(chatId, this.db, userName);
-      const body: Record<string, unknown> = {
-        model: MINIMAX_MODEL,
-        max_tokens: 4096,
-        messages: [{ role: 'system', content: systemPrompt }, ...history],
-        tools: openaiTools,
-        tool_choice: 'auto',
-      };
-
-      const response = await callMiniMax(body);
-      const choice = response.choices?.[0];
-      if (!choice) {
-        throw new Error('MiniMax devolvió respuesta sin choices');
-      }
-
-      const msg = choice.message;
-      const toolCalls = msg.tool_calls ?? [];
-      const assistantText = msg.content ?? '';
-
-      if (toolCalls.length === 0) {
-        const finalText = assistantText.trim();
-        history.push({ role: 'assistant', content: finalText });
-        await this.persistMessage(chatId, 'assistant', finalText);
-        if (finalText) collected.push(finalText);
-        return collected.join('\n');
-      }
-
-      // Mantener tool_calls en memoria, pero NO persistir a la BD — es interno del agente
-      history.push({
-        role: 'assistant',
-        content: assistantText || null,
-        tool_calls: toolCalls,
-      });
-
-      for (const tc of toolCalls) {
-        const fnName = tc.function.name;
-        let parsedInput: Record<string, unknown> = {};
-        try {
-          parsedInput = tc.function.arguments
-            ? (JSON.parse(tc.function.arguments) as Record<string, unknown>)
-            : {};
-        } catch {
-          parsedInput = {};
-        }
-
-        this.logger.log(
-          `[minimax] tool=${fnName} input=${JSON.stringify(parsedInput)}`,
-        );
-        const resultStr = await executeTool(
-          fnName,
-          parsedInput,
-          chatId,
-          this.db,
-        );
-        this.logger.log(`[minimax] result=${resultStr.slice(0, 200)}`);
-
-        try {
-          const parsed = JSON.parse(resultStr) as {
-            success?: boolean;
-            formatted_html?: string;
-          };
-          if (parsed.success && parsed.formatted_html) {
-            collected.push(parsed.formatted_html);
-          }
-        } catch {
-          /* no es JSON */
-        }
-
-        let resultForModel = resultStr;
-        try {
-          const parsed = JSON.parse(resultStr) as Record<string, unknown>;
-          if (parsed.formatted_html) {
-            delete parsed.formatted_html;
-            resultForModel = JSON.stringify(parsed);
-          }
-        } catch {
-          /* no es JSON */
-        }
-
-        history.push({
-          role: 'tool',
-          tool_call_id: tc.id,
-          content: resultForModel,
-        });
-        // NO persistir mensajes tool a la BD — es interno del agente
-      }
-    }
-
-    return collected.join('\n');
-  }
-
-  /** Intenta usar MiniMax como fallback si Claude falla */
-  private async tryMinimaxFallback(
-    chatId: number,
-    userText: string,
-    userName: string | undefined,
-    lastError: unknown,
-  ): Promise<string> {
-    if (!MINIMAX_ENABLED) {
-      throw lastError;
-    }
-    this.logger.warn(
-      `claude no responde, minimax toma el control | chat=${chatId} | error=${String(
-        lastError,
-      ).slice(0, 200)}`,
-    );
-    try {
-      const result = await this.runMinimaxAgentCore(chatId, userText, userName);
-      this.logger.log(`MiniMax fallback respondió para chat ${chatId}`);
-      return result;
-    } catch (fbErr) {
-      this.logger.error(`MiniMax fallback también falló: ${fbErr}`);
-      throw lastError;
-    }
-  }
-
-  /**
    * Punto de entrada público: procesa un mensaje y devuelve la respuesta del agente.
-   * Cadena: Claude → retry (historial limpio) → MiniMax → throw.
    */
-  async chat(
-    chatId: number,
-    userText: string,
-    userName?: string,
-  ): Promise<string> {
+  async chat(chatId: number, userText: string): Promise<string> {
     try {
-      return await this.runAgentCore(chatId, userText, userName);
+      return await this.runAgentCore(chatId, userText);
     } catch (e) {
       const errStr = String(e);
       if (errStr.includes('valid list') || errStr.includes('400')) {
@@ -498,16 +319,13 @@ export class AgentService {
           return await this.retryWithFreshHistory(chatId, userText);
         } catch (retryErr) {
           this.logger.error(`Retry failed: ${retryErr}`);
-          return await this.tryMinimaxFallback(
-            chatId,
-            userText,
-            userName,
-            retryErr,
+          throw new Error(
+            'Ocurrió un error procesando tu mensaje. Por favor intenta de nuevo.',
           );
         }
       }
       this.logger.error(`Agent error: ${e}`);
-      return await this.tryMinimaxFallback(chatId, userText, userName, e);
+      throw e;
     }
   }
 }

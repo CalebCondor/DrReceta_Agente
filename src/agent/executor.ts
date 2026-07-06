@@ -387,10 +387,10 @@ export async function executeTool(
     }
     const userType: 'residente' | 'turista' =
       s?.user_type === 'turista' ? 'turista' : 'residente';
-    const editarUrl =
+    const editarUrl: string =
       userType === 'turista'
-        ? (EDITAR_PAGO_TURISTAS_URL as string)
-        : (EDITAR_PAGO_RESIDENTES_URL as string);
+        ? EDITAR_PAGO_TURISTAS_URL
+        : EDITAR_PAGO_RESIDENTES_URL;
     const body: Record<string, unknown> = {
       us_id: usId,
       url_generado_pago: urlGeneradoPago,
@@ -467,10 +467,10 @@ export async function executeTool(
       strVal(toolInput['user_type']).trim() === 'turista'
         ? 'turista'
         : 'residente';
-    const profileUrl =
+    const profileUrl: string =
       userType === 'turista'
-        ? (TURISTAS_EDIT_PROFILE_URL as string)
-        : (RESIDENTES_EDIT_PROFILE_URL as string);
+        ? TURISTAS_EDIT_PROFILE_URL
+        : RESIDENTES_EDIT_PROFILE_URL;
     const body: Record<string, unknown> = { us_id: usId };
     const optionalFields = [
       'us_first_name',
