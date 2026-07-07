@@ -5,9 +5,11 @@ import { DbService } from '../agent/db.service';
 import { AgentService } from '../agent/agent.service';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
+import { ChatGateway } from './chat.gateway';
 
 @Module({
   controllers: [ChatController],
-  providers: [DbService, AgentService, ChatService],
+  providers: [DbService, AgentService, ChatService, ChatGateway],
+  exports: [ChatGateway],
 })
 export class ChatModule {}

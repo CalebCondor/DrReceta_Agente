@@ -14,6 +14,7 @@ import { Type } from 'class-transformer';
 import { IsNumber, IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import { AgentService } from '../agent/agent.service';
 import { ChatService } from './chat.service';
+import { ChatGateway } from './chat.gateway';
 class PreguntaRespuestaDto {
   @IsString()
   @IsNotEmpty()
@@ -44,6 +45,7 @@ export class ChatController {
   constructor(
     private readonly agentService: AgentService,
     private readonly chatService: ChatService,
+    private readonly chatGateway: ChatGateway,
   ) {}
   // Listar todas las preguntas y respuestas
   @Get('/conocimiento')
@@ -149,6 +151,7 @@ export class ChatController {
   async pauseChat(@Param('us_id', ParseIntPipe) usId: number) {
     try {
       const result = await this.chatService.pauseChat(usId);
+      this.chatGateway.emitPauseStatus(usId, true);
       return {
         success: true,
         chat_id: usId,
@@ -173,6 +176,7 @@ export class ChatController {
   async resumeChat(@Param('us_id', ParseIntPipe) usId: number) {
     try {
       const result = await this.chatService.resumeChat(usId);
+      this.chatGateway.emitPauseStatus(usId, false);
       return {
         success: true,
         chat_id: usId,
@@ -223,6 +227,13 @@ export class ChatController {
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      // Emitir por WebSocket a todos los clientes suscritos a este chat
+      this.chatGateway.emitHumanMessage(usId, {
+        id: result.id,
+        chat_id: usId,
+        role: 'human',
+        content: message.trim(),
+      });
       return { success: true, chat_id: usId, id: result.id };
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Internal server error';
