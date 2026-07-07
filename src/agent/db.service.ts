@@ -46,6 +46,11 @@ export class DbService implements OnModuleInit {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE INDEX IF NOT EXISTS idx_derivaciones_chat ON derivaciones_humano (chat_id, created_at);
+      CREATE TABLE IF NOT EXISTS chats_pausados (
+        chat_id BIGINT PRIMARY KEY,
+        pausado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        reanudado_en TIMESTAMP NULL
+      );
     `);
     this.logger.log('Database initialized successfully.');
   }

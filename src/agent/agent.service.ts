@@ -311,6 +311,17 @@ export class AgentService {
    */
   async chat(chatId: number, userText: string): Promise<string> {
     try {
+      const { rows } = await this.db.query(
+        `SELECT 1 FROM chats_pausados
+         WHERE chat_id = $1 AND reanudado_en IS NULL
+         LIMIT 1`,
+        [chatId],
+      );
+      if ((rows as unknown[]).length > 0) {
+        this.logger.warn(`Chat ${chatId} está pausado. Mensaje ignorado.`);
+        return '⏸️ La conversación con este usuario está pausada. La IA no responderá hasta que se reanude.';
+      }
+
       return await this.runAgentCore(chatId, userText);
     } catch (e) {
       const errStr = String(e);
