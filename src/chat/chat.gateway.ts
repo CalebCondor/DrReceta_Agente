@@ -9,6 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { WebSocket, WebSocketServer as WSServer } from 'ws';
+import type { IncomingMessage } from 'http';
 
 type ClientMeta = { subscribedChatIds: Set<string> };
 
@@ -23,9 +24,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private meta = new WeakMap<WebSocket, ClientMeta>();
 
-  handleConnection(client: WebSocket) {
+  afterInit(server: WSServer) {
+    this.logger.log(
+      `WebSocket gateway inicializado. Path por defecto: ${(server as unknown as { options?: { path?: string } }).options?.path ?? '/'}`,
+    );
+  }
+
+  handleConnection(client: WebSocket, request?: IncomingMessage) {
     this.meta.set(client, { subscribedChatIds: new Set() });
-    this.logger.log(`Cliente conectado: ${this.idOf(client)}`);
+    this.logger.log(
+      `Cliente conectado: ${this.idOf(client)} desde ${request?.socket?.remoteAddress ?? 'unknown'}`,
+    );
   }
 
   handleDisconnect(client: WebSocket) {
