@@ -87,6 +87,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  emitUserMessage(chatId: number | string, payload: unknown) {
+    this.broadcastToChat(String(chatId), {
+      event: 'user-message',
+      data: payload,
+    });
+  }
+
   emitPauseStatus(chatId: number | string, paused: boolean) {
     this.broadcastToChat(String(chatId), {
       event: 'pause-status',

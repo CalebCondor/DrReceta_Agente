@@ -8,12 +8,16 @@ import { TOOLS } from './tools';
 import { executeTool } from './executor';
 import { buildSystem } from './system';
 import { DbService } from './db.service';
+import { ChatGateway } from '../chat/chat.gateway';
 
 @Injectable()
 export class AgentService {
   private readonly logger = new Logger(AgentService.name);
 
-  constructor(private readonly db: DbService) {}
+  constructor(
+    private readonly db: DbService,
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   /** Carga el historial desde la base de datos si la memoria en vivo está vacía */
   private async loadHistoryIfEmpty(
@@ -317,9 +321,32 @@ export class AgentService {
          LIMIT 1`,
         [chatId],
       );
+
       if ((rows as unknown[]).length > 0) {
-        this.logger.warn(`Chat ${chatId} está pausado. Mensaje ignorado.`);
-        return '⏸️ La conversación con este usuario está pausada. La IA no responderá hasta que se reanude.';
+        // Chat en modo humano: guardar el mensaje del usuario silenciosamente
+        // y notificar al panel admin por WebSocket. La IA no responde.
+        await this.persistMessage(chatId, 'user', userText);
+
+        // Sincronizar historial en memoria para cuando se reanude
+        try {
+          const history = await this.loadHistoryIfEmpty(chatId);
+          history.push({ role: 'user', content: userText });
+          if (history.length > 50) history.splice(0, history.length - 50);
+        } catch {
+          /* ignore */
+        }
+
+        // Notificar al panel admin en tiempo real
+        this.chatGateway.emitUserMessage(chatId, {
+          chat_id: chatId,
+          role: 'user',
+          content: userText,
+        });
+
+        this.logger.log(
+          `Chat ${chatId} pausado. Mensaje del usuario guardado y notificado al panel.`,
+        );
+        return '';
       }
 
       return await this.runAgentCore(chatId, userText);
