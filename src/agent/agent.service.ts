@@ -332,19 +332,23 @@ export class AgentService {
           const history = await this.loadHistoryIfEmpty(chatId);
           history.push({ role: 'user', content: userText });
           if (history.length > 50) history.splice(0, history.length - 50);
-        } catch {
-          /* ignore */
+        } catch (e) {
+          this.logger.warn(`No se pudo sincronizar historial: ${e}`);
         }
 
-        // Notificar al panel admin en tiempo real
-        this.chatGateway.emitUserMessage(chatId, {
-          chat_id: chatId,
-          role: 'user',
-          content: userText,
-        });
+        // Notificar al panel admin en tiempo real (best-effort)
+        try {
+          this.chatGateway?.emitUserMessage?.(chatId, {
+            chat_id: chatId,
+            role: 'user',
+            content: userText,
+          });
+        } catch (e) {
+          this.logger.warn(`No se pudo emitir WebSocket user-message: ${e}`);
+        }
 
         this.logger.log(
-          `Chat ${chatId} pausado. Mensaje del usuario guardado y notificado al panel.`,
+          `Chat ${chatId} pausado. Mensaje del usuario guardado.`,
         );
         return '';
       }
