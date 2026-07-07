@@ -205,4 +205,31 @@ export class ChatController {
       );
     }
   }
+
+  // Guardar un mensaje escrito por un humano (mientras la IA está pausada)
+  @Post('/user/:us_id/human-message')
+  @HttpCode(201)
+  async saveHumanMessage(
+    @Param('us_id', ParseIntPipe) usId: number,
+    @Body() body: { message?: string },
+  ) {
+    try {
+      const message = (body?.message ?? '').toString();
+      const result = (await this.chatService.saveHumanMessage(usId, message)) as {
+        success: boolean;
+        error?: string;
+        id?: number | string;
+      };
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      return { success: true, chat_id: usId, id: result.id };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

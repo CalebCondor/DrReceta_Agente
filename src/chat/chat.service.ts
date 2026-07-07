@@ -165,4 +165,26 @@ export class ChatService {
         : undefined,
     };
   }
+
+  async saveHumanMessage(
+    chatId: number,
+    message: string,
+  ): Promise<{ success: boolean; id?: number; error?: string }> {
+    if (!message || !message.trim()) {
+      return { success: false, error: 'El mensaje está vacío' };
+    }
+    try {
+      const { rows } = await this.db.query(
+        `INSERT INTO historial_mensajes (chat_id, role, content)
+         VALUES ($1, 'human', $2)
+         RETURNING id`,
+        [chatId, JSON.stringify(message.trim())],
+      );
+      const row = rows[0] as { id?: number } | undefined;
+      return { success: true, id: row?.id };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'DB error';
+      return { success: false, error: msg };
+    }
+  }
 }
