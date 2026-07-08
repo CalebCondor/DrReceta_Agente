@@ -8,11 +8,10 @@ import {
   PERFIL_URL,
   MIS_ORDENES_URL,
   MIS_PAGOS_URL,
-  TODAS_LAS_ORDENES_URL,
-  PRODUCTOS_BASE_URL,
   VERIFICAR_REGISTRAR_URL,
   CREAR_COMPRA_URL,
   VERIFICAR_CODIGO_URL,
+  TRAMITES_VEICULO_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -130,86 +129,6 @@ export async function executeTool(
 
   if (toolName === 'get_pagos') {
     return JSON.stringify(await apiPost(MIS_PAGOS_URL, {}, token));
-  }
-
-  if (toolName === 'get_productos') {
-    const raw = await apiGet(TODAS_LAS_ORDENES_URL);
-    const busqueda = strVal(toolInput['busqueda']).toLowerCase().trim();
-
-    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-      const allItems: {
-        pq_id: string;
-        slug: string;
-        titulo: string;
-        resumen: string;
-        tags: string;
-        precio: string;
-        precio_vip: string;
-        web_url: string;
-      }[] = [];
-      for (const [, products] of Object.entries(raw)) {
-        if (Array.isArray(products)) {
-          for (const p of products) {
-            if (p && typeof p === 'object') {
-              const product = p as Record<string, unknown>;
-              const rel = strVal(product['url']);
-              const rawTags = product['tags'];
-              const tags = Array.isArray(rawTags)
-                ? rawTags.map((t: unknown) => strVal(t)).join(' ')
-                : strVal(rawTags);
-              const rawId =
-                product['pq_id'] ?? product['id'] ?? product['paquete_id'];
-              const pqId =
-                typeof rawId === 'number'
-                  ? String(rawId)
-                  : typeof rawId === 'string' && rawId.trim().length > 0
-                    ? rawId.trim()
-                    : '';
-              allItems.push({
-                pq_id: pqId,
-                slug: strVal(product['slug']),
-                titulo:
-                  strVal(product['titulo']) ||
-                  strVal(product['nombre']) ||
-                  strVal(product['producto']),
-                resumen: strVal(product['resumen']),
-                tags,
-                precio: strVal(product['precio']),
-                precio_vip: strVal(product['precio_vip']),
-                web_url: rel ? PRODUCTOS_BASE_URL + rel : '',
-              });
-            }
-          }
-        }
-      }
-      const normalize = (s: string) =>
-        s
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '');
-
-      const filtered = busqueda
-        ? (() => {
-            const terms = normalize(busqueda)
-              .split(/\s+/)
-              .filter((t) => t.length > 2);
-            if (terms.length === 0) return allItems;
-            return allItems.filter((p) => {
-              const haystack = normalize(p.titulo) + ' ' + normalize(p.tags);
-              return terms.some((t) => haystack.includes(t));
-            });
-          })()
-        : allItems;
-      return JSON.stringify({
-        success: true,
-        total: filtered.length,
-        data: filtered,
-      });
-    }
-    return JSON.stringify({
-      success: false,
-      error: 'Formato inesperado de la API',
-    });
   }
 
   if (toolName === 'recordar_conocimiento') {
@@ -377,6 +296,10 @@ export async function executeTool(
     } catch (e: unknown) {
       return JSON.stringify({ success: false, error: errMsg(e) });
     }
+  }
+
+  if (toolName === 'get_tramites_vehiculo') {
+    return JSON.stringify(await apiGet(TRAMITES_VEICULO_URL));
   }
 
   return JSON.stringify({

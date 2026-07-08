@@ -1,9 +1,15 @@
 // src/agent/agent.service.ts
-// Núcleo del agente Claude, desacoplado de cualquier transporte
+// Núcleo del agente MiniMax (OpenAI-compatible), desacoplado de cualquier transporte
 
 import { Injectable, Logger } from '@nestjs/common';
-import Anthropic from '@anthropic-ai/sdk';
-import { client, ANTHROPIC_MODEL, conversations } from './state';
+import {
+  callMiniMax,
+  MINIMAX_MODEL,
+  conversations,
+  minimaxConversations,
+  MiniMaxMessage,
+  MiniMaxToolCall,
+} from './state';
 import { TOOLS } from './tools';
 import { executeTool } from './executor';
 import { buildSystem } from './system';
@@ -19,145 +25,103 @@ export class AgentService {
     private readonly chatGateway: ChatGateway,
   ) {}
 
+  /** Convierte la definición Anthropic de tools al formato OpenAI-compatible usado por MiniMax */
+  private toOpenAITools(): Array<Record<string, unknown>> {
+    return TOOLS.map((t) => ({
+      type: 'function',
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters: t.input_schema,
+      },
+    }));
+  }
+
   /** Carga el historial desde la base de datos si la memoria en vivo está vacía */
-  private async loadHistoryIfEmpty(
-    chatId: number,
-  ): Promise<Anthropic.MessageParam[]> {
-    if (!conversations.has(chatId)) {
+  private async loadHistoryIfEmpty(chatId: number): Promise<MiniMaxMessage[]> {
+    if (!minimaxConversations.has(chatId)) {
       try {
         const { rows } = await this.db.query(
           'SELECT role, content FROM historial_mensajes WHERE chat_id = $1 ORDER BY created_at ASC LIMIT 50',
           [chatId],
         );
-        const history = rows.map(
-          (r: { role: 'user' | 'assistant'; content: unknown }) => {
-            let content = r.content;
-            if (typeof content === 'string') {
+        const history: MiniMaxMessage[] = rows.map(
+          (r: { role: string; content: unknown }) => {
+            const role: MiniMaxMessage['role'] =
+              r.role === 'assistant'
+                ? 'assistant'
+                : r.role === 'tool'
+                  ? 'tool'
+                  : 'user';
+            let content: string = '';
+            if (typeof r.content === 'string') {
               try {
-                content = JSON.parse(content) as unknown;
+                const parsed = JSON.parse(r.content) as unknown;
+                content =
+                  typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
               } catch {
-                /* texto plano legado */
+                content = r.content;
               }
+            } else if (r.content !== null && r.content !== undefined) {
+              content = JSON.stringify(r.content);
             }
-            return { role: r.role, content } as Anthropic.MessageParam;
+            return { role, content };
           },
         );
-        conversations.set(chatId, history);
+        minimaxConversations.set(chatId, history);
       } catch (e) {
         this.logger.error(`Error loading history for ${chatId}: ${e}`);
-        conversations.set(chatId, []);
+        minimaxConversations.set(chatId, []);
       }
     }
-    return conversations.get(chatId)!;
+    return minimaxConversations.get(chatId)!;
   }
 
   /**
-   * Elimina pares tool_use/tool_result huérfanos y normaliza todo content a string o array.
-   * Anthropic rechaza: content null/undefined/object-no-array, y tool_use sin su tool_result.
+   * Normaliza mensajes MiniMax persistidos: descarta entradas corruptas
+   * y conserva el orden conversacional.
    */
-  private normalizeMessages(
-    msgs: Anthropic.MessageParam[],
-  ): Anthropic.MessageParam[] {
-    // Paso 1: normalizar content de cada mensaje individualmente
-    const fixed = msgs.map((m) => {
-      let content: Anthropic.MessageParam['content'] = m.content;
-
-      if (content === null || content === undefined) {
-        content = m.role === 'assistant' ? [] : '';
-      }
-
-      if (!Array.isArray(content) && typeof content === 'object') {
-        content = [
-          content as Anthropic.TextBlockParam | Anthropic.ToolUseBlockParam,
-        ];
-      }
-
-      if (m.role === 'assistant' && typeof content === 'string') {
-        content = [{ type: 'text' as const, text: content }];
-      }
-
-      return { role: m.role, content } as Anthropic.MessageParam;
-    });
-
-    // Paso 2: eliminar pares huérfanos
-    const result: Anthropic.MessageParam[] = [];
-    for (let i = 0; i < fixed.length; i++) {
-      const m = fixed[i];
-
-      if (m.role === 'assistant' && Array.isArray(m.content)) {
-        const hasToolUse = m.content.some(
-          (b) =>
-            typeof b === 'object' &&
-            b !== null &&
-            'type' in b &&
-            b.type === 'tool_use',
-        );
-        if (hasToolUse) {
-          const next = fixed[i + 1];
-          const nextHasResult =
-            next?.role === 'user' &&
-            Array.isArray(next.content) &&
-            next.content.some(
-              (b) =>
-                typeof b === 'object' &&
-                b !== null &&
-                'type' in b &&
-                b.type === 'tool_result',
-            );
-          if (!nextHasResult) {
-            this.logger.warn('Dropped orphaned tool_use assistant message');
-            continue;
-          }
-        }
-      }
-
-      if (m.role === 'user' && Array.isArray(m.content)) {
-        const hasToolResult = m.content.some(
-          (b) =>
-            typeof b === 'object' &&
-            b !== null &&
-            'type' in b &&
-            b.type === 'tool_result',
-        );
-        if (hasToolResult) {
-          const prev = result[result.length - 1];
-          const prevHasToolUse =
-            prev?.role === 'assistant' &&
-            Array.isArray(prev.content) &&
-            prev.content.some(
-              (b) =>
-                typeof b === 'object' &&
-                b !== null &&
-                'type' in b &&
-                b.type === 'tool_use',
-            );
-          if (!prevHasToolUse) {
-            this.logger.warn('Dropped orphaned tool_result user message');
-            continue;
-          }
-        }
-      }
-
-      result.push(m);
-    }
-
-    return result;
+  private normalizeMessages(msgs: MiniMaxMessage[]): MiniMaxMessage[] {
+    return msgs.filter(
+      (m) =>
+        m && (m.role === 'user' || m.role === 'assistant' || m.role === 'tool'),
+    );
   }
 
   /** Guarda un mensaje en la base de datos */
   private async persistMessage(
     chatId: number,
     role: string,
-    content: any,
+    content: unknown,
   ): Promise<void> {
     try {
+      const stored =
+        typeof content === 'string' ? content : JSON.stringify(content);
       await this.db.query(
         'INSERT INTO historial_mensajes (chat_id, role, content) VALUES ($1, $2, $3)',
-        [chatId, role, JSON.stringify(content)],
+        [chatId, role, stored],
       );
     } catch (e) {
       this.logger.error(`Error persisting message: ${e}`);
     }
+  }
+
+  private appendToHistory(
+    chatId: number,
+    msgs: Array<{ role: 'user' | 'assistant' | 'tool'; content: unknown }>,
+  ): void {
+    const history = minimaxConversations.get(chatId) ?? [];
+    for (const m of msgs) {
+      const content =
+        typeof m.content === 'string'
+          ? m.content
+          : m.content === null || m.content === undefined
+            ? ''
+            : JSON.stringify(m.content);
+      history.push({ role: m.role, content });
+    }
+    if (history.length > 50) history.splice(0, history.length - 50);
+    minimaxConversations.set(chatId, history);
   }
 
   /**
@@ -169,56 +133,88 @@ export class AgentService {
     userText: string,
   ): Promise<string> {
     const history = await this.loadHistoryIfEmpty(chatId);
-    history.push({ role: 'user', content: userText });
-    await this.persistMessage(chatId, 'user', userText);
-    if (history.length > 50) history.splice(0, history.length - 50);
 
-    const messages: Anthropic.MessageParam[] = this.normalizeMessages([
-      ...history,
-    ]);
+    history.push({ role: 'user', content: userText });
+    if (history.length > 50) history.splice(0, history.length - 50);
+    await this.persistMessage(chatId, 'user', userText);
+
+    const messages: MiniMaxMessage[] = this.normalizeMessages([...history]);
     const collected: string[] = [];
+    const tools = this.toOpenAITools();
 
     for (let round = 0; round < 10; round++) {
       const systemPrompt = await buildSystem(chatId, this.db);
-      const response = await client.messages.create({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 4096,
-        system: systemPrompt,
-        tools: TOOLS,
-        messages,
+      const apiMessages: MiniMaxMessage[] = [
+        { role: 'system', content: systemPrompt },
+        ...messages,
+      ];
+
+      const response = await callMiniMax({
+        model: MINIMAX_MODEL,
+        messages: apiMessages,
+        tools,
+        tool_choice: 'auto',
       });
 
-      const textBlocks = response.content
-        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-        .map((b) => b.text);
+      const choice = response.choices?.[0];
+      if (!choice) {
+        this.logger.error(
+          `MiniMax response without choices: ${JSON.stringify(response)}`,
+        );
+        return collected.join('\n');
+      }
 
-      const toolUses = response.content.filter(
-        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
-      );
+      const assistantMessage = choice.message;
+      const toolCalls: MiniMaxToolCall[] = assistantMessage.tool_calls ?? [];
+      const assistantText = (assistantMessage.content ?? '').toString().trim();
 
-      if (toolUses.length === 0) {
-        const finalText = textBlocks.join('\n').trim();
-        if (finalText) {
-          const finalContent: Anthropic.TextBlockParam[] = [
-            { type: 'text', text: finalText },
-          ];
-          history.push({ role: 'assistant', content: finalContent });
-          await this.persistMessage(chatId, 'assistant', finalContent);
-          collected.push(finalText);
+      if (toolCalls.length === 0) {
+        if (assistantText) {
+          collected.push(assistantText);
+          const assistantPersist = {
+            role: 'assistant' as const,
+            content: assistantText,
+          };
+          this.appendToHistory(chatId, [assistantPersist]);
+          await this.persistMessage(chatId, 'assistant', assistantText);
         }
         return collected.join('\n');
       }
 
-      messages.push({ role: 'assistant', content: response.content });
-      history.push({ role: 'assistant', content: response.content });
-      await this.persistMessage(chatId, 'assistant', response.content);
+      const assistantForHistory: MiniMaxMessage = {
+        role: 'assistant',
+        content: assistantText || null,
+        tool_calls: toolCalls,
+      };
+      messages.push(assistantForHistory);
+      this.appendToHistory(chatId, [
+        { role: 'assistant', content: assistantText || '' },
+      ]);
+      await this.persistMessage(chatId, 'assistant', {
+        content: assistantText,
+        tool_calls: toolCalls,
+      });
 
-      const toolResults: Anthropic.ToolResultBlockParam[] = [];
-      for (const tu of toolUses) {
-        this.logger.log(`tool=${tu.name} input=${JSON.stringify(tu.input)}`);
+      for (const tc of toolCalls) {
+        this.logger.log(
+          `tool=${tc.function.name} input=${tc.function.arguments}`,
+        );
+
+        let parsedArgs: Record<string, unknown> = {};
+        try {
+          parsedArgs = JSON.parse(tc.function.arguments || '{}') as Record<
+            string,
+            unknown
+          >;
+        } catch (e) {
+          this.logger.warn(
+            `Invalid JSON in tool args for ${tc.function.name}: ${e}`,
+          );
+        }
+
         const resultStr = await executeTool(
-          tu.name,
-          tu.input as Record<string, unknown>,
+          tc.function.name,
+          parsedArgs,
           chatId,
           this.db,
         );
@@ -237,27 +233,30 @@ export class AgentService {
           /* no es JSON */
         }
 
-        // Strip formatted_html antes de devolver a Claude (ya capturado)
-        let resultForClaude = resultStr;
+        // Strip formatted_html antes de devolver a MiniMax (ya capturado)
+        let resultForModel = resultStr;
         try {
           const parsed = JSON.parse(resultStr) as Record<string, unknown>;
           if (parsed.formatted_html) {
             delete parsed.formatted_html;
-            resultForClaude = JSON.stringify(parsed);
+            resultForModel = JSON.stringify(parsed);
           }
         } catch {
           /* no es JSON */
         }
 
-        toolResults.push({
-          type: 'tool_result',
-          tool_use_id: tu.id,
-          content: resultForClaude,
-        });
+        const toolMsg: MiniMaxMessage = {
+          role: 'tool',
+          name: tc.function.name,
+          tool_call_id: tc.id,
+          content: resultForModel,
+        };
+        messages.push(toolMsg);
+        this.appendToHistory(chatId, [
+          { role: 'tool', content: resultForModel },
+        ]);
+        await this.persistMessage(chatId, 'tool', resultForModel);
       }
-      messages.push({ role: 'user', content: toolResults });
-      history.push({ role: 'user', content: toolResults });
-      await this.persistMessage(chatId, 'user', toolResults);
     }
 
     return collected.join('\n');
@@ -271,6 +270,7 @@ export class AgentService {
     this.logger.warn(
       `Historial corrupto para chat ${chatId}. Limpiando y reintentando...`,
     );
+    minimaxConversations.delete(chatId);
     conversations.delete(chatId);
     try {
       await this.db.query('DELETE FROM historial_mensajes WHERE chat_id = $1', [
@@ -280,32 +280,28 @@ export class AgentService {
       this.logger.error(`Error cleaning history: ${e}`);
     }
 
-    const freshMessages: Anthropic.MessageParam[] = [
+    const freshMessages: MiniMaxMessage[] = [
       { role: 'user', content: userText },
     ];
     const systemPrompt = await buildSystem(chatId, this.db);
-    const response = await client.messages.create({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 2048,
-      system: systemPrompt,
-      tools: TOOLS,
-      messages: freshMessages,
+    const response = await callMiniMax({
+      model: MINIMAX_MODEL,
+      messages: [{ role: 'system', content: systemPrompt }, ...freshMessages],
+      tools: this.toOpenAITools(),
+      tool_choice: 'auto',
     });
-    const finalText = response.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('\n')
+
+    const finalText = (response.choices?.[0]?.message?.content ?? '')
+      .toString()
       .trim();
 
     if (finalText) {
-      conversations.set(chatId, [
+      minimaxConversations.set(chatId, [
         { role: 'user', content: userText },
-        { role: 'assistant', content: [{ type: 'text', text: finalText }] },
+        { role: 'assistant', content: finalText },
       ]);
       await this.persistMessage(chatId, 'user', userText);
-      await this.persistMessage(chatId, 'assistant', [
-        { type: 'text', text: finalText },
-      ]);
+      await this.persistMessage(chatId, 'assistant', finalText);
     }
     return finalText;
   }

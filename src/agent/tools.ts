@@ -262,4 +262,13 @@ export const TOOLS: Anthropic.Tool[] = [
       required: ['motivo', 'mensaje_usuario'],
     },
   },
+
+  {
+    name: 'get_tramites_vehiculo',
+    description:
+      'Obtiene la lista de tramites/servicios activos disponibles para vehiculos con su pricing. ' +
+      'Usalo cuando el usuario pregunte por tramites vehiculares, servicios de vehiculo, ' +
+      'precios de tramites o quiera ver que tramites estan disponibles.',
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
 ];
