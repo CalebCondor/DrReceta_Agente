@@ -14,6 +14,7 @@ import { Type } from 'class-transformer';
 import { IsNumber, IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import { AgentService } from '../agent/agent.service';
 import { ChatService } from './chat.service';
+import { ChatGateway } from './chat.gateway';
 class PreguntaRespuestaDto {
   @IsString()
   @IsNotEmpty()
@@ -44,6 +45,7 @@ export class ChatController {
   constructor(
     private readonly agentService: AgentService,
     private readonly chatService: ChatService,
+    private readonly chatGateway: ChatGateway,
   ) {}
   // Listar todas las preguntas y respuestas
   @Get('/conocimiento')
@@ -134,6 +136,108 @@ export class ChatController {
     try {
       const user_ids = await this.chatService.getAllUserIds();
       return { success: true, total: user_ids.length, user_ids };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Pausar la conversación con un usuario (la IA deja de responderle)
+  @Post('/user/:us_id/pause')
+  @HttpCode(200)
+  async pauseChat(@Param('us_id', ParseIntPipe) usId: number) {
+    try {
+      const result = await this.chatService.pauseChat(usId);
+      this.chatGateway.emitPauseStatus(usId, true);
+      return {
+        success: true,
+        chat_id: usId,
+        alreadyPaused: result.alreadyPaused,
+        pausado_en: result.pausado_en,
+        message: result.alreadyPaused
+          ? `El chat ${usId} ya estaba pausado.`
+          : `Chat ${usId} pausado. La IA dejará de responder hasta que se reanude.`,
+      };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Reanudar la conversación con un usuario (la IA vuelve a responderle)
+  @Post('/user/:us_id/resume')
+  @HttpCode(200)
+  async resumeChat(@Param('us_id', ParseIntPipe) usId: number) {
+    try {
+      const result = await this.chatService.resumeChat(usId);
+      this.chatGateway.emitPauseStatus(usId, false);
+      return {
+        success: true,
+        chat_id: usId,
+        wasPaused: result.wasPaused,
+        reanudado_en: result.reanudado_en,
+        message: result.wasPaused
+          ? `Chat ${usId} reanudado. La IA volverá a responder.`
+          : `El chat ${usId} no estaba pausado.`,
+      };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Consultar el estado de pausa de un chat
+  @Get('/user/:us_id/pause-status')
+  async getPauseStatus(@Param('us_id', ParseIntPipe) usId: number) {
+    try {
+      const status = await this.chatService.getPauseStatus(usId);
+      return { success: true, chat_id: usId, ...status };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Guardar un mensaje escrito por un humano (mientras la IA está pausada)
+  @Post('/user/:us_id/human-message')
+  @HttpCode(201)
+  async saveHumanMessage(
+    @Param('us_id', ParseIntPipe) usId: number,
+    @Body() body: { message?: string },
+  ) {
+    try {
+      const message = (body?.message ?? '').toString();
+      const result = (await this.chatService.saveHumanMessage(
+        usId,
+        message,
+      )) as {
+        success: boolean;
+        error?: string;
+        id?: number | string;
+      };
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+      // Emitir por WebSocket a todos los clientes suscritos a este chat
+      this.chatGateway.emitHumanMessage(usId, {
+        id: result.id,
+        chat_id: usId,
+        role: 'human',
+        content: message.trim(),
+      });
+      return { success: true, chat_id: usId, id: result.id };
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Internal server error';
       throw new HttpException(
