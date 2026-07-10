@@ -1,6 +1,5 @@
 import {
   Body,
-  Logger,
   Controller,
   HttpCode,
   Post,
@@ -43,7 +42,6 @@ class ChatDto {
 
 @Controller('chat')
 export class ChatController {
-  private readonly logger = new Logger(ChatController.name);
   constructor(
     private readonly agentService: AgentService,
     private readonly chatService: ChatService,
@@ -87,32 +85,8 @@ export class ChatController {
   @HttpCode(200)
   async chat(@Body() body: ChatDto) {
     try {
-      // Si la conversación está pausada (humano a cargo), NO invocar al agente.
-      // Devolvemos response: '' para que el cliente (chat-context.tsx) lo descarte
-      // y muestre solo el mensaje entrante del agente vía WebSocket.
-      const status = await this.chatService.getPauseStatus(body.chat_id);
-
-      // Notificar por WS a todos los suscriptores de este chat que llegó un
-      // mensaje del usuario (así el panel CRM se actualiza en tiempo real).
-      try {
-        this.chatGateway.emitUserMessage(body.chat_id, {
-          chat_id: body.chat_id,
-          role: 'user',
-          content: body.message,
-        });
-      } catch (e) {
-        this.logger.warn(`No se pudo emitir user-message WS: ${e}`);
-      }
-
-      if (status?.paused) {
-        return {
-          success: true,
-          paused: true,
-          response: '',
-        };
-      }
       const response = await this.agentService.chat(body.chat_id, body.message);
-      return { success: true, paused: false, response };
+      return { success: true, response };
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Internal server error';
       throw new HttpException(
