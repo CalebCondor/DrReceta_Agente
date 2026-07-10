@@ -85,8 +85,19 @@ export class ChatController {
   @HttpCode(200)
   async chat(@Body() body: ChatDto) {
     try {
+      // Si la conversación está pausada (humano a cargo), NO invocar al agente.
+      // Devolvemos response: '' para que el cliente (chat-context.tsx) lo descarte
+      // y muestre solo el mensaje entrante del agente vía WebSocket.
+      const status = await this.chatService.getPauseStatus(body.chat_id);
+      if (status?.paused) {
+        return {
+          success: true,
+          paused: true,
+          response: '',
+        };
+      }
       const response = await this.agentService.chat(body.chat_id, body.message);
-      return { success: true, response };
+      return { success: true, paused: false, response };
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Internal server error';
       throw new HttpException(

@@ -60,7 +60,10 @@ export class AutoResumeService implements OnModuleInit, OnModuleDestroy {
       [String(this.timeoutMinutes)],
     );
 
-    const resumed = rows as Array<{ chat_id: number | string; pausado_en: Date }>;
+    const resumed = rows as Array<{
+      chat_id: number | string;
+      pausado_en: Date;
+    }>;
     if (resumed.length === 0) return;
 
     for (const r of resumed) {
