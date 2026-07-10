@@ -8,12 +8,16 @@ import { TOOLS } from './tools';
 import { executeTool } from './executor';
 import { buildSystem } from './system';
 import { DbService } from './db.service';
+import { ChatGateway } from '../chat/chat.gateway';
 
 @Injectable()
 export class AgentService {
   private readonly logger = new Logger(AgentService.name);
 
-  constructor(private readonly db: DbService) {}
+  constructor(
+    private readonly db: DbService,
+    private readonly chatGateway: ChatGateway,
+  ) {}
 
   /** Carga el historial desde la base de datos si la memoria en vivo está vacía */
   private async loadHistoryIfEmpty(
@@ -311,6 +315,44 @@ export class AgentService {
    */
   async chat(chatId: number, userText: string): Promise<string> {
     try {
+      const { rows } = await this.db.query(
+        `SELECT 1 FROM chats_pausados
+         WHERE chat_id = $1 AND reanudado_en IS NULL
+         LIMIT 1`,
+        [chatId],
+      );
+
+      if ((rows as unknown[]).length > 0) {
+        // Chat en modo humano: guardar el mensaje del usuario silenciosamente
+        // y notificar al panel admin por WebSocket. La IA no responde.
+        await this.persistMessage(chatId, 'user', userText);
+
+        // Sincronizar historial en memoria para cuando se reanude
+        try {
+          const history = await this.loadHistoryIfEmpty(chatId);
+          history.push({ role: 'user', content: userText });
+          if (history.length > 50) history.splice(0, history.length - 50);
+        } catch (e) {
+          this.logger.warn(`No se pudo sincronizar historial: ${e}`);
+        }
+
+        // Notificar al panel admin en tiempo real (best-effort)
+        try {
+          this.chatGateway.emitUserMessage(chatId, {
+            chat_id: chatId,
+            role: 'user',
+            content: userText,
+          });
+        } catch (e) {
+          this.logger.warn(`No se pudo emitir WebSocket user-message: ${e}`);
+        }
+
+        this.logger.log(
+          `Chat ${chatId} pausado. Mensaje del usuario guardado.`,
+        );
+        return '';
+      }
+
       return await this.runAgentCore(chatId, userText);
     } catch (e) {
       const errStr = String(e);
