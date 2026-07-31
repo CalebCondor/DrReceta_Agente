@@ -10,7 +10,7 @@ export class DbService implements OnModuleInit {
     this.pool = new Pool({
       host: process.env.DB_HOST || '187.77.15.77',
       port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME || 'AGENTEIA',
+      database: process.env.DB_NAME || 'tulicencia_agenteia',
       user: process.env.DB_USER || 'agente',
       password: process.env.DB_PASSWORD || 'SmartHiring2025@',
     });

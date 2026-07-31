@@ -1,11 +1,14 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-if (!process.env.ANTHROPIC_API_KEY)
-  throw new Error('Missing ANTHROPIC_API_KEY');
+// Cambia esto a `true` para usar Anthropic en vez de MiniMax.
+// Por defecto MiniMax, que es el runtime real del proyecto.
+export const USE_ANTHROPIC = false;
 
 export const ANTHROPIC_MODEL =
   process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5-20250929';
-export const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+export const client = USE_ANTHROPIC
+  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? '' })
+  : (null as unknown as Anthropic);
 
 export const MINIMAX_API_KEY = process.env.MINIMAX_API_KEY ?? '';
 export const MINIMAX_MODEL = process.env.MINIMAX_MODEL ?? 'MiniMax-M3';
