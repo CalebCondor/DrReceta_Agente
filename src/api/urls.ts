@@ -14,4 +14,4 @@ export const PRODUCTOS_BASE_URL = 'https://drreceta.com/es';
 export const CREAR_COMPRA_URL =
   'https://graveyard-unroasted-steadying.ngrok-free.dev/api/crear_compra.php';
 export const VERIFICAR_CODIGO_URL =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/verificar-codigo.php';
+  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/verificar-codigo';
