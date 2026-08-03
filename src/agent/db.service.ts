@@ -23,14 +23,56 @@ export class DbService implements OnModuleInit {
 
   private async initTables() {
     await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS categorias_conocimiento (
+        id SERIAL PRIMARY KEY,
+        nombre TEXT NOT NULL UNIQUE,
+        descripcion TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      INSERT INTO categorias_conocimiento (nombre) VALUES
+        ('general'), ('recetas'), ('dosificacion'),
+        ('efectos_secundarios'), ('interacciones'),
+        ('productos'), ('envios'), ('pagos')
+      ON CONFLICT (nombre) DO NOTHING;
+
       CREATE TABLE IF NOT EXISTS conocimiento_especifico (
         id SERIAL PRIMARY KEY, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL,
         fuente TEXT DEFAULT 'aprendizaje_ia',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      ALTER TABLE conocimiento_especifico ADD COLUMN IF NOT EXISTS categoria TEXT DEFAULT 'general';
+
       ALTER TABLE conocimiento_especifico ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-      CREATE INDEX IF NOT EXISTS idx_conocimiento_categoria ON conocimiento_especifico (categoria);
+      ALTER TABLE conocimiento_especifico ADD COLUMN IF NOT EXISTS categoria_id INTEGER;
+
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'conocimiento_especifico' AND column_name = 'categoria'
+        ) THEN
+          UPDATE conocimiento_especifico ke
+          SET categoria_id = c.id
+          FROM categorias_conocimiento c
+          WHERE c.nombre = ke.categoria
+            AND ke.categoria_id IS NULL;
+          ALTER TABLE conocimiento_especifico DROP COLUMN categoria;
+        END IF;
+      END$$;
+
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'fk_conocimiento_categoria'
+        ) THEN
+          ALTER TABLE conocimiento_especifico
+            ADD CONSTRAINT fk_conocimiento_categoria
+            FOREIGN KEY (categoria_id) REFERENCES categorias_conocimiento(id) ON DELETE SET NULL;
+        END IF;
+      END$$;
+
+      CREATE INDEX IF NOT EXISTS idx_conocimiento_categoria_id ON conocimiento_especifico (categoria_id);
+
       CREATE TABLE IF NOT EXISTS memoria_largo_plazo (
         id SERIAL PRIMARY KEY, chat_id BIGINT NOT NULL, clave TEXT NOT NULL,
         valor TEXT NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

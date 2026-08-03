@@ -73,7 +73,8 @@ export const TOOLS: Anthropic.Tool[] = [
     description:
       'Guarda un par de pregunta y respuesta en la base de datos de conocimiento de la IA para usarlo en el futuro. ' +
       'Úsalo cuando el usuario te enseñe algo nuevo o te de una respuesta corregida. ' +
-      'Clasifica el conocimiento en una categoria (ej: "recetas", "dosificacion", "efectos_secundarios", "interacciones", "productos", "envios", "pagos", "general").',
+      'Clasifica el conocimiento en una categoria (ej: "recetas", "dosificacion", "efectos_secundarios", "interacciones", "productos", "envios", "pagos", "general"). ' +
+      'Si la categoría no existe aún, se creará automáticamente.',
     input_schema: {
       type: 'object',
       properties: {
@@ -88,7 +89,7 @@ export const TOOLS: Anthropic.Tool[] = [
         categoria: {
           type: 'string',
           description:
-            'Categoria del conocimiento. Ej: "recetas", "dosificacion", "efectos_secundarios", "interacciones", "productos", "envios", "pagos", "general". Si no estás seguro usa "general".',
+            'Nombre de la categoria. Ej: "recetas", "dosificacion", "efectos_secundarios", "interacciones", "productos", "envios", "pagos", "general". Si no estás seguro usa "general".',
         },
       },
       required: ['pregunta', 'respuesta'],
@@ -110,7 +111,7 @@ export const TOOLS: Anthropic.Tool[] = [
         categoria: {
           type: 'string',
           description:
-            'Opcional. Filtra los resultados a una categoria específica (ej: "recetas", "dosificacion").',
+            'Opcional. Nombre de la categoria para filtrar (ej: "recetas", "dosificacion").',
         },
       },
       required: ['busqueda'],

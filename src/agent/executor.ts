@@ -136,9 +136,16 @@ export async function executeTool(
     const a = strVal(toolInput['respuesta']);
     const cat = strVal(toolInput['categoria'], 'general').toLowerCase().trim();
     try {
+      const { rows: catRows } = await db.query(
+        `INSERT INTO categorias_conocimiento (nombre) VALUES ($1)
+         ON CONFLICT (nombre) DO UPDATE SET nombre = EXCLUDED.nombre
+         RETURNING id`,
+        [cat || 'general'],
+      );
+      const categoriaId = (catRows[0] as { id: number } | undefined)?.id;
       await db.query(
-        'INSERT INTO conocimiento_especifico (pregunta, respuesta, categoria) VALUES ($1, $2, $3)',
-        [q, a, cat || 'general'],
+        'INSERT INTO conocimiento_especifico (pregunta, respuesta, categoria_id) VALUES ($1, $2, $3)',
+        [q, a, categoriaId],
       );
       return JSON.stringify({
         success: true,
@@ -154,14 +161,15 @@ export async function executeTool(
     const cat = strVal(toolInput['categoria']).toLowerCase().trim();
     try {
       const params: any[] = [`%${b}%`];
-      let query =
-        'SELECT pregunta, respuesta, categoria FROM conocimiento_especifico ' +
-        'WHERE (LOWER(pregunta) LIKE $1 OR LOWER(respuesta) LIKE $1)';
+      let query = `SELECT ke.pregunta, ke.respuesta, c.nombre AS categoria
+         FROM conocimiento_especifico ke
+         LEFT JOIN categorias_conocimiento c ON c.id = ke.categoria_id
+         WHERE (LOWER(ke.pregunta) LIKE $1 OR LOWER(ke.respuesta) LIKE $1)`;
       if (cat) {
         params.push(cat);
-        query += ' AND categoria = $2';
+        query += ' AND LOWER(c.nombre) = $2';
       }
-      query += ' ORDER BY updated_at DESC LIMIT 5';
+      query += ' ORDER BY ke.updated_at DESC LIMIT 5';
       const { rows } = await db.query(query, params);
       return JSON.stringify({ success: true, resultados: rows });
     } catch (e: unknown) {

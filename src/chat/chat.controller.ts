@@ -25,8 +25,19 @@ class PreguntaRespuestaDto {
   respuesta!: string;
 
   @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  categoria_id?: number;
+}
+
+class CategoriaDto {
   @IsString()
-  categoria?: string;
+  @IsNotEmpty()
+  nombre!: string;
+
+  @IsOptional()
+  @IsString()
+  descripcion?: string;
 }
 // src/chat/chat.controller.ts
 
@@ -74,9 +85,39 @@ export class ChatController {
       const result = await this.chatService.insertPreguntaRespuesta(
         body.pregunta,
         body.respuesta,
-        body.categoria,
+        body.categoria_id,
       );
       return result;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Listar todas las categorías
+  @Get('/categorias')
+  async listCategorias() {
+    try {
+      const data = await this.chatService.listCategorias();
+      return { success: true, total: data.length, data };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Crear una nueva categoría
+  @Post('/categorias')
+  @HttpCode(201)
+  async createCategoria(@Body() body: CategoriaDto) {
+    try {
+      return await this.chatService.createCategoria(body.nombre, body.descripcion);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Internal server error';
       throw new HttpException(

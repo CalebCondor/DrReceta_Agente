@@ -40,32 +40,38 @@ export class ChatService {
       fechas: r.fechas,
     }));
   }
-
   async listPreguntasRespuestas(): Promise<
     {
       id: number;
       pregunta: string;
       respuesta: string;
+      categoria_id: number | null;
       categoria: string;
       updated_at: string;
     }[]
   > {
     const { rows } = await this.db.query(
-      'SELECT id, pregunta, respuesta, categoria, updated_at FROM conocimiento_especifico ORDER BY id ASC',
+      `SELECT ke.id, ke.pregunta, ke.respuesta, ke.updated_at,
+              c.id AS categoria_id, c.nombre AS categoria_nombre
+       FROM conocimiento_especifico ke
+       LEFT JOIN categorias_conocimiento c ON c.id = ke.categoria_id
+       ORDER BY ke.id ASC`,
     );
     return (
       rows as Array<{
         id: number;
         pregunta: string;
         respuesta: string;
-        categoria: string;
         updated_at: Date;
+        categoria_id: number | null;
+        categoria_nombre: string | null;
       }>
     ).map((r) => ({
       id: Number(r.id),
       pregunta: String(r.pregunta),
       respuesta: String(r.respuesta),
-      categoria: r.categoria ? String(r.categoria) : 'general',
+      categoria_id: r.categoria_id !== null ? Number(r.categoria_id) : null,
+      categoria: r.categoria_nombre ? String(r.categoria_nombre) : 'general',
       updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : '',
     }));
   }
@@ -73,18 +79,101 @@ export class ChatService {
   async insertPreguntaRespuesta(
     pregunta: string,
     respuesta: string,
-    categoria: string = 'general',
-  ): Promise<{ success: boolean; id?: number; categoria?: string }> {
+    categoriaId?: number | null,
+  ): Promise<{ success: boolean; id?: number; categoria_id?: number | null }> {
     const { rows } = await this.db.query(
-      'INSERT INTO conocimiento_especifico (pregunta, respuesta, categoria) VALUES ($1, $2, $3) RETURNING id, categoria',
-      [pregunta, respuesta, categoria],
+      'INSERT INTO conocimiento_especifico (pregunta, respuesta, categoria_id) VALUES ($1, $2, $3) RETURNING id, categoria_id',
+      [pregunta, respuesta, categoriaId ?? null],
     );
-    const row = rows[0] as { id?: number; categoria?: string } | undefined;
+    const row = rows[0] as
+      | { id?: number; categoria_id?: number | null }
+      | undefined;
     const id =
       row && typeof row.id !== 'undefined' ? Number(row.id) : undefined;
-    return { success: true, id, categoria: row?.categoria };
+    return {
+      success: true,
+      id,
+      categoria_id:
+        row && row.categoria_id !== null && row.categoria_id !== undefined
+          ? Number(row.categoria_id)
+          : null,
+    };
   }
 
+  async listCategorias(): Promise<
+    { id: number; nombre: string; descripcion: string | null }[]
+  > {
+    const { rows } = await this.db.query(
+      'SELECT id, nombre, descripcion FROM categorias_conocimiento ORDER BY nombre ASC',
+    );
+    return (
+      rows as Array<{
+        id: number;
+        nombre: string;
+        descripcion: string | null;
+      }>
+    ).map((r) => ({
+      id: Number(r.id),
+      nombre: String(r.nombre),
+      descripcion: r.descripcion ? String(r.descripcion) : null,
+    }));
+  }
+
+  async getCategoriaByNombre(
+    nombre: string,
+  ): Promise<{ id: number; nombre: string } | null> {
+    const { rows } = await this.db.query(
+      'SELECT id, nombre FROM categorias_conocimiento WHERE LOWER(nombre) = LOWER($1) LIMIT 1',
+      [nombre],
+    );
+    const r = rows[0] as { id: number; nombre: string } | undefined;
+    return r ? { id: Number(r.id), nombre: String(r.nombre) } : null;
+  }
+
+  async upsertCategoriaByNombre(
+    nombre: string,
+    descripcion?: string | null,
+  ): Promise<{ id: number; nombre: string; descripcion: string | null }> {
+    const { rows } = await this.db.query(
+      `INSERT INTO categorias_conocimiento (nombre, descripcion)
+       VALUES ($1, $2)
+       ON CONFLICT (nombre) DO UPDATE SET descripcion = COALESCE(EXCLUDED.descripcion, categorias_conocimiento.descripcion)
+       RETURNING id, nombre, descripcion`,
+      [nombre, descripcion ?? null],
+    );
+    const r = rows[0] as {
+      id: number;
+      nombre: string;
+      descripcion: string | null;
+    };
+    return {
+      id: Number(r.id),
+      nombre: String(r.nombre),
+      descripcion: r.descripcion ? String(r.descripcion) : null,
+    };
+  }
+
+  async createCategoria(
+    nombre: string,
+    descripcion?: string,
+  ): Promise<{
+    success: boolean;
+    id?: number;
+    nombre?: string;
+    error?: string;
+  }> {
+    try {
+      const { rows } = await this.db.query(
+        'INSERT INTO categorias_conocimiento (nombre, descripcion) VALUES ($1, $2) RETURNING id, nombre',
+        [nombre, descripcion ?? null],
+      );
+      const r = rows[0] as { id: number; nombre: string } | undefined;
+      return { success: true, id: Number(r?.id), nombre: r?.nombre };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'DB error';
+      return { success: false, error: msg };
+    }
+  }
   async isChatPaused(chatId: number): Promise<boolean> {
     const { rows } = await this.db.query(
       `SELECT 1 FROM chats_pausados
