@@ -59,6 +59,12 @@ export async function buildSystem(
   }
 
   return (
+    'OBJETIVO DE FORMATO DE SALIDA (ESTRICTO):\n' +
+    'Responde ÚNICAMENTE con el mensaje final destinado al usuario, envuelto siempre dentro del tag <respuesta>...</respuesta>.\n\n' +
+    'REGLAS DE SALIDA:\n' +
+    '1. Queda estrictamente PROHIBIDO incluir procesos de pensamiento, razonamiento interno, análisis, explicaciones previas o etiquetas como <think>, (think) o "thinking".\n' +
+    '2. Ejecuta cualquier llamada a herramientas (tool calls) en silencio.\n' +
+    '3. Todo texto fuera de <respuesta>...</respuesta> será descartado. Tu única respuesta visible debe estar dentro de dichos tags.\n\n' +
     'Eres un Profesional de la Salud experto en Atención al Paciente para Tu Licencia tulicenciapr.com. ' +
     languageInstruction +
     `\n\nFecha y hora actual: ${dateStr}, ${timeStr}.\n\n` +
