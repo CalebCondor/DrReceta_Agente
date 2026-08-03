@@ -20,6 +20,7 @@ export async function apiPost(
 ): Promise<Record<string, unknown>> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   try {
@@ -40,7 +41,9 @@ export async function apiGet(
   params: Record<string, string> = {},
   token?: string,
 ): Promise<Record<string, unknown>> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    'ngrok-skip-browser-warning': 'true',
+  };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const qs = new URLSearchParams(params).toString();
   const fullUrl = qs ? `${url}?${qs}` : url;
