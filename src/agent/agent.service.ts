@@ -17,6 +17,53 @@ import { buildSystem } from './system';
 import { DbService } from './db.service';
 import { ChatGateway } from '../chat/chat.gateway';
 
+/**
+ * Quita del texto cualquier párrafo inicial que parezca razonamiento interno
+ * del modelo (planificación, meta-comentarios, narración de herramientas, etc.)
+ * antes de la respuesta real dirigida al usuario.
+ */
+function stripInternalReasoning(text: string): string {
+  if (!text) return text;
+  const internalPatterns = [
+    /^the user\b/i,
+    /^i should\b/i,
+    /^i will\b/i,
+    /^i need to\b/i,
+    /^let me\b/i,
+    /^based on\b/i,
+    /^according to\b/i,
+    /^the tool\b/i,
+    /^the knowledge\b/i,
+    /^the search\b/i,
+    /^i already\b/i,
+    /^voy a\b/i,
+    /^debería\b/i,
+    /^debo\b/i,
+    /^el usuario\b/i,
+    /^según\b/i,
+    /^la herramienta\b/i,
+    /^la base de\b/i,
+    /^te informo que\b/i,
+    /without narrating/i,
+    /internal process/i,
+  ];
+  const lines = text.split('\n');
+  let start = 0;
+  while (start < lines.length) {
+    const line = lines[start].trim();
+    if (line === '') {
+      start++;
+      continue;
+    }
+    if (internalPatterns.some((p) => p.test(line))) {
+      start++;
+      continue;
+    }
+    break;
+  }
+  return lines.slice(start).join('\n').trim();
+}
+
 @Injectable()
 export class AgentService {
   private readonly logger = new Logger(AgentService.name);
@@ -179,13 +226,20 @@ export class AgentService {
 
       if (toolCalls.length === 0) {
         if (assistantText) {
-          collected.push(assistantText);
-          const assistantPersist = {
-            role: 'assistant' as const,
-            content: assistantText,
-          };
-          this.appendToHistory(chatId, [assistantPersist]);
-          await this.persistMessage(chatId, 'assistant', assistantText);
+          const cleanText = stripInternalReasoning(assistantText);
+          if (cleanText) {
+            collected.push(cleanText);
+            const assistantPersist = {
+              role: 'assistant' as const,
+              content: cleanText,
+            };
+            this.appendToHistory(chatId, [assistantPersist]);
+            await this.persistMessage(chatId, 'assistant', cleanText);
+          } else {
+            this.logger.warn(
+              `Respuesta del modelo quedó vacía tras strip para chat ${chatId}.`,
+            );
+          }
         }
         return collected.join('\n');
       }
@@ -306,9 +360,9 @@ export class AgentService {
       tool_choice: 'auto',
     });
 
-    const finalText = (response.choices?.[0]?.message?.content ?? '')
-      .toString()
-      .trim();
+    const finalText = stripInternalReasoning(
+      (response.choices?.[0]?.message?.content ?? '').toString().trim(),
+    );
 
     if (finalText) {
       minimaxConversations.set(chatId, [
