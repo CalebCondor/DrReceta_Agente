@@ -28,6 +28,9 @@ export interface SessionData {
 export interface MiniMaxMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content?: string | null;
+  // Cuando reasoning_split=true, la API devuelve el razonamiento interno aquí.
+  // Lo ignoramos y usamos solo `content` (que debería venir limpio).
+  reasoning_content?: string | null;
   name?: string;
   tool_call_id?: string;
   tool_calls?: MiniMaxToolCall[];
@@ -63,13 +66,22 @@ export async function callMiniMax(
   if (!MINIMAX_ENABLED)
     throw new Error('MiniMax fallback is not configured (missing API key)');
 
-  // Forzar separación de razonamiento: la API devuelve el contenido limpio
-  // en `content` y el razonamiento interno en `reasoning_content` (lo ignoramos).
+  // Para MiniMax-M3 (modelo de razonamiento) enviamos varios flags para
+  // intentar que NO piense o que separe el razonamiento del contenido.
+  // - reasoning_split: true  → si la API lo soporta, devuelve el razonamiento
+  //   en `reasoning_content` y deja `content` limpio.
+  // - enable_thinking: false → apaga el razonamiento por completo (algunos
+  //   modelos lo respetan, otros lo ignoran).
+  // - thinking: false        → variante del nombre del flag.
+  // El código además hace post-procesado (extractFinalResponse) como red
+  // de seguridad por si los flags no surten efecto.
   const finalBody = {
     ...body,
     extra_body: {
       ...((body['extra_body'] as Record<string, unknown> | undefined) ?? {}),
       reasoning_split: true,
+      enable_thinking: false,
+      thinking: false,
     },
   };
 
