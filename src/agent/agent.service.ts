@@ -1,133 +1,24 @@
 // src/agent/agent.service.ts
-// Núcleo del agente MiniMax (OpenAI-compatible), desacoplado de cualquier transporte
+// Núcleo del agente: usa el SDK de Anthropic apuntando al endpoint
+// Anthropic-compatible de MiniMax. Esto hace que el razonamiento venga
+// en bloques separados `type: "thinking"`, que filtramos para que NUNCA
+// lleguen al usuario (solo los bloques `type: "text"` son visibles).
 
 import { Injectable, Logger } from '@nestjs/common';
+import Anthropic from '@anthropic-ai/sdk';
 import {
-  callMiniMax,
-  MINIMAX_MODEL,
+  client,
+  ANTHROPIC_MODEL,
   conversations,
-  minimaxConversations,
-  MiniMaxMessage,
-  MiniMaxToolCall,
-  // USE_ANTHROPIC, // Claude deshabilitado por ahora — solo MiniMax
+  // minimaxConversations, // legacy, ya no se usa
+  // MiniMaxMessage, MiniMaxToolCall, // legacy
+  // USE_ANTHROPIC, // legacy
 } from './state';
 import { TOOLS } from './tools';
 import { executeTool } from './executor';
 import { buildSystem } from './system';
 import { DbService } from './db.service';
 import { ChatGateway } from '../chat/chat.gateway';
-
-/**
- * Extrae la respuesta final dirigida al usuario.
- * Estrategia estructural: el modelo DEBE envolver su respuesta real en
- * `<respuesta>...</respuesta>`. Si encuentra los tags, devuelve el contenido
- * entre ellos (que es lo único que verá el usuario). Si el modelo no usó
- * los tags, hace fallback a stripInternalReasoning (limpieza por patrones).
- *
- * Esto es robusto frente a que el modelo "piense en voz alta" en infinitas
- * formas antes de la respuesta: el contenido FUERA de los tags se descarta
- * siempre, sin importar lo que contenga.
- */
-function extractFinalResponse(text: string): string {
-  if (!text) return text;
-  // Regex tolerante:
-  //   - <\s*respuesta\s*>  → tolera saltos/espacios DENTRO del tag de apertura
-  //     (ej. "<\nrespuesta>" o "< respuesta >")
-  //   - (?:<\s*\/\s*respuesta\s*>|$) → cierra con </respuesta> (también tolerante)
-  //     O si no hay cierre, captura hasta el final del texto
-  //   - [\s\S]*?  → no codicioso: toma el primer bloque desde el <respuesta>
-  const re = /<\s*respuesta\s*>([\s\S]*?)(?:<\s*\/\s*respuesta\s*>|$)/i;
-  const match = text.match(re);
-  if (match && match[1]) {
-    const inner = match[1].trim();
-    // Si el modelo puso el cierre pero dejó contenido meta DESPUÉS de </respuesta>,
-    // el match ya solo toma lo de adentro, así que está limpio.
-    if (inner) return inner;
-  }
-  return stripInternalReasoning(text);
-}
-
-/**
- * Quita del texto cualquier párrafo inicial que parezca razonamiento interno
- * del modelo (planificación, meta-comentarios, narración de herramientas, etc.)
- * antes de la respuesta real dirigida al usuario. Usado como fallback de
- * extractFinalResponse cuando el modelo no envolvió su respuesta en tags.
- */
-function stripInternalReasoning(text: string): string {
-  if (!text) return text;
-  const internalPatterns: RegExp[] = [
-    // Tercera persona sobre el usuario (inglés)
-    /^the users?\b/i,
-    // Primera persona planificando (inglés)
-    /^i (should|will|need|can|must|already|just|also|notice|see|think|believe|want|have|had|'ll|'ve|'d|am|was|to)\b/i,
-    /^i\b/i,
-    // "Let me" / "Let's"
-    /^let(?:'s| me)\b/i,
-    // Transiciones/meta al inicio (inglés)
-    /^actually[,\s]/i,
-    /^looking (?:at|into)\b/i,
-    /^note (?:that|:)\b/i,
-    /^wait[,\s]/i,
-    /^so[,\s]/i,
-    /^now[,\s]/i,
-    /^first[,\s]/i,
-    /^remember\b/i,
-    /^okay[,\s]/i,
-    /^alright[,\s]/i,
-    /^additionally\b/i,
-    /^furthermore\b/i,
-    /^moreover\b/i,
-    /^in this case\b/i,
-    /^for this\b/i,
-    /^this means\b/i,
-    /^based on\b/i,
-    /^according to\b/i,
-    /^since\b/i,
-    // Menciones de herramientas/sistema
-    /^the tool\b/i,
-    /^the knowledge\b/i,
-    /^the search\b/i,
-    /^the system\b/i,
-    /^the prompt\b/i,
-    // Equivalentes en español
-    /^voy a\b/i,
-    /^debería\b/i,
-    /^debo\b/i,
-    /^el usuario\b/i,
-    /^según\b/i,
-    /^la herramienta\b/i,
-    /^la base de\b/i,
-    /^te informo que\b/i,
-    // Otros
-    /without narrating/i,
-    /internal process/i,
-    // Meta-planificación / recitado de instrucciones del system prompt
-    /^tags\s*$/i,
-    /^be brief\b/i,
-    /^be friendly\b/i,
-    /^let me craft\b/i,
-    /^let me write\b/i,
-    /^craft a\b/i,
-    /^i need to craft\b/i,
-    /^i need to write\b/i,
-    /^draft (?:a|the)\b/i,
-  ];
-  const lines = text.split('\n');
-  let start = 0;
-  while (start < lines.length) {
-    const line = lines[start].trim();
-    if (line === '') {
-      start++;
-      continue;
-    }
-    if (internalPatterns.some((p) => p.test(line))) {
-      start++;
-      continue;
-    }
-    break;
-  }
-  return lines.slice(start).join('\n').trim();
-}
 
 @Injectable()
 export class AgentService {
@@ -138,67 +29,47 @@ export class AgentService {
     private readonly chatGateway: ChatGateway,
   ) {}
 
-  /** Convierte la definición Anthropic de tools al formato OpenAI-compatible usado por MiniMax */
-  private toOpenAITools(): Array<Record<string, unknown>> {
-    return TOOLS.map((t) => ({
-      type: 'function',
-      function: {
-        name: t.name,
-        description: t.description,
-        parameters: t.input_schema,
-      },
-    }));
-  }
+  // toOpenAITools ya no se usa: el SDK de Anthropic recibe las tools
+  // directamente en su formato nativo.
 
   /** Carga el historial desde la base de datos si la memoria en vivo está vacía */
-  private async loadHistoryIfEmpty(chatId: number): Promise<MiniMaxMessage[]> {
-    if (!minimaxConversations.has(chatId)) {
+  private async loadHistoryIfEmpty(
+    chatId: number,
+  ): Promise<Anthropic.MessageParam[]> {
+    if (!conversations.has(chatId)) {
       try {
         const { rows } = await this.db.query(
           'SELECT role, content FROM historial_mensajes WHERE chat_id = $1 ORDER BY created_at ASC LIMIT 50',
           [chatId],
         );
-        const history: MiniMaxMessage[] = rows.map(
-          (r: { role: string; content: unknown }) => {
-            const role: MiniMaxMessage['role'] =
-              r.role === 'assistant'
-                ? 'assistant'
-                : r.role === 'tool'
-                  ? 'tool'
-                  : 'user';
-            let content: string = '';
+        const history: Anthropic.MessageParam[] = rows
+          .map((r: { role: string; content: unknown }) => {
+            let text = '';
             if (typeof r.content === 'string') {
               try {
                 const parsed = JSON.parse(r.content) as unknown;
-                content =
-                  typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
+                text =
+                  typeof parsed === 'string'
+                    ? parsed
+                    : JSON.stringify(parsed);
               } catch {
-                content = r.content;
+                text = r.content;
               }
             } else if (r.content !== null && r.content !== undefined) {
-              content = JSON.stringify(r.content);
+              text = JSON.stringify(r.content);
             }
-            return { role, content };
-          },
-        );
-        minimaxConversations.set(chatId, history);
+            const role: 'user' | 'assistant' =
+              r.role === 'assistant' ? 'assistant' : 'user';
+            return { role, content: text } as Anthropic.MessageParam;
+          })
+          .filter((m: Anthropic.MessageParam) => m.content);
+        conversations.set(chatId, history);
       } catch (e) {
         this.logger.error(`Error loading history for ${chatId}: ${e}`);
-        minimaxConversations.set(chatId, []);
+        conversations.set(chatId, []);
       }
     }
-    return minimaxConversations.get(chatId)!;
-  }
-
-  /**
-   * Normaliza mensajes MiniMax persistidos: descarta entradas corruptas
-   * y conserva el orden conversacional.
-   */
-  private normalizeMessages(msgs: MiniMaxMessage[]): MiniMaxMessage[] {
-    return msgs.filter(
-      (m) =>
-        m && (m.role === 'user' || m.role === 'assistant' || m.role === 'tool'),
-    );
+    return conversations.get(chatId)!;
   }
 
   /** Guarda un mensaje en la base de datos */
@@ -222,25 +93,21 @@ export class AgentService {
 
   private appendToHistory(
     chatId: number,
-    msgs: Array<{ role: 'user' | 'assistant' | 'tool'; content: unknown }>,
+    msgs: Anthropic.MessageParam[],
   ): void {
-    const history = minimaxConversations.get(chatId) ?? [];
+    const history = conversations.get(chatId) ?? [];
     for (const m of msgs) {
-      const content =
-        typeof m.content === 'string'
-          ? m.content
-          : m.content === null || m.content === undefined
-            ? ''
-            : JSON.stringify(m.content);
-      history.push({ role: m.role, content });
+      history.push(m);
     }
     if (history.length > 50) history.splice(0, history.length - 50);
-    minimaxConversations.set(chatId, history);
+    conversations.set(chatId, history);
   }
 
   /**
-   * Núcleo del agente. Desacoplado del transporte.
-   * Devuelve el texto final consolidado.
+   * Núcleo del agente. Usa el SDK de Anthropic apuntando al endpoint
+   * Anthropic-compatible de MiniMax. El razonamiento viene en bloques
+   * `type: "thinking"` separados; aquí SOLO tomamos los `type: "text"`
+   * para construir la respuesta al usuario.
    */
   private async runAgentCore(
     chatId: number,
@@ -252,121 +119,77 @@ export class AgentService {
     if (history.length > 50) history.splice(0, history.length - 50);
     await this.persistMessage(chatId, 'user', userText);
 
-    const messages: MiniMaxMessage[] = this.normalizeMessages([...history]);
     const collected: string[] = [];
-    const tools = this.toOpenAITools();
 
     for (let round = 0; round < 10; round++) {
       const systemPrompt = await buildSystem(chatId, this.db);
-      const apiMessages: MiniMaxMessage[] = [
-        { role: 'system', content: systemPrompt },
-        ...messages,
-      ];
 
-      // Rama Anthropic deshabilitada por ahora — solo MiniMax
-      // const response = USE_ANTHROPIC
-      //   ? (() => {
-      //       throw new Error(
-      //         'Rama Anthropic no implementada en este cambio — define el bucle con client.messages.create y la API nativa de Anthropic',
-      //       );
-      //     })()
-      //   :
-      const response = await callMiniMax({
-        model: MINIMAX_MODEL,
-        messages: apiMessages,
-        tools,
-        tool_choice: 'auto',
+      const response = await client.messages.create({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 4096,
+        system: systemPrompt,
+        tools: TOOLS,
+        messages: [...history],
       });
 
-      const choice = response.choices?.[0];
-      if (!choice) {
-        this.logger.error(
-          `MiniMax response without choices: ${JSON.stringify(response)}`,
-        );
-        return collected.join('\n');
-      }
+      // Separar los bloques por tipo
+      const textBlocks = response.content.filter(
+        (b): b is Anthropic.TextBlock => b.type === 'text',
+      );
+      const toolUseBlocks = response.content.filter(
+        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+      );
+      const thinkingBlocks = response.content.filter(
+        (b): b is Anthropic.ThinkingBlock => b.type === 'thinking',
+      );
 
-      const assistantMessage = choice.message;
-      const toolCalls: MiniMaxToolCall[] = assistantMessage.tool_calls ?? [];
-      const assistantText = (assistantMessage.content ?? '').toString().trim();
-
-      // Diagnóstico: ¿la API separó el razonamiento en reasoning_details?
-      // Si está presente y es no-vacío, el `content` debería venir limpio.
-      const reasoningDetails = assistantMessage.reasoning_details;
-      if (Array.isArray(reasoningDetails) && reasoningDetails.length > 0) {
-        const len = reasoningDetails.reduce(
-          (acc, d) => acc + (typeof d?.text === 'string' ? d.text.length : 0),
+      if (thinkingBlocks.length > 0) {
+        const len = thinkingBlocks.reduce(
+          (acc, b) => acc + (b.thinking?.length ?? 0),
           0,
         );
         this.logger.log(
-          `[MiniMax] reasoning_split OK: ${reasoningDetails.length} bloques, ${len} chars separados. content.length=${assistantText.length}`,
-        );
-      } else if (assistantText.length > 200) {
-        // No hay reasoning_details y el content es largo → puede tener
-        // razonamiento filtrado; el post-procesado lo limpiará.
-        this.logger.debug(
-          `[MiniMax] reasoning_split NO presente. content.length=${assistantText.length}`,
+          `[Anthropic] thinking separado: ${thinkingBlocks.length} bloques, ${len} chars. NO se muestra al usuario.`,
         );
       }
 
-      if (toolCalls.length === 0) {
-        const cleanText = extractFinalResponse(assistantText);
+      const assistantText = textBlocks
+        .map((b) => b.text)
+        .join('')
+        .trim();
+
+      // Sin tool calls → respuesta final
+      if (
+        toolUseBlocks.length === 0 ||
+        response.stop_reason === 'end_turn' ||
+        response.stop_reason === 'stop_sequence'
+      ) {
         const fallback = collected.join('\n');
-        const textToSave = cleanText || fallback;
+        const textToSave = assistantText || fallback;
         if (textToSave) {
-          collected.push(textToSave);
-          const assistantPersist = {
-            role: 'assistant' as const,
-            content: textToSave,
-          };
-          this.appendToHistory(chatId, [assistantPersist]);
+          collected.push(assistantText || fallback);
+          history.push({ role: 'assistant', content: response.content });
           await this.persistMessage(chatId, 'assistant', textToSave);
-        } else if (assistantText) {
+        } else {
           this.logger.warn(
-            `Respuesta del modelo quedó vacía tras extracción para chat ${chatId}.`,
+            `Respuesta del modelo quedó vacía para chat ${chatId}.`,
           );
         }
         return collected.join('\n');
       }
 
-      const assistantForHistory: MiniMaxMessage = {
-        role: 'assistant',
-        content: assistantText || null,
-        tool_calls: toolCalls,
-      };
-      messages.push(assistantForHistory);
-      this.appendToHistory(chatId, [
-        { role: 'assistant', content: assistantText || '' },
-      ]);
-      // No persistimos el assistant intermedio con tool_calls: solo guardamos
-      // el mensaje del usuario y la respuesta final del asistente en la DB.
+      // Con tool calls → guardar el turno del asistente (con tool_use) y ejecutar
+      history.push({ role: 'assistant', content: response.content });
 
-      for (const tc of toolCalls) {
-        this.logger.log(
-          `tool=${tc.function.name} input=${tc.function.arguments}`,
-        );
+      const toolResults: Anthropic.ToolResultBlockParam[] = [];
+      for (const tu of toolUseBlocks) {
+        const args = (tu.input ?? {}) as Record<string, unknown>;
+        this.logger.log(`tool=${tu.name} input=${JSON.stringify(args)}`);
 
-        let parsedArgs: Record<string, unknown> = {};
-        try {
-          parsedArgs = JSON.parse(tc.function.arguments || '{}') as Record<
-            string,
-            unknown
-          >;
-        } catch (e) {
-          this.logger.warn(
-            `Invalid JSON in tool args for ${tc.function.name}: ${e}`,
-          );
-        }
-
-        const resultStr = await executeTool(
-          tc.function.name,
-          parsedArgs,
-          chatId,
-          this.db,
-        );
+        const resultStr = await executeTool(tu.name, args, chatId, this.db);
         this.logger.log(`result=${resultStr.slice(0, 200)}`);
 
-        // Si la herramienta devuelve formatted_html, capturarlo
+        // Capturar formatted_html si la herramienta lo devuelve
         try {
           const parsed = JSON.parse(resultStr) as {
             success?: boolean;
@@ -379,7 +202,7 @@ export class AgentService {
           /* no es JSON */
         }
 
-        // Strip formatted_html antes de devolver a MiniMax (ya capturado)
+        // Strip formatted_html antes de devolver al modelo (ya capturado)
         let resultForModel = resultStr;
         try {
           const parsed = JSON.parse(resultStr) as Record<string, unknown>;
@@ -391,18 +214,15 @@ export class AgentService {
           /* no es JSON */
         }
 
-        const toolMsg: MiniMaxMessage = {
-          role: 'tool',
-          name: tc.function.name,
-          tool_call_id: tc.id,
+        toolResults.push({
+          type: 'tool_result',
+          tool_use_id: tu.id,
           content: resultForModel,
-        };
-        messages.push(toolMsg);
-        this.appendToHistory(chatId, [
-          { role: 'tool', content: resultForModel },
-        ]);
-        // No persistimos los tool results: solo mensaje del usuario y respuesta final.
+        });
       }
+
+      // En Anthropic, los tool_results van como un mensaje `user`
+      history.push({ role: 'user', content: toolResults });
     }
 
     return collected.join('\n');
@@ -416,7 +236,6 @@ export class AgentService {
     this.logger.warn(
       `Historial corrupto para chat ${chatId}. Limpiando y reintentando...`,
     );
-    minimaxConversations.delete(chatId);
     conversations.delete(chatId);
     try {
       await this.db.query('DELETE FROM historial_mensajes WHERE chat_id = $1', [
@@ -426,38 +245,30 @@ export class AgentService {
       this.logger.error(`Error cleaning history: ${e}`);
     }
 
-    const freshMessages: MiniMaxMessage[] = [
-      { role: 'user', content: userText },
-    ];
     const systemPrompt = await buildSystem(chatId, this.db);
-    // Rama Anthropic deshabilitada por ahora — solo MiniMax
-    // const response = USE_ANTHROPIC
-    //   ? (() => {
-    //       throw new Error(
-    //         'Rama Anthropic no implementada en este cambio — define el bucle con client.messages.create y la API nativa de Anthropic',
-    //       );
-    //     })()
-    //   :
-    const response = await callMiniMax({
-      model: MINIMAX_MODEL,
-      messages: [{ role: 'system', content: systemPrompt }, ...freshMessages],
-      tools: this.toOpenAITools(),
-      tool_choice: 'auto',
+    const response = await client.messages.create({
+      model: ANTHROPIC_MODEL,
+      max_tokens: 4096,
+      system: systemPrompt,
+      tools: TOOLS,
+      messages: [{ role: 'user', content: userText }],
     });
 
-    const rawText = (response.choices?.[0]?.message?.content ?? '')
-      .toString()
+    const textBlocks = response.content.filter(
+      (b): b is Anthropic.TextBlock => b.type === 'text',
+    );
+    const finalText = textBlocks
+      .map((b) => b.text)
+      .join('')
       .trim();
-    const finalText = extractFinalResponse(rawText);
-    const textToSave = finalText;
 
-    if (textToSave) {
-      minimaxConversations.set(chatId, [
+    if (finalText) {
+      conversations.set(chatId, [
         { role: 'user', content: userText },
-        { role: 'assistant', content: textToSave },
+        { role: 'assistant', content: response.content },
       ]);
       await this.persistMessage(chatId, 'user', userText);
-      await this.persistMessage(chatId, 'assistant', textToSave);
+      await this.persistMessage(chatId, 'assistant', finalText);
     }
     return finalText;
   }

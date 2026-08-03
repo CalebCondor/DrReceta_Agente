@@ -1,15 +1,22 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-// Cambia esto a `true` para usar Anthropic en vez de MiniMax.
-// Por defecto MiniMax, que es el runtime real del proyecto.
-export const USE_ANTHROPIC = false;
+// Usamos el SDK de Anthropic apuntando al endpoint Anthropic-compatible
+// de MiniMax. Esto hace que el razonamiento venga en bloques `type: "thinking"`
+// SEPARADOS de los bloques `type: "text"`, evitando que el thinking se
+// filtre al usuario (problema con el endpoint OpenAI-compatible de MiniMax-M3).
+export const USE_ANTHROPIC = true;
 
-export const ANTHROPIC_MODEL =
-  process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5-20250929';
+export const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL ?? 'MiniMax-M3';
+export const ANTHROPIC_BASE_URL =
+  process.env.ANTHROPIC_BASE_URL ?? 'https://api.minimax.io/anthropic';
+export const ANTHROPIC_API_KEY =
+  process.env.ANTHROPIC_API_KEY ?? process.env.MINIMAX_API_KEY ?? '';
+
 export const client = USE_ANTHROPIC
-  ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY ?? '' })
+  ? new Anthropic({ apiKey: ANTHROPIC_API_KEY, baseURL: ANTHROPIC_BASE_URL })
   : (null as unknown as Anthropic);
 
+// Legacy OpenAI-compatible (ya no se usa, pero se conserva para referencia)
 export const MINIMAX_API_KEY = process.env.MINIMAX_API_KEY ?? '';
 export const MINIMAX_MODEL = process.env.MINIMAX_MODEL ?? 'MiniMax-M3';
 export const MINIMAX_BASE_URL =
@@ -28,10 +35,6 @@ export interface SessionData {
 export interface MiniMaxMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content?: string | null;
-  // Cuando reasoning_split=true, la API de MiniMax devuelve el razonamiento
-  // interno en `reasoning_details` (array de objetos con campo `text`),
-  // NO en `reasoning_content`. Ver litellm issue #22392.
-  // Lo ignoramos y usamos solo `content` (que debería venir limpio).
   reasoning_content?: string | null;
   reasoning_details?: Array<{ text?: string; [k: string]: unknown }> | null;
   name?: string;
@@ -69,25 +72,6 @@ export async function callMiniMax(
   if (!MINIMAX_ENABLED)
     throw new Error('MiniMax fallback is not configured (missing API key)');
 
-  // Para MiniMax-M3 (modelo de razonamiento) enviamos varios flags para
-  // intentar que NO piense o que separe el razonamiento del contenido.
-  // - reasoning_split: true  → si la API lo soporta, devuelve el razonamiento
-  //   en `reasoning_content` y deja `content` limpio.
-  // - enable_thinking: false → apaga el razonamiento por completo (algunos
-  //   modelos lo respetan, otros lo ignoran).
-  // - thinking: false        → variante del nombre del flag.
-  // El código además hace post-procesado (extractFinalResponse) como red
-  // de seguridad por si los flags no surten efecto.
-  const finalBody = {
-    ...body,
-    extra_body: {
-      ...((body['extra_body'] as Record<string, unknown> | undefined) ?? {}),
-      reasoning_split: true,
-      enable_thinking: false,
-      thinking: false,
-    },
-  };
-
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -97,7 +81,7 @@ export async function callMiniMax(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${MINIMAX_API_KEY}`,
       },
-      body: JSON.stringify(finalBody),
+      body: JSON.stringify(body),
       signal: ctrl.signal,
     });
     if (!r.ok) {
@@ -110,7 +94,9 @@ export async function callMiniMax(
   }
 }
 
-// In-memory stores (shared per process)
+// In-memory stores (shared per process).
+// `conversations` es la que usa el flujo Anthropic (la que está activa).
+// `minimaxConversations` se conserva por compatibilidad pero ya no se usa.
 export const conversations = new Map<number, Anthropic.MessageParam[]>();
 export const minimaxConversations = new Map<number, MiniMaxMessage[]>();
 export const sessions = new Map<number, SessionData>();
