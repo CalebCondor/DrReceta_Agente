@@ -148,13 +148,37 @@ export async function executeTool(
   }
 
   if (toolName === 'buscar_conocimiento') {
-    const b = strVal(toolInput['busqueda']).toLowerCase();
+    const raw = strVal(toolInput['busqueda']);
+    const tokens = raw
+      .toLowerCase()
+      .split(/[^a-záéíóúüñ0-9]+/)
+      .filter((t) => t.length >= 3);
+
     try {
+      if (tokens.length === 0) {
+        return JSON.stringify({ success: true, resultados: [] });
+      }
+      const conds = tokens
+        .map(
+          (_, i) =>
+            `(LOWER(pregunta) LIKE $${i + 1} OR LOWER(respuesta) LIKE $${i + 1})`,
+        )
+        .join(' OR ');
+      const scoreParts = tokens
+        .map(
+          (_, i) =>
+            `(CASE WHEN LOWER(pregunta) LIKE $${i + 1} OR LOWER(respuesta) LIKE $${i + 1} THEN 1 ELSE 0 END)`,
+        )
+        .join(' + ');
+      const params = tokens.map((t) => `%${t}%`);
+
       const { rows } = await db.query(
-        'SELECT pregunta, respuesta FROM conocimiento_especifico ' +
-          'WHERE LOWER(pregunta) LIKE $1 OR LOWER(respuesta) LIKE $1 ' +
-          'ORDER BY created_at DESC LIMIT 5',
-        [`%${b}%`],
+        `SELECT pregunta, respuesta, (${scoreParts}) AS score
+         FROM conocimiento_especifico
+         WHERE ${conds}
+         ORDER BY score DESC, id DESC
+         LIMIT 5`,
+        params,
       );
       return JSON.stringify({ success: true, resultados: rows });
     } catch (e: unknown) {
