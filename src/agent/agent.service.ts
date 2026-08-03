@@ -18,9 +18,30 @@ import { DbService } from './db.service';
 import { ChatGateway } from '../chat/chat.gateway';
 
 /**
+ * Extrae la respuesta final dirigida al usuario.
+ * Estrategia estructural: el modelo DEBE envolver su respuesta real en
+ * `<respuesta>...</respuesta>`. Si encuentra los tags, devuelve el contenido
+ * entre ellos (que es lo único que verá el usuario). Si el modelo no usó
+ * los tags, hace fallback a stripInternalReasoning (limpieza por patrones).
+ *
+ * Esto es robusto frente a que el modelo "piense en voz alta" en infinitas
+ * formas antes de la respuesta: el contenido FUERA de los tags se descarta
+ * siempre, sin importar lo que contenga.
+ */
+function extractFinalResponse(text: string): string {
+  if (!text) return text;
+  const match = text.match(/<respuesta>([\s\S]*?)<\/respuesta>/i);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  return stripInternalReasoning(text);
+}
+
+/**
  * Quita del texto cualquier párrafo inicial que parezca razonamiento interno
  * del modelo (planificación, meta-comentarios, narración de herramientas, etc.)
- * antes de la respuesta real dirigida al usuario.
+ * antes de la respuesta real dirigida al usuario. Usado como fallback de
+ * extractFinalResponse cuando el modelo no envolvió su respuesta en tags.
  */
 function stripInternalReasoning(text: string): string {
   if (!text) return text;
@@ -249,32 +270,21 @@ export class AgentService {
       const assistantText = (assistantMessage.content ?? '').toString().trim();
 
       if (toolCalls.length === 0) {
-        if (assistantText) {
-          const cleanText = stripInternalReasoning(assistantText);
-          const fallback = collected.join('\n');
-          const textToSave = cleanText || fallback;
-          if (textToSave) {
-            collected.push(cleanText || assistantText);
-            const assistantPersist = {
-              role: 'assistant' as const,
-              content: textToSave,
-            };
-            this.appendToHistory(chatId, [assistantPersist]);
-            await this.persistMessage(chatId, 'assistant', textToSave);
-          } else {
-            this.logger.warn(
-              `Respuesta del modelo quedó vacía tras strip para chat ${chatId}.`,
-            );
-          }
-        } else if (collected.length > 0) {
-          // El modelo no produjo texto pero hubo formatted_html de tools: persistir igual
-          const fallback = collected.join('\n');
+        const cleanText = extractFinalResponse(assistantText);
+        const fallback = collected.join('\n');
+        const textToSave = cleanText || fallback;
+        if (textToSave) {
+          collected.push(textToSave);
           const assistantPersist = {
             role: 'assistant' as const,
-            content: fallback,
+            content: textToSave,
           };
           this.appendToHistory(chatId, [assistantPersist]);
-          await this.persistMessage(chatId, 'assistant', fallback);
+          await this.persistMessage(chatId, 'assistant', textToSave);
+        } else if (assistantText) {
+          this.logger.warn(
+            `Respuesta del modelo quedó vacía tras extracción para chat ${chatId}.`,
+          );
         }
         return collected.join('\n');
       }
@@ -398,8 +408,8 @@ export class AgentService {
     const rawText = (response.choices?.[0]?.message?.content ?? '')
       .toString()
       .trim();
-    const finalText = stripInternalReasoning(rawText);
-    const textToSave = finalText || rawText;
+    const finalText = extractFinalResponse(rawText);
+    const textToSave = finalText;
 
     if (textToSave) {
       minimaxConversations.set(chatId, [
