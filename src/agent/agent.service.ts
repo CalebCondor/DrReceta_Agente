@@ -199,10 +199,8 @@ export class AgentService {
       this.appendToHistory(chatId, [
         { role: 'assistant', content: assistantText || '' },
       ]);
-      await this.persistMessage(chatId, 'assistant', {
-        content: assistantText,
-        tool_calls: toolCalls,
-      });
+      // No persistimos el assistant intermedio con tool_calls: solo guardamos
+      // el mensaje del usuario y la respuesta final del asistente en la DB.
 
       for (const tc of toolCalls) {
         this.logger.log(
@@ -264,7 +262,7 @@ export class AgentService {
         this.appendToHistory(chatId, [
           { role: 'tool', content: resultForModel },
         ]);
-        await this.persistMessage(chatId, 'tool', resultForModel);
+        // No persistimos los tool results: solo mensaje del usuario y respuesta final.
       }
     }
 
