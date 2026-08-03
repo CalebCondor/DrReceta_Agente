@@ -188,8 +188,9 @@ export class AgentService {
     content: unknown,
   ): Promise<void> {
     try {
-      const stored =
-        typeof content === 'string' ? content : JSON.stringify(content);
+      // La columna `content` es JSONB: siempre hay que enviar JSON válido.
+      // Para texto plano, JSON.stringify lo envuelve como string JSON ("...").
+      const stored = JSON.stringify(content);
       await this.db.query(
         'INSERT INTO historial_mensajes (chat_id, role, content) VALUES ($1, $2, $3)',
         [chatId, role, stored],
