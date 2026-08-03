@@ -30,9 +30,19 @@ import { ChatGateway } from '../chat/chat.gateway';
  */
 function extractFinalResponse(text: string): string {
   if (!text) return text;
-  const match = text.match(/<respuesta>([\s\S]*?)<\/respuesta>/i);
+  // Regex tolerante:
+  //   - <\s*respuesta\s*>  → tolera saltos/espacios DENTRO del tag de apertura
+  //     (ej. "<\nrespuesta>" o "< respuesta >")
+  //   - (?:<\s*\/\s*respuesta\s*>|$) → cierra con </respuesta> (también tolerante)
+  //     O si no hay cierre, captura hasta el final del texto
+  //   - [\s\S]*?  → no codicioso: toma el primer bloque desde el <respuesta>
+  const re = /<\s*respuesta\s*>([\s\S]*?)(?:<\s*\/\s*respuesta\s*>|$)/i;
+  const match = text.match(re);
   if (match && match[1]) {
-    return match[1].trim();
+    const inner = match[1].trim();
+    // Si el modelo puso el cierre pero dejó contenido meta DESPUÉS de </respuesta>,
+    // el match ya solo toma lo de adentro, así que está limpio.
+    if (inner) return inner;
   }
   return stripInternalReasoning(text);
 }
@@ -91,6 +101,16 @@ function stripInternalReasoning(text: string): string {
     // Otros
     /without narrating/i,
     /internal process/i,
+    // Meta-planificación / recitado de instrucciones del system prompt
+    /^tags\s*$/i,
+    /^be brief\b/i,
+    /^be friendly\b/i,
+    /^let me craft\b/i,
+    /^let me write\b/i,
+    /^craft a\b/i,
+    /^i need to craft\b/i,
+    /^i need to write\b/i,
+    /^draft (?:a|the)\b/i,
   ];
   const lines = text.split('\n');
   let start = 0;
