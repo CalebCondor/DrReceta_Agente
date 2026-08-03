@@ -23,19 +23,6 @@ export class DbService implements OnModuleInit {
 
   private async initTables() {
     await this.pool.query(`
-      CREATE TABLE IF NOT EXISTS categorias_conocimiento (
-        id SERIAL PRIMARY KEY,
-        nombre TEXT NOT NULL UNIQUE,
-        descripcion TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-
-      INSERT INTO categorias_conocimiento (nombre) VALUES
-        ('general'), ('recetas'), ('dosificacion'),
-        ('efectos_secundarios'), ('interacciones'),
-        ('productos'), ('envios'), ('pagos')
-      ON CONFLICT (nombre) DO NOTHING;
-
       CREATE TABLE IF NOT EXISTS conocimiento_especifico (
         id SERIAL PRIMARY KEY, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL,
         fuente TEXT DEFAULT 'aprendizaje_ia',
@@ -43,35 +30,41 @@ export class DbService implements OnModuleInit {
       );
 
       ALTER TABLE conocimiento_especifico ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-      ALTER TABLE conocimiento_especifico ADD COLUMN IF NOT EXISTS categoria_id INTEGER;
 
       DO $$
       BEGIN
         IF EXISTS (
           SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'conocimiento_especifico' AND column_name = 'categoria_id'
+        ) THEN
+          IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_conocimiento_categoria') THEN
+            ALTER TABLE conocimiento_especifico DROP CONSTRAINT fk_conocimiento_categoria;
+          END IF;
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'conocimiento_especifico' AND column_name = 'categoria'
+          ) THEN
+            ALTER TABLE conocimiento_especifico ADD COLUMN categoria TEXT;
+            UPDATE conocimiento_especifico ke
+            SET categoria = COALESCE(c.nombre, 'general')
+            FROM categorias_conocimiento c
+            WHERE c.id = ke.categoria_id;
+            UPDATE conocimiento_especifico SET categoria = 'general' WHERE categoria IS NULL;
+            ALTER TABLE conocimiento_especifico ALTER COLUMN categoria SET DEFAULT 'general';
+          END IF;
+          ALTER TABLE conocimiento_especifico DROP COLUMN categoria_id;
+        END IF;
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
           WHERE table_name = 'conocimiento_especifico' AND column_name = 'categoria'
         ) THEN
-          UPDATE conocimiento_especifico ke
-          SET categoria_id = c.id
-          FROM categorias_conocimiento c
-          WHERE c.nombre = ke.categoria
-            AND ke.categoria_id IS NULL;
-          ALTER TABLE conocimiento_especifico DROP COLUMN categoria;
+          ALTER TABLE conocimiento_especifico ADD COLUMN categoria TEXT DEFAULT 'general';
         END IF;
       END$$;
 
-      DO $$
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_constraint WHERE conname = 'fk_conocimiento_categoria'
-        ) THEN
-          ALTER TABLE conocimiento_especifico
-            ADD CONSTRAINT fk_conocimiento_categoria
-            FOREIGN KEY (categoria_id) REFERENCES categorias_conocimiento(id) ON DELETE SET NULL;
-        END IF;
-      END$$;
-
-      CREATE INDEX IF NOT EXISTS idx_conocimiento_categoria_id ON conocimiento_especifico (categoria_id);
+      DROP TABLE IF EXISTS categorias_conocimiento CASCADE;
+      DROP INDEX IF EXISTS idx_conocimiento_categoria_id;
+      CREATE INDEX IF NOT EXISTS idx_conocimiento_categoria ON conocimiento_especifico (categoria);
 
       CREATE TABLE IF NOT EXISTS memoria_largo_plazo (
         id SERIAL PRIMARY KEY, chat_id BIGINT NOT NULL, clave TEXT NOT NULL,

@@ -25,19 +25,8 @@ class PreguntaRespuestaDto {
   respuesta!: string;
 
   @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  categoria_id?: number;
-}
-
-class CategoriaDto {
   @IsString()
-  @IsNotEmpty()
-  nombre!: string;
-
-  @IsOptional()
-  @IsString()
-  descripcion?: string;
+  categoria?: string;
 }
 // src/chat/chat.controller.ts
 
@@ -85,62 +74,10 @@ export class ChatController {
       const result = await this.chatService.insertPreguntaRespuesta(
         body.pregunta,
         body.respuesta,
-        body.categoria_id,
+        body.categoria,
       );
       return result;
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Internal server error';
-      throw new HttpException(
-        { success: false, error: message },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  // Listar todas las categorías
-  @Get('/categorias')
-  async listCategorias() {
-    try {
-      const data = await this.chatService.listCategorias();
-      return { success: true, total: data.length, data };
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Internal server error';
-      throw new HttpException(
-        { success: false, error: message },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  // Crear una nueva categoría
-  @Post('/categorias')
-  @HttpCode(201)
-  async createCategoria(@Body() body: CategoriaDto) {
-    try {
-      return await this.chatService.createCategoria(body.nombre, body.descripcion);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Internal server error';
-      throw new HttpException(
-        { success: false, error: message },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  // Eliminar una categoría
-  @Delete('/categorias/:id')
-  async deleteCategoria(@Param('id', ParseIntPipe) id: number) {
-    try {
-      const result = await this.chatService.deleteCategoria(id);
-      if (!result.success) {
-        throw new HttpException(
-          { success: false, error: result.error },
-          HttpStatus.NOT_FOUND,
-        );
-      }
-      return { success: true, message: 'Categoría eliminada.' };
-    } catch (e) {
-      if (e instanceof HttpException) throw e;
       const message = e instanceof Error ? e.message : 'Internal server error';
       throw new HttpException(
         { success: false, error: message },
