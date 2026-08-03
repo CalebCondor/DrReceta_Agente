@@ -24,18 +24,41 @@ import { ChatGateway } from '../chat/chat.gateway';
  */
 function stripInternalReasoning(text: string): string {
   if (!text) return text;
-  const internalPatterns = [
-    /^the user\b/i,
-    /^i should\b/i,
-    /^i will\b/i,
-    /^i need to\b/i,
-    /^let me\b/i,
+  const internalPatterns: RegExp[] = [
+    // Tercera persona sobre el usuario (inglés)
+    /^the users?\b/i,
+    // Primera persona planificando (inglés)
+    /^i (should|will|need|can|must|already|just|also|notice|see|think|believe|want|have|had|'ll|'ve|'d|am|was|to)\b/i,
+    /^i\b/i,
+    // "Let me" / "Let's"
+    /^let(?:'s| me)\b/i,
+    // Transiciones/meta al inicio (inglés)
+    /^actually[,\s]/i,
+    /^looking (?:at|into)\b/i,
+    /^note (?:that|:)\b/i,
+    /^wait[,\s]/i,
+    /^so[,\s]/i,
+    /^now[,\s]/i,
+    /^first[,\s]/i,
+    /^remember\b/i,
+    /^okay[,\s]/i,
+    /^alright[,\s]/i,
+    /^additionally\b/i,
+    /^furthermore\b/i,
+    /^moreover\b/i,
+    /^in this case\b/i,
+    /^for this\b/i,
+    /^this means\b/i,
     /^based on\b/i,
     /^according to\b/i,
+    /^since\b/i,
+    // Menciones de herramientas/sistema
     /^the tool\b/i,
     /^the knowledge\b/i,
     /^the search\b/i,
-    /^i already\b/i,
+    /^the system\b/i,
+    /^the prompt\b/i,
+    // Equivalentes en español
     /^voy a\b/i,
     /^debería\b/i,
     /^debo\b/i,
@@ -44,6 +67,7 @@ function stripInternalReasoning(text: string): string {
     /^la herramienta\b/i,
     /^la base de\b/i,
     /^te informo que\b/i,
+    // Otros
     /without narrating/i,
     /internal process/i,
   ];
@@ -227,19 +251,30 @@ export class AgentService {
       if (toolCalls.length === 0) {
         if (assistantText) {
           const cleanText = stripInternalReasoning(assistantText);
-          if (cleanText) {
-            collected.push(cleanText);
+          const fallback = collected.join('\n');
+          const textToSave = cleanText || fallback;
+          if (textToSave) {
+            collected.push(cleanText || assistantText);
             const assistantPersist = {
               role: 'assistant' as const,
-              content: cleanText,
+              content: textToSave,
             };
             this.appendToHistory(chatId, [assistantPersist]);
-            await this.persistMessage(chatId, 'assistant', cleanText);
+            await this.persistMessage(chatId, 'assistant', textToSave);
           } else {
             this.logger.warn(
               `Respuesta del modelo quedó vacía tras strip para chat ${chatId}.`,
             );
           }
+        } else if (collected.length > 0) {
+          // El modelo no produjo texto pero hubo formatted_html de tools: persistir igual
+          const fallback = collected.join('\n');
+          const assistantPersist = {
+            role: 'assistant' as const,
+            content: fallback,
+          };
+          this.appendToHistory(chatId, [assistantPersist]);
+          await this.persistMessage(chatId, 'assistant', fallback);
         }
         return collected.join('\n');
       }
@@ -360,17 +395,19 @@ export class AgentService {
       tool_choice: 'auto',
     });
 
-    const finalText = stripInternalReasoning(
-      (response.choices?.[0]?.message?.content ?? '').toString().trim(),
-    );
+    const rawText = (response.choices?.[0]?.message?.content ?? '')
+      .toString()
+      .trim();
+    const finalText = stripInternalReasoning(rawText);
+    const textToSave = finalText || rawText;
 
-    if (finalText) {
+    if (textToSave) {
       minimaxConversations.set(chatId, [
         { role: 'user', content: userText },
-        { role: 'assistant', content: finalText },
+        { role: 'assistant', content: textToSave },
       ]);
       await this.persistMessage(chatId, 'user', userText);
-      await this.persistMessage(chatId, 'assistant', finalText);
+      await this.persistMessage(chatId, 'assistant', textToSave);
     }
     return finalText;
   }
