@@ -30,41 +30,10 @@ export class DbService implements OnModuleInit {
       );
 
       ALTER TABLE conocimiento_especifico ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
-      DO $$
-      BEGIN
-        IF EXISTS (
-          SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'conocimiento_especifico' AND column_name = 'categoria_id'
-        ) THEN
-          IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_conocimiento_categoria') THEN
-            ALTER TABLE conocimiento_especifico DROP CONSTRAINT fk_conocimiento_categoria;
-          END IF;
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_name = 'conocimiento_especifico' AND column_name = 'categoria'
-          ) THEN
-            ALTER TABLE conocimiento_especifico ADD COLUMN categoria TEXT;
-            UPDATE conocimiento_especifico ke
-            SET categoria = COALESCE(c.nombre, 'general')
-            FROM categorias_conocimiento c
-            WHERE c.id = ke.categoria_id;
-            UPDATE conocimiento_especifico SET categoria = 'general' WHERE categoria IS NULL;
-            ALTER TABLE conocimiento_especifico ALTER COLUMN categoria SET DEFAULT 'general';
-          END IF;
-          ALTER TABLE conocimiento_especifico DROP COLUMN categoria_id;
-        END IF;
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'conocimiento_especifico' AND column_name = 'categoria'
-        ) THEN
-          ALTER TABLE conocimiento_especifico ADD COLUMN categoria TEXT DEFAULT 'general';
-        END IF;
-      END$$;
-
-      DROP TABLE IF EXISTS categorias_conocimiento CASCADE;
+      ALTER TABLE conocimiento_especifico DROP COLUMN IF EXISTS categoria;
+      DROP INDEX IF EXISTS idx_conocimiento_categoria;
       DROP INDEX IF EXISTS idx_conocimiento_categoria_id;
-      CREATE INDEX IF NOT EXISTS idx_conocimiento_categoria ON conocimiento_especifico (categoria);
+      DROP TABLE IF EXISTS categorias_conocimiento CASCADE;
 
       CREATE TABLE IF NOT EXISTS memoria_largo_plazo (
         id SERIAL PRIMARY KEY, chat_id BIGINT NOT NULL, clave TEXT NOT NULL,

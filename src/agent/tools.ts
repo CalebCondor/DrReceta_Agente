@@ -72,9 +72,7 @@ export const TOOLS: Anthropic.Tool[] = [
     name: 'recordar_conocimiento',
     description:
       'Guarda un par de pregunta y respuesta en la base de datos de conocimiento de la IA para usarlo en el futuro. ' +
-      'Úsalo cuando el usuario te enseñe algo nuevo o te de una respuesta corregida. ' +
-      'Clasifica el conocimiento en una categoria (ej: "recetas", "dosificacion", "efectos_secundarios", "interacciones", "productos", "envios", "pagos", "general"). ' +
-      'Si la categoría no existe aún, se creará automáticamente.',
+      'Úsalo cuando el usuario te enseñe algo nuevo o te de una respuesta corregida.',
     input_schema: {
       type: 'object',
       properties: {
@@ -86,11 +84,6 @@ export const TOOLS: Anthropic.Tool[] = [
           type: 'string',
           description: 'La respuesta o información correcta.',
         },
-        categoria: {
-          type: 'string',
-          description:
-            'Nombre de la categoria. Ej: "recetas", "dosificacion", "efectos_secundarios", "interacciones", "productos", "envios", "pagos", "general". Si no estás seguro usa "general".',
-        },
       },
       required: ['pregunta', 'respuesta'],
     },
@@ -99,19 +92,13 @@ export const TOOLS: Anthropic.Tool[] = [
     name: 'buscar_conocimiento',
     description:
       'Busca información específica en mi base de datos de aprendizaje previo. ' +
-      'Úsalo antes de responder si no estás seguro de un dato interno o si el usuario pregunta algo que podrías haber aprendido antes. ' +
-      'Puedes filtrar opcionalmente por categoria para acotar la búsqueda.',
+      'Úsalo antes de responder si no estás seguro de un dato interno o si el usuario pregunta algo que podrías haber aprendido antes.',
     input_schema: {
       type: 'object',
       properties: {
         busqueda: {
           type: 'string',
           description: 'Palabra clave o frase a buscar.',
-        },
-        categoria: {
-          type: 'string',
-          description:
-            'Opcional. Nombre de la categoria para filtrar (ej: "recetas", "dosificacion").',
         },
       },
       required: ['busqueda'],

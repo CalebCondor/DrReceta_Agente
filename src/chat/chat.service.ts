@@ -45,26 +45,23 @@ export class ChatService {
       id: number;
       pregunta: string;
       respuesta: string;
-      categoria: string;
       updated_at: string;
     }[]
   > {
     const { rows } = await this.db.query(
-      'SELECT id, pregunta, respuesta, categoria, updated_at FROM conocimiento_especifico ORDER BY id ASC',
+      'SELECT id, pregunta, respuesta, updated_at FROM conocimiento_especifico ORDER BY id ASC',
     );
     return (
       rows as Array<{
         id: number;
         pregunta: string;
         respuesta: string;
-        categoria: string;
         updated_at: Date;
       }>
     ).map((r) => ({
       id: Number(r.id),
       pregunta: String(r.pregunta),
       respuesta: String(r.respuesta),
-      categoria: r.categoria ? String(r.categoria) : 'general',
       updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : '',
     }));
   }
@@ -72,16 +69,15 @@ export class ChatService {
   async insertPreguntaRespuesta(
     pregunta: string,
     respuesta: string,
-    categoria: string = 'general',
-  ): Promise<{ success: boolean; id?: number; categoria?: string }> {
+  ): Promise<{ success: boolean; id?: number }> {
     const { rows } = await this.db.query(
-      'INSERT INTO conocimiento_especifico (pregunta, respuesta, categoria) VALUES ($1, $2, $3) RETURNING id, categoria',
-      [pregunta, respuesta, categoria],
+      'INSERT INTO conocimiento_especifico (pregunta, respuesta) VALUES ($1, $2) RETURNING id',
+      [pregunta, respuesta],
     );
-    const row = rows[0] as { id?: number; categoria?: string } | undefined;
+    const row = rows[0] as { id?: number } | undefined;
     const id =
       row && typeof row.id !== 'undefined' ? Number(row.id) : undefined;
-    return { success: true, id, categoria: row?.categoria };
+    return { success: true, id };
   }
   async isChatPaused(chatId: number): Promise<boolean> {
     const { rows } = await this.db.query(
