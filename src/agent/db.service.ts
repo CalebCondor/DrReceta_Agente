@@ -9,10 +9,10 @@ export class DbService implements OnModuleInit {
   onModuleInit() {
     this.pool = new Pool({
       host: process.env.DB_HOST || '187.77.15.77',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME || 'tulicencia_agenteia',
+      port: parseInt(process.env.DB_PORT || '5439'),
+      database: process.env.DB_NAME || 'agenteTulicencia',
       user: process.env.DB_USER || 'agente',
-      password: process.env.DB_PASSWORD || 'SmartHiring2025@',
+      password: process.env.DB_PASSWORD || 'agente',
     });
     this.initTables().catch((e) => this.logger.error('DB init failed', e));
   }
