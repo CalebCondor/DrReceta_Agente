@@ -13,7 +13,14 @@ export const ANTHROPIC_API_KEY =
   process.env.ANTHROPIC_API_KEY ?? process.env.MINIMAX_API_KEY ?? '';
 
 export const client = USE_ANTHROPIC
-  ? new Anthropic({ apiKey: ANTHROPIC_API_KEY, baseURL: ANTHROPIC_BASE_URL })
+  ? new Anthropic({
+      apiKey: ANTHROPIC_API_KEY,
+      baseURL: ANTHROPIC_BASE_URL,
+      // El endpoint Anthropic-compatible de MiniMax requiere la API key en
+      // `X-Api-Key` (no acepta solo `Authorization: Bearer`). Lo mandamos
+      // como header adicional; si el endpoint ignora `Authorization`, listo.
+      defaultHeaders: { 'X-Api-Key': ANTHROPIC_API_KEY },
+    })
   : (null as unknown as Anthropic);
 
 // Legacy OpenAI-compatible (ya no se usa, pero se conserva para referencia)
