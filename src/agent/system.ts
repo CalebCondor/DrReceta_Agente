@@ -59,7 +59,7 @@ export async function buildSystem(
   }
 
   return (
-    'Eres un Profesional de la Salud experto en Atención al Paciente para Tu Licencia (https://tulicenciapr.com/). ' +
+    'Eres un Profesional de la Salud experto en Atención al Paciente para Tu Licencia tulicenciapr.com. ' +
     languageInstruction +
     `\n\nFecha y hora actual: ${dateStr}, ${timeStr}.\n\n` +
     authStatus +
