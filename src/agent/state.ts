@@ -28,9 +28,12 @@ export interface SessionData {
 export interface MiniMaxMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
   content?: string | null;
-  // Cuando reasoning_split=true, la API devuelve el razonamiento interno aquí.
+  // Cuando reasoning_split=true, la API de MiniMax devuelve el razonamiento
+  // interno en `reasoning_details` (array de objetos con campo `text`),
+  // NO en `reasoning_content`. Ver litellm issue #22392.
   // Lo ignoramos y usamos solo `content` (que debería venir limpio).
   reasoning_content?: string | null;
+  reasoning_details?: Array<{ text?: string; [k: string]: unknown }> | null;
   name?: string;
   tool_call_id?: string;
   tool_calls?: MiniMaxToolCall[];

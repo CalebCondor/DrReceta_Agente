@@ -290,6 +290,25 @@ export class AgentService {
       const toolCalls: MiniMaxToolCall[] = assistantMessage.tool_calls ?? [];
       const assistantText = (assistantMessage.content ?? '').toString().trim();
 
+      // Diagnóstico: ¿la API separó el razonamiento en reasoning_details?
+      // Si está presente y es no-vacío, el `content` debería venir limpio.
+      const reasoningDetails = assistantMessage.reasoning_details;
+      if (Array.isArray(reasoningDetails) && reasoningDetails.length > 0) {
+        const len = reasoningDetails.reduce(
+          (acc, d) => acc + (typeof d?.text === 'string' ? d.text.length : 0),
+          0,
+        );
+        this.logger.log(
+          `[MiniMax] reasoning_split OK: ${reasoningDetails.length} bloques, ${len} chars separados. content.length=${assistantText.length}`,
+        );
+      } else if (assistantText.length > 200) {
+        // No hay reasoning_details y el content es largo → puede tener
+        // razonamiento filtrado; el post-procesado lo limpiará.
+        this.logger.debug(
+          `[MiniMax] reasoning_split NO presente. content.length=${assistantText.length}`,
+        );
+      }
+
       if (toolCalls.length === 0) {
         const cleanText = extractFinalResponse(assistantText);
         const fallback = collected.join('\n');
