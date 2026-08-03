@@ -49,9 +49,7 @@ export class AgentService {
               try {
                 const parsed = JSON.parse(r.content) as unknown;
                 text =
-                  typeof parsed === 'string'
-                    ? parsed
-                    : JSON.stringify(parsed);
+                  typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
               } catch {
                 text = r.content;
               }
