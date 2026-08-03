@@ -134,14 +134,15 @@ export async function executeTool(
   if (toolName === 'recordar_conocimiento') {
     const q = strVal(toolInput['pregunta']);
     const a = strVal(toolInput['respuesta']);
+    const cat = strVal(toolInput['categoria'], 'general').toLowerCase().trim();
     try {
       await db.query(
-        'INSERT INTO conocimiento_especifico (pregunta, respuesta) VALUES ($1, $2)',
-        [q, a],
+        'INSERT INTO conocimiento_especifico (pregunta, respuesta, categoria) VALUES ($1, $2, $3)',
+        [q, a, cat || 'general'],
       );
       return JSON.stringify({
         success: true,
-        message: 'Aprendizaje guardado correctamente.',
+        message: `Aprendizaje guardado en la categoría "${cat || 'general'}".`,
       });
     } catch (e: unknown) {
       return JSON.stringify({ success: false, error: errMsg(e) });
@@ -150,13 +151,18 @@ export async function executeTool(
 
   if (toolName === 'buscar_conocimiento') {
     const b = strVal(toolInput['busqueda']).toLowerCase();
+    const cat = strVal(toolInput['categoria']).toLowerCase().trim();
     try {
-      const { rows } = await db.query(
-        'SELECT pregunta, respuesta FROM conocimiento_especifico ' +
-          'WHERE LOWER(pregunta) LIKE $1 OR LOWER(respuesta) LIKE $1 ' +
-          'ORDER BY created_at DESC LIMIT 5',
-        [`%${b}%`],
-      );
+      const params: any[] = [`%${b}%`];
+      let query =
+        'SELECT pregunta, respuesta, categoria FROM conocimiento_especifico ' +
+        'WHERE (LOWER(pregunta) LIKE $1 OR LOWER(respuesta) LIKE $1)';
+      if (cat) {
+        params.push(cat);
+        query += ' AND categoria = $2';
+      }
+      query += ' ORDER BY updated_at DESC LIMIT 5';
+      const { rows } = await db.query(query, params);
       return JSON.stringify({ success: true, resultados: rows });
     } catch (e: unknown) {
       return JSON.stringify({ success: false, error: errMsg(e) });

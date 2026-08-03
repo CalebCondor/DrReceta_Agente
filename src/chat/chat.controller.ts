@@ -23,6 +23,10 @@ class PreguntaRespuestaDto {
   @IsString()
   @IsNotEmpty()
   respuesta!: string;
+
+  @IsOptional()
+  @IsString()
+  categoria?: string;
 }
 // src/chat/chat.controller.ts
 
@@ -70,6 +74,7 @@ export class ChatController {
       const result = await this.chatService.insertPreguntaRespuesta(
         body.pregunta,
         body.respuesta,
+        body.categoria,
       );
       return result;
     } catch (e) {
