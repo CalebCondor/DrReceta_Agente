@@ -9,7 +9,7 @@ import {
   minimaxConversations,
   MiniMaxMessage,
   MiniMaxToolCall,
-  USE_ANTHROPIC,
+  // USE_ANTHROPIC, // Claude deshabilitado por ahora — solo MiniMax
 } from './state';
 import { TOOLS } from './tools';
 import { executeTool } from './executor';
@@ -150,18 +150,20 @@ export class AgentService {
         ...messages,
       ];
 
-      const response = USE_ANTHROPIC
-        ? (() => {
-            throw new Error(
-              'Rama Anthropic no implementada en este cambio — define el bucle con client.messages.create y la API nativa de Anthropic',
-            );
-          })()
-        : await callMiniMax({
-            model: MINIMAX_MODEL,
-            messages: apiMessages,
-            tools,
-            tool_choice: 'auto',
-          });
+      // Rama Anthropic deshabilitada por ahora — solo MiniMax
+      // const response = USE_ANTHROPIC
+      //   ? (() => {
+      //       throw new Error(
+      //         'Rama Anthropic no implementada en este cambio — define el bucle con client.messages.create y la API nativa de Anthropic',
+      //       );
+      //     })()
+      //   :
+      const response = await callMiniMax({
+        model: MINIMAX_MODEL,
+        messages: apiMessages,
+        tools,
+        tool_choice: 'auto',
+      });
 
       const choice = response.choices?.[0];
       if (!choice) {
@@ -291,21 +293,20 @@ export class AgentService {
       { role: 'user', content: userText },
     ];
     const systemPrompt = await buildSystem(chatId, this.db);
-    const response = USE_ANTHROPIC
-      ? (() => {
-          throw new Error(
-            'Rama Anthropic no implementada en este cambio — define el bucle con client.messages.create y la API nativa de Anthropic',
-          );
-        })()
-      : await callMiniMax({
-          model: MINIMAX_MODEL,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...freshMessages,
-          ],
-          tools: this.toOpenAITools(),
-          tool_choice: 'auto',
-        });
+    // Rama Anthropic deshabilitada por ahora — solo MiniMax
+    // const response = USE_ANTHROPIC
+    //   ? (() => {
+    //       throw new Error(
+    //         'Rama Anthropic no implementada en este cambio — define el bucle con client.messages.create y la API nativa de Anthropic',
+    //       );
+    //     })()
+    //   :
+    const response = await callMiniMax({
+      model: MINIMAX_MODEL,
+      messages: [{ role: 'system', content: systemPrompt }, ...freshMessages],
+      tools: this.toOpenAITools(),
+      tool_choice: 'auto',
+    });
 
     const finalText = (response.choices?.[0]?.message?.content ?? '')
       .toString()
