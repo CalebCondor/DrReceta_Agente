@@ -11,7 +11,7 @@ import {
   VERIFICAR_REGISTRAR_URL,
   CREAR_COMPRA_URL,
   VERIFICAR_CODIGO_URL,
-  TRAMITES_EXPRESS_URL,
+  TODOS_LOS_TRAMITES_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -321,8 +321,8 @@ export async function executeTool(
     }
   }
 
-  if (toolName === 'get_tramites_express') {
-    return JSON.stringify(await apiGet(TRAMITES_EXPRESS_URL));
+  if (toolName === 'get_todos_los_tramites') {
+    return JSON.stringify(await apiGet(TODOS_LOS_TRAMITES_URL));
   }
 
   return JSON.stringify({

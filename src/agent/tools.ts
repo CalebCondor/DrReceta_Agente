@@ -264,11 +264,11 @@ export const TOOLS: Anthropic.Tool[] = [
   },
 
   {
-    name: 'get_tramites_express',
+    name: 'get_todos_los_tramites',
     description:
-      'Obtiene la lista de tramites express activos disponibles con su pricing. ' +
-      'Usalo cuando el usuario pregunte por tramites express, servicios express, ' +
-      'tramites rapidos o quiera ver que tramites express estan disponibles.',
+      'Obtiene la lista COMPLETA de todos los tramites disponibles (express y no express) con su pricing y detalles. ' +
+      'Usalo cuando el usuario pregunte por la lista completa de tramites, todos los servicios, ' +
+      'el catalogo general, o quiera ver todo lo que Tu Licencia ofrece.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
 ];

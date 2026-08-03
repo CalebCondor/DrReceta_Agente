@@ -1,14 +1,17 @@
-export const LOGIN_URL = 'https://api.doctorrecetas.com/api/login.php';
+export const LOGIN_URL =
+  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/login.php';
 export const VERIFICAR_REGISTRAR_URL =
-  'https://api.doctorrecetas.com/api/verificar_o_registrar_usuario.php';
-export const PERFIL_URL = 'https://api.doctorrecetas.com/api/perfil.php';
+  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/verificar-o-registrar-usuario';
+export const PERFIL_URL =
+  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/perfil.php';
 export const MIS_ORDENES_URL =
-  'https://api.doctorrecetas.com/api/mis_ordenes.php';
-export const MIS_PAGOS_URL = 'https://api.doctorrecetas.com/api/mis_pagos.php';
-export const TRAMITES_EXPRESS_URL =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/producto/Activos';
+  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/mis_ordenes.php';
+export const MIS_PAGOS_URL =
+  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/mis_pagos.php';
+export const TODOS_LOS_TRAMITES_URL =
+  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/listaTodosTramite';
 export const PRODUCTOS_BASE_URL = 'https://drreceta.com/es';
 export const CREAR_COMPRA_URL =
-  'https://api.doctorrecetas.com/api/crear_compra.php';
+  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/crear_compra.php';
 export const VERIFICAR_CODIGO_URL =
-  'https://api.doctorrecetas.com/api/verificar_codigo.php';
+  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/verificar-codigo.php';
