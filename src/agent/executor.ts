@@ -46,7 +46,7 @@ export async function executeTool(
     return JSON.stringify({
       success: false,
       error:
-        'Usuario no autenticado. Debe iniciar sesión en DoctorRecetas.com para acceder a sus datos personales.',
+        'Usuario no autenticado. Debe iniciar sesión en Tu Licencia (tulicenciapr.com) para acceder a sus datos personales.',
     });
   }
 

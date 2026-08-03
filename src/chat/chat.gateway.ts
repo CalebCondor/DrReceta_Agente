@@ -130,7 +130,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private idOf(client: WebSocket): string {
-    // @ts-expect-error la prop _id existe en runtime
-    return client._id ?? 'unknown';
+    const id = (client as unknown as { _id?: string })._id;
+    return typeof id === 'string' ? id : 'unknown';
   }
 }

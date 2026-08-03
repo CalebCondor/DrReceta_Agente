@@ -219,7 +219,10 @@ export class ChatController {
   ) {
     try {
       const message = (body?.message ?? '').toString();
-      const result = (await this.chatService.saveHumanMessage(usId, message)) as {
+      const result = (await this.chatService.saveHumanMessage(
+        usId,
+        message,
+      )) as {
         success: boolean;
         error?: string;
         id?: number | string;

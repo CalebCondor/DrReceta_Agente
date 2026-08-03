@@ -7,14 +7,14 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'get_perfil',
     description:
-      'Obtiene los datos del perfil del usuario autenticado en DoctorRecetas. ' +
+      'Obtiene los datos del perfil del usuario autenticado en Tu Licencia. ' +
       'Usalo cuando el usuario pregunte por su perfil, datos personales, nombre, correo, etc.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
     name: 'actualizar_perfil',
     description:
-      'Actualiza campos del perfil del usuario en DoctorRecetas. ' +
+      'Actualiza campos del perfil del usuario en Tu Licencia. ' +
       'Usalo cuando el usuario quiera cambiar su nombre, email, telefono u otros datos. ' +
       'Solo incluye los campos que el usuario quiere cambiar. ' +
       'Los nombres de campo exactos que acepta la API son: ' +
@@ -37,7 +37,7 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'get_ordenes',
     description:
-      'Obtiene las ordenes/pedidos del usuario autenticado en DoctorRecetas. ' +
+      'Obtiene las ordenes/pedidos del usuario autenticado en Tu Licencia. ' +
       'Usalo cuando pregunte por compras, pedidos, productos comprados o enlaces de descarga.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
@@ -51,7 +51,7 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'get_productos',
     description:
-      'Obtiene el catalogo de todos los productos disponibles en DoctorRecetas. ' +
+      'Obtiene el catalogo de todos los productos disponibles en Tu Licencia. ' +
       'Usalo cuando pregunte que productos hay, que venden, que esta disponible o quiera buscar algo. ' +
       'IMPORTANTE: cada producto devuelto incluye el campo `pq_id` (identificador numérico del paquete). ' +
       'Usa SIEMPRE ese `pq_id` tal cual viene en la respuesta cuando luego invoques `crear_compra`. ' +
@@ -143,7 +143,7 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'verificar_o_registrar_usuario',
     description:
-      'Verifica si un usuario existe en DoctorRecetas por correo y devuelve su us_id. ' +
+      'Verifica si un usuario existe en Tu Licencia por correo y devuelve su us_id. ' +
       'Si el usuario EXISTE: la API envía automáticamente un código de verificación de 6 dígitos a su correo (válido 10 min). ' +
       'Si NO existe, lo registra con los datos proporcionados. ' +
       'ÚSALO cuando el usuario quiera comprar un producto o servicio y NO esté autenticado. ' +
@@ -207,7 +207,7 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'crear_compra',
     description:
-      'Registra una intención de compra en DoctorRecetas. ' +
+      'Registra una intención de compra en Tu Licencia. ' +
       'La API genera automáticamente el código de la compra (cp_code: DR+8 chars) y un token único de pago (url_generado_pago). ' +
       'ANTES de llamar esta herramienta SIEMPRE debes tener: pq_id (id del producto/paquete), us_id (id del usuario) y anombre_de. ' +
       'El campo anombre_de es OBLIGATORIO y debe ser preguntado SIEMPRE al usuario antes de ejecutar la compra, ' +
