@@ -63,6 +63,16 @@ export async function callMiniMax(
   if (!MINIMAX_ENABLED)
     throw new Error('MiniMax fallback is not configured (missing API key)');
 
+  // Forzar separación de razonamiento: la API devuelve el contenido limpio
+  // en `content` y el razonamiento interno en `reasoning_content` (lo ignoramos).
+  const finalBody = {
+    ...body,
+    extra_body: {
+      ...((body['extra_body'] as Record<string, unknown> | undefined) ?? {}),
+      reasoning_split: true,
+    },
+  };
+
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -72,7 +82,7 @@ export async function callMiniMax(
         'Content-Type': 'application/json',
         Authorization: `Bearer ${MINIMAX_API_KEY}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(finalBody),
       signal: ctrl.signal,
     });
     if (!r.ok) {
