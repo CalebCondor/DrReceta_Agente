@@ -299,7 +299,10 @@ export class AgentService {
         })()
       : await callMiniMax({
           model: MINIMAX_MODEL,
-          messages: [{ role: 'system', content: systemPrompt }, ...freshMessages],
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...freshMessages,
+          ],
           tools: this.toOpenAITools(),
           tool_choice: 'auto',
         });

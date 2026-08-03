@@ -25,8 +25,10 @@ export class DbService implements OnModuleInit {
     await this.pool.query(`
       CREATE TABLE IF NOT EXISTS conocimiento_especifico (
         id SERIAL PRIMARY KEY, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL,
-        fuente TEXT DEFAULT 'aprendizaje_ia', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        fuente TEXT DEFAULT 'aprendizaje_ia', categoria TEXT DEFAULT 'general',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE INDEX IF NOT EXISTS idx_conocimiento_categoria ON conocimiento_especifico (categoria);
       CREATE TABLE IF NOT EXISTS memoria_largo_plazo (
         id SERIAL PRIMARY KEY, chat_id BIGINT NOT NULL, clave TEXT NOT NULL,
         valor TEXT NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
