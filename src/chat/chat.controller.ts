@@ -127,6 +127,28 @@ export class ChatController {
     }
   }
 
+  // Eliminar una categoría
+  @Delete('/categorias/:id')
+  async deleteCategoria(@Param('id', ParseIntPipe) id: number) {
+    try {
+      const result = await this.chatService.deleteCategoria(id);
+      if (!result.success) {
+        throw new HttpException(
+          { success: false, error: result.error },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+      return { success: true, message: 'Categoría eliminada.' };
+    } catch (e) {
+      if (e instanceof HttpException) throw e;
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Post('')
   @HttpCode(200)
   async chat(@Body() body: ChatDto) {

@@ -174,6 +174,24 @@ export class ChatService {
       return { success: false, error: msg };
     }
   }
+
+  async deleteCategoria(
+    id: number,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { rowCount } = await this.db.query(
+        'DELETE FROM categorias_conocimiento WHERE id = $1',
+        [id],
+      );
+      if (!rowCount) {
+        return { success: false, error: 'Categoría no encontrada.' };
+      }
+      return { success: true };
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'DB error';
+      return { success: false, error: msg };
+    }
+  }
   async isChatPaused(chatId: number): Promise<boolean> {
     const { rows } = await this.db.query(
       `SELECT 1 FROM chats_pausados
