@@ -12,6 +12,6 @@ export const TODOS_LOS_TRAMITES_URL =
   'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/listaTodosTramite';
 export const PRODUCTOS_BASE_URL = 'https://drreceta.com/es';
 export const CREAR_COMPRA_URL =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/ia-create-session';
+  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/ia-create-session';
 export const VERIFICAR_CODIGO_URL =
   'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/verificar-codigo';
