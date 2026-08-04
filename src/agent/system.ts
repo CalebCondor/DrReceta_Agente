@@ -75,12 +75,12 @@ export async function buildSystem(
     '- Si NO está autenticado: DEBES identificarlo antes de continuar. Sigue estos pasos en orden:\n' +
     '  Paso 1: Pídele su correo electrónico.\n' +
     '  Paso 2: Llama a `verificar_o_registrar_usuario` SOLO con us_email.\n' +
-    '  Paso 3a — Usuario EXISTE (codigo_enviado: true):\n' +
+    '  Paso 3a — Usuario EXISTE (la respuesta trae `codigo` y `token: null`):\n' +
     '    - Informa: "Te enviamos un código de verificación de 6 dígitos a tu correo. Por favor escríbelo aquí (válido 10 minutos)."\n' +
-    '    - Espera a que el usuario proporcione el código.\n' +
-    '    - Una vez que el usuario escriba el código, llama a `verificar_codigo` con us_email y el código proporcionado para autenticar al usuario.\n' +
+    '    - Espera a que el usuario proporcione el código (un string de 6 dígitos).\n' +
+    '    - CUANDO EL USUARIO ESCRIBA EL CÓDIGO, LLAMA A `verificar_codigo` (NO a `verificar_o_registrar_usuario`). Pasa el mismo `us_email` y el `codigo` que el usuario escribió. NO llames a `verificar_o_registrar_usuario` de nuevo.\n' +
     '    - Si `verificar_codigo` devuelve success: true, ya tienes el us_id y el token. Continúa con el proceso de compra.\n' +
-    '    - Si devuelve error (código incorrecto o expirado), informa al usuario y pídele que revise el código o solicite uno nuevo.\n' +
+    '    - Si devuelve error (código incorrecto o expirado), informa al usuario y pídele que revise el código o solicite uno nuevo (llamando de nuevo a `verificar_o_registrar_usuario` para regenerar).\n' +
     '  Paso 3b — Usuario NO EXISTE (error 422):\n' +
     '    - Infórmale que no encontraste su cuenta y que lo registrarás.\n' +
     '    - Pídele UNO POR UNO: nombre completo, teléfono y contraseña para su cuenta.\n' +

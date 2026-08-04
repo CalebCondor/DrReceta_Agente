@@ -143,15 +143,10 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'verificar_o_registrar_usuario',
     description:
-      'Verifica si un usuario existe en Tu Licencia por correo y devuelve su us_id. ' +
-      'Si el usuario EXISTE: la API envía automáticamente un código de verificación de 6 dígitos a su correo (válido 10 min). ' +
-      'Si NO existe, lo registra con los datos proporcionados. ' +
-      'ÚSALO cuando el usuario quiera comprar un producto o servicio y NO esté autenticado. ' +
-      'FLUJO OBLIGATORIO: ' +
-      '1) Llama PRIMERO solo con us_email. ' +
-      '2a) Si la API devuelve { existe: true, codigo_enviado: true }: informa al usuario que se envió un código a su correo y pídele que lo escriba (expira en 10 min). Guarda el us_id recibido. ' +
-      '2b) Si la API responde HTTP 422 (faltan campos), el usuario no existe: pídele nombre completo, teléfono y contraseña UNO POR UNO. ' +
-      '3) Si registraste al usuario nuevo (caso 2b), ya tienes su us_id. No se envía código en el registro. ' +
+      'PASO 1 del flujo de verificación. Verifica si un usuario existe por correo. ' +
+      'Si EXISTE: la API responde con { success: true, data: { codigo: "XXXXXX", us_id, us_nombres, token: null } } — significa que se envió un código de 6 dígitos al correo del usuario (válido 10 min). Tras esto, tu siguiente llamada DEBE ser `verificar_codigo`, NO esta herramienta de nuevo. ' +
+      'Si NO EXISTE: la API responde con un error (ej. 422) pidiendo us_nombres, us_telefono, us_clave. Recopila esos datos del usuario UNO POR UNO y vuelve a llamar a esta herramienta con todos los campos. ' +
+      'ÚSALO solo cuando el usuario quiera autenticarse para comprar. ' +
       'NUNCA inventes ni rellenes us_nombres, us_telefono ni us_clave — siempre pídelos al usuario.',
     input_schema: {
       type: 'object',
