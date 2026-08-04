@@ -1,9 +1,12 @@
 // src/agent/executor.ts
 // Ejecuta la herramienta solicitada por Claude y devuelve el resultado como JSON string
 
+import { Logger } from '@nestjs/common';
 import { sessions } from './state';
 import { apiPost, apiGet } from '../api/http';
 import { DbService } from './db.service';
+
+const logger = new Logger('AgentExecutor');
 import {
   PERFIL_URL,
   MIS_ORDENES_URL,
@@ -213,7 +216,8 @@ export async function executeTool(
       return JSON.stringify({
         success: false,
         exists: false,
-        error: 'El correo electrónico no tiene un formato válido. Verifica e intenta de nuevo.',
+        error:
+          'El correo electrónico no tiene un formato válido. Verifica e intenta de nuevo.',
       });
     }
 
@@ -227,7 +231,7 @@ export async function executeTool(
 
     const result = await apiPost(VERIFICAR_REGISTRAR_URL, payload);
 
-    this.logger.log(
+    logger.log(
       `[verificar_o_registrar_usuario] payload=${JSON.stringify(payload)} result=${JSON.stringify(result)}`,
     );
 
@@ -242,8 +246,8 @@ export async function executeTool(
         name: strVal(data['us_nombres'] ?? ''),
         es_vip: false,
       });
-      this.logger.log(
-        `[verificar_o_registrar_usuario] sesión creada (registro) chat=${chatId} us_id=${data['us_id']}`,
+      logger.log(
+        `[verificar_o_registrar_usuario] sesión creada (registro) chat=${chatId} us_id=${strVal(data['us_id'] ?? '')}`,
       );
     }
 
@@ -324,7 +328,7 @@ export async function executeTool(
       if (data) {
         processUrl =
           typeof data['process_url'] === 'string'
-            ? (data['process_url'] as string)
+            ? data['process_url']
             : undefined;
         reference =
           typeof data['reference'] === 'string' ? data['reference'] : undefined;
