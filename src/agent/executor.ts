@@ -260,22 +260,63 @@ export async function executeTool(
   }
 
   if (toolName === 'crear_compra') {
-    const pqId = toolInput['pq_id'];
-    const usId = toolInput['us_id'] ?? s?.user_id;
-    const anombreDe = strVal(toolInput['anombre_de']).trim();
-    if (!pqId || !usId || !anombreDe) {
+    const trId = toolInput['tr_id'];
+    const clId = toolInput['cl_id'] ?? s?.user_id;
+    const amount = toolInput['amount'];
+    const name = strVal(toolInput['name']).trim();
+    const description = strVal(toolInput['description']).trim();
+    const returnUrl = strVal(toolInput['return_url']).trim();
+
+    if (!trId || !clId || amount === undefined || amount === null || !name) {
       return JSON.stringify({
         success: false,
-        error: 'Se requieren pq_id, us_id y anombre_de.',
+        error: 'Se requieren tr_id, cl_id, amount y name.',
       });
     }
-    return JSON.stringify(
-      await apiPost(
-        CREAR_COMPRA_URL,
-        { pq_id: pqId, us_id: usId, anombre_de: anombreDe },
-        token,
-      ),
-    );
+
+    const payload: Record<string, unknown> = {
+      tr_id: trId,
+      cl_id: clId,
+      amount: amount,
+      name,
+    };
+    if (description) payload['description'] = description;
+    if (returnUrl) payload['return_url'] = returnUrl;
+
+    const result = await apiPost(CREAR_COMPRA_URL, payload, token);
+
+    // Extraer process_url de la respuesta de PlaceToPay y devolverlo como
+    // url_generado_pago para que el system prompt lo muestre al usuario.
+    let processUrl: string | undefined;
+    let reference: string | undefined;
+    let pagoId: number | undefined;
+    try {
+      const data = result['data'] as Record<string, unknown> | undefined;
+      if (data) {
+        processUrl =
+          typeof data['process_url'] === 'string'
+            ? (data['process_url'] as string)
+            : undefined;
+        reference =
+          typeof data['reference'] === 'string' ? data['reference'] : undefined;
+        const pgId = data['pago_id'];
+        pagoId = typeof pgId === 'number' ? pgId : Number(pgId) || undefined;
+      }
+    } catch {
+      /* no es JSON o formato inesperado */
+    }
+
+    // Devolver estructura enriquecida para que el system prompt pueda usar
+    // el process_url como enlace de pago.
+    return JSON.stringify({
+      success: result['success'] ?? true,
+      process_url: processUrl,
+      reference,
+      pago_id: pagoId,
+      cp_code: reference, // alias para compatibilidad con el system prompt viejo
+      url_generado_pago: processUrl, // alias para compatibilidad
+      raw: result,
+    });
   }
 
   if (toolName === 'consultar_memoria_usuario') {

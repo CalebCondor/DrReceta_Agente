@@ -207,29 +207,41 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'crear_compra',
     description:
-      'Registra una intención de compra en Tu Licencia. ' +
-      'La API genera automáticamente el código de la compra (cp_code: DR+8 chars) y un token único de pago (url_generado_pago). ' +
-      'ANTES de llamar esta herramienta SIEMPRE debes tener: pq_id (id del producto/paquete), us_id (id del usuario) y anombre_de. ' +
-      'El campo anombre_de es OBLIGATORIO y debe ser solicitado al usuario solo en el momento de confirmar la compra (no antes). ' +
-      'Recuerda: NO preguntes a nombre de quién al inicio; primero ofrece los requisitos del trámite y pregunta si quiere que se los envíes o que coordinen el servicio.',
+      'Crea una sesión de pago en PlaceToPay a través de la API de Tu Licencia. ' +
+      'Devuelve el `process_url` que es el enlace de pago que debes enviar al usuario. ' +
+      'ANTES de llamar esta herramienta necesitas: tr_id (id del trámite), cl_id (id del cliente/usuario), ' +
+      'amount (monto en decimal), name (nombre del servicio o del beneficiario). ' +
+      'description y return_url son opcionales. ' +
+      'Una vez que tengas la respuesta, muestra al usuario el `process_url` como enlace clickeable para que pague.',
     input_schema: {
       type: 'object',
       properties: {
-        pq_id: {
+        tr_id: {
           type: 'number',
-          description: 'ID del paquete o producto a comprar.',
+          description: 'ID del trámite/servicio a pagar.',
         },
-        us_id: {
+        cl_id: {
           type: 'number',
-          description: 'ID del usuario que realiza la compra.',
+          description: 'ID del cliente/usuario que realiza el pago.',
         },
-        anombre_de: {
+        amount: {
+          type: 'number',
+          description: 'Monto a cobrar en decimal.',
+        },
+        name: {
           type: 'string',
-          description:
-            'Nombre de la persona a cuyo nombre se registrará la compra. Siempre preguntarlo al usuario.',
+          description: 'Nombre del servicio o descripción corta del pago.',
+        },
+        description: {
+          type: 'string',
+          description: 'Descripción detallada opcional del pago.',
+        },
+        return_url: {
+          type: 'string',
+          description: 'URL de retorno opcional después del pago.',
         },
       },
-      required: ['pq_id', 'us_id', 'anombre_de'],
+      required: ['tr_id', 'cl_id', 'amount', 'name'],
     },
   },
   {
