@@ -210,9 +210,8 @@ export const TOOLS: Anthropic.Tool[] = [
       'Registra una intención de compra en Tu Licencia. ' +
       'La API genera automáticamente el código de la compra (cp_code: DR+8 chars) y un token único de pago (url_generado_pago). ' +
       'ANTES de llamar esta herramienta SIEMPRE debes tener: pq_id (id del producto/paquete), us_id (id del usuario) y anombre_de. ' +
-      'El campo anombre_de es OBLIGATORIO y debe ser preguntado SIEMPRE al usuario antes de ejecutar la compra, ' +
-      'ya que la compra puede hacerse a nombre de cualquier persona (no necesariamente el comprador). ' +
-      'Ejemplo de pregunta: "¿A nombre de quién va la compra?"',
+      'El campo anombre_de es OBLIGATORIO y debe ser solicitado al usuario solo en el momento de confirmar la compra (no antes). ' +
+      'Recuerda: NO preguntes a nombre de quién al inicio; primero ofrece los requisitos del trámite y pregunta si quiere que se los envíes o que coordinen el servicio.',
     input_schema: {
       type: 'object',
       properties: {
