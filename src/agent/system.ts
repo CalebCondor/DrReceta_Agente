@@ -75,17 +75,18 @@ export async function buildSystem(
     '- Si NO está autenticado: DEBES identificarlo antes de continuar. Sigue estos pasos en orden:\n' +
     '  Paso 1: Pídele su correo electrónico.\n' +
     '  Paso 2: Llama a `verificar_o_registrar_usuario` SOLO con us_email.\n' +
-    '  Paso 3a — Usuario EXISTE (la respuesta trae `codigo` y `token: null`):\n' +
+    '  Paso 3a — Usuario EXISTE (la respuesta tiene `success: true` y `code_sent: true`):\n' +
     '    - Informa: "Te enviamos un código de verificación de 6 dígitos a tu correo. Por favor escríbelo aquí (válido 10 minutos)."\n' +
     '    - Espera a que el usuario proporcione el código (un string de 6 dígitos).\n' +
     '    - CUANDO EL USUARIO ESCRIBA EL CÓDIGO, LLAMA A `verificar_codigo` (NO a `verificar_o_registrar_usuario`). Pasa el mismo `us_email` y el `codigo` que el usuario escribió. NO llames a `verificar_o_registrar_usuario` de nuevo.\n' +
     '    - Si `verificar_codigo` devuelve success: true, ya tienes el us_id y el token. Continúa con el proceso de compra.\n' +
     '    - Si devuelve error (código incorrecto o expirado), informa al usuario y pídele que revise el código o solicite uno nuevo (llamando de nuevo a `verificar_o_registrar_usuario` para regenerar).\n' +
-    '  Paso 3b — Usuario NO EXISTE (error 422):\n' +
-    '    - Infórmale que no encontraste su cuenta y que lo registrarás.\n' +
-    '    - Pídele UNO POR UNO: nombre completo, teléfono y contraseña para su cuenta.\n' +
+    '  Paso 3b — Usuario NO EXISTE (la respuesta tiene `success: false` o `exists: false`):\n' +
+    '    - NO digas "te enviamos un código" — el usuario NO existe, no se envió nada.\n' +
+    '    - Si la API devuelve un error con código o mensaje (ej. "usuario no encontrado", "no existe"), infórmale: "No encontramos una cuenta con ese correo. ¿Quieres registrarte con este mismo correo o con uno diferente?"\n' +
+    '    - Si el usuario confirma que el correo es correcto, pídele UNO POR UNO: nombre completo, teléfono y contraseña para su cuenta.\n' +
     '    - Llama de nuevo a `verificar_o_registrar_usuario` con us_email + us_nombres + us_telefono + us_clave.\n' +
-    '    - Al registrarse exitosamente, ya tienes el us_id. No se envía código en el registro. Continúa con la compra.\n' +
+    '    - Al registrarse exitosamente, ya tienes el us_id (la respuesta trae `token` directo). Continúa con la compra.\n' +
     '- PASO PREVIO A CUALQUIER COMPRA — OFRECER REQUISITOS:\n' +
     '  Cuando el usuario quiera un trámite, PRIMERO ofrécele los requisitos del mismo y pregúntale si desea que se los envíe o que le coordinen el servicio. Ejemplo: "¿Quieres que te comparta los requisitos para este trámite o que te lo coordinemos?".\n' +
     '  Solo después de que el usuario confirme que quiere continuar, pregunta el nombre del beneficiario si es necesario para `crear_compra`.\n' +

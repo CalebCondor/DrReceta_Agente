@@ -206,6 +206,17 @@ export async function executeTool(
     if (!email) {
       return JSON.stringify({ success: false, error: 'Se requiere us_email.' });
     }
+
+    // Validación de formato de email antes de llamar a la API.
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return JSON.stringify({
+        success: false,
+        exists: false,
+        error: 'El correo electrónico no tiene un formato válido. Verifica e intenta de nuevo.',
+      });
+    }
+
     const payload: Record<string, unknown> = { us_email: email };
     const nombres = strVal(toolInput['us_nombres']).trim();
     const telefono = strVal(toolInput['us_telefono']).trim();
@@ -216,18 +227,36 @@ export async function executeTool(
 
     const result = await apiPost(VERIFICAR_REGISTRAR_URL, payload);
 
-    // Si la API devolvió un token, almacenarlo en sesión para peticiones autenticadas
+    this.logger.log(
+      `[verificar_o_registrar_usuario] payload=${JSON.stringify(payload)} result=${JSON.stringify(result)}`,
+    );
+
     const data = result['data'] as Record<string, unknown> | undefined;
-    if (data?.['token']) {
+    const apiSuccess = result['success'] === true;
+
+    // Si la API devolvió token directo (registro nuevo exitoso), guardarlo
+    if (apiSuccess && data?.['token']) {
       sessions.set(chatId, {
         token: strVal(data['token']),
         user_id: strVal(data['us_id'] ?? ''),
         name: strVal(data['us_nombres'] ?? ''),
         es_vip: false,
       });
+      this.logger.log(
+        `[verificar_o_registrar_usuario] sesión creada (registro) chat=${chatId} us_id=${data['us_id']}`,
+      );
     }
 
-    return JSON.stringify(result);
+    // Enriquecer la respuesta con campos claros para que el bot distinga:
+    //   success+codigo=existe (código enviado al correo)
+    //   success+token=registrado (cuenta nueva creada)
+    //   !success=no existe → el bot debe proceder con el registro pidiendo los datos
+    const enriched = {
+      ...result,
+      exists: apiSuccess && (!!data?.['codigo'] || !!data?.['token']),
+      code_sent: apiSuccess && !!data?.['codigo'],
+    };
+    return JSON.stringify(enriched);
   }
 
   if (toolName === 'verificar_codigo') {
