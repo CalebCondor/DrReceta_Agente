@@ -15,6 +15,7 @@ import {
   CREAR_COMPRA_URL,
   VERIFICAR_CODIGO_URL,
   TODOS_LOS_TRAMITES_URL,
+  SELLOS_POR_TRAMITE_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -397,6 +398,19 @@ export async function executeTool(
 
   if (toolName === 'get_todos_los_tramites') {
     return JSON.stringify(await apiGet(TODOS_LOS_TRAMITES_URL));
+  }
+
+  if (toolName === 'get_sellos_por_tramite') {
+    const rawTrId = toolInput['tr_id'];
+    const trId = Number(rawTrId);
+    if (!Number.isFinite(trId) || trId <= 0) {
+      return JSON.stringify({
+        success: false,
+        error: 'Se requiere tr_id valido (numero mayor a 0).',
+      });
+    }
+    const url = SELLOS_POR_TRAMITE_URL.replace('{id}', String(trId));
+    return JSON.stringify(await apiGet(url));
   }
 
   return JSON.stringify({

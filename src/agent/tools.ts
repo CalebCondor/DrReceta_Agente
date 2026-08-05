@@ -277,4 +277,25 @@ export const TOOLS: Anthropic.Tool[] = [
       'el catalogo general, o quiera ver todo lo que Tu Licencia ofrece.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
+  {
+    name: 'get_sellos_por_tramite',
+    description:
+      'Obtiene la lista de sellos asociados a un tramite especifico. ' +
+      'Usalo cuando el usuario quiera saber que sellos incluye un tramite, ' +
+      'los requisitos, documentos necesarios, tipos de sellos disponibles ' +
+      'o cualquier detalle especifico de los sellos de un servicio. ' +
+      'Necesitas el `tr_id` (id del tramite). Si no lo tienes, primero llama a ' +
+      '`get_todos_los_tramites` o `get_productos` para obtenerlo.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        tr_id: {
+          type: 'number',
+          description:
+            'ID numerico del tramite del cual se quieren obtener los sellos.',
+        },
+      },
+      required: ['tr_id'],
+    },
+  },
 ];
