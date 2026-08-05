@@ -15,16 +15,22 @@ export const KNOWLEDGE_TOOLS = ['buscar_conocimiento'] as const;
 export function containsUnverifiedClaims(
   draftText: string,
   toolCallsThisTurn: string[],
+  toolCallsRecentHistory: string[] = [],
 ): { suspicious: boolean; reasons: string[] } {
   const reasons: string[] = [];
 
   const priceRegex = /\$\s?\d{1,4}(?:\.\d{2})?/g;
   const variantRegex = /\b(VIP|Express|Premium|Urgente)\b/gi;
   const selloWithNumberRegex = /\bsellos?\b[^.]{0,40}\$\s?\d/i;
+  const mentionsSellos = /\bsellos?\b/i.test(draftText);
+  const offersToProceedRegex =
+    /(¿?te gustaría que coordinemos|¿?quieres que (te )?coordinemos|¿?coordinamos|¿?procedemos|¿?deseas continuar con (la|el) (compra|trámite|pago)|enlace de pago|pagar aquí)/i;
 
+  const allToolCalls = [...toolCallsThisTurn, ...toolCallsRecentHistory];
   const calledPricingTool = toolCallsThisTurn.some((t) =>
     (PRICING_TOOLS as readonly string[]).includes(t),
   );
+  const calledSellosTool = allToolCalls.includes('get_sellos_por_tramite');
 
   if (priceRegex.test(draftText) && !calledPricingTool) {
     reasons.push(
@@ -39,6 +45,15 @@ export function containsUnverifiedClaims(
   if (selloWithNumberRegex.test(draftText) && !calledPricingTool) {
     reasons.push(
       'Menciona un sello con precio sin haber llamado a get_sellos_por_tramite en este turno.',
+    );
+  }
+  if (
+    offersToProceedRegex.test(draftText) &&
+    !mentionsSellos &&
+    !calledSellosTool
+  ) {
+    reasons.push(
+      'Ofrece coordinar/proceder con la compra de un trámite sin haber explicado antes los sellos que requiere (get_sellos_por_tramite no fue llamada ni mencionada).',
     );
   }
 
@@ -104,7 +119,12 @@ export async function buildSystem(
     '  "cuánto cuesta / precio / tienen VIP o express"           → get_todos_los_tramites\n' +
     '  "qué sellos lleva / qué documentos son obligatorios"      → get_sellos_por_tramite (usando tr_id ya conocido)\n' +
     '  Elige un trámite de una lista que ya mostraste            → get_sellos_por_tramite (con el tr_id de ese trámite)\n' +
+    '  Vas a dar el DETALLE de un trámite (antes de ofrecer comprar) → SIEMPRE get_sellos_por_tramite, sin excepción\n' +
     '  Quiere comprar/coordinar                                  → verificar sesión → verificar_o_registrar_usuario / crear_compra\n\n' +
+    'REGLA ESPECIAL — SELLOS ANTES DE VENDER: cada vez que presentes el detalle de un servicio/trámite específico (antes de ' +
+    'ofrecer coordinarlo o proceder con la compra), es OBLIGATORIO llamar `get_sellos_por_tramite` y explicar los sellos que ' +
+    'requiere ese trámite (obligatorios primero, opcionales después). NUNCA ofrezcas "¿coordinamos?" o generes un enlace de pago ' +
+    'sin haber dado antes esa explicación de sellos en el mismo mensaje o inmediatamente antes.\n\n' +
     'Si tu borrador de respuesta contiene un "$", una variante (VIP/Express/Premium/Urgente) o un nombre de sello, y no llamaste ' +
     'la tool de esa fila en este turno: DETENTE, no envíes esa respuesta, llama la tool primero.\n' +
     'PROHIBIDO ABSOLUTO: inventar precios, variantes o sellos que no vengan literal de la API. "Si no viene de la API, no va en mi respuesta."\n';
@@ -173,7 +193,16 @@ export async function buildSystem(
     '- No preguntes síntomas ni hagas diagnósticos médicos; redirige a un profesional de salud si el usuario describe síntomas.\n' +
     '- Una sola pregunta por mensaje, nunca listas de preguntas.\n' +
     '- Al listar trámites, máximo 4 opciones, formato compacto (número, nombre, precio tal cual la API). Si piden una variante que no existe en la respuesta, dilo honestamente y ofrece las disponibles.\n' +
-    '- Detalle de un servicio específico, en este orden: (1) nombre en <b>negrita</b>, (2) precio, (3) una oración de para qué sirve, (4) requisitos/pasos verificados, (5) recién ahí la pregunta de coordinar.\n' +
+    '- Detalle de un servicio específico (ANTES de vender/coordinar), en este orden EXACTO — ningún paso se salta ni se adelanta:\n' +
+    '  (1) nombre del trámite en <b>negrita</b>.\n' +
+    '  (2) precio (de get_todos_los_tramites / get_productos).\n' +
+    '  (3) una oración de para qué sirve.\n' +
+    '  (4) requisitos/pasos verificados (de buscar_conocimiento) si el usuario preguntó "cómo" o "qué necesito".\n' +
+    '  (5) EXPLICACIÓN DE SELLOS (OBLIGATORIA, sin excepción): llama `get_sellos_por_tramite` con el tr_id de ese trámite y explica ' +
+    'qué sellos incluye — los obligatorios primero, indicando que son requeridos, y luego los opcionales, preguntando si los quiere agregar. ' +
+    'Usa la tabla de interpretación de sellos (más abajo) para no confundir grupos, sumatorias ni sellos repetibles.\n' +
+    '  (6) recién en este último paso, la pregunta de coordinar/comprar. Nunca muestres el paso (6) sin haber completado el (5) en ese mismo mensaje.\n' +
+    '- Si el usuario ya vio el detalle completo (con sellos) en un mensaje reciente y solo confirma que quiere comprar, no repitas todo el desglose — puedes pasar directo al flujo de compra, pero solo si los sellos ya fueron explicados antes en la conversación.\n' +
     '- Prohibido usar separadores visuales (---, ***, ___).\n' +
     '- Derivación a humano: si el usuario insiste, llama en silencio a `registrar_derivacion` y responde con empatía + este enlace: <a href="https://api.whatsapp.com/send/?phone=17874206048&text&type=phone_number&app_absent=0" target="_blank" rel="noopener noreferrer" style="color:#25D366;font-weight:700;text-decoration:underline">Hablar con un asesor</a>.';
 
@@ -191,7 +220,10 @@ export async function buildSystem(
     '\n\n🛑 RECORDATORIO FINAL ANTES DE RESPONDER:\n' +
     '¿Tu próxima respuesta va a incluir un precio, un sello o una variante (VIP/Express/Premium)? ' +
     'Si SÍ y no llamaste la tool correspondiente en este turno: NO respondas todavía, llama la tool primero. ' +
-    'Si es una pregunta de "cómo hacer X": responde con información de `buscar_conocimiento`, no con precio + oferta.';
+    'Si es una pregunta de "cómo hacer X": responde con información de `buscar_conocimiento`, no con precio + oferta.\n' +
+    '¿Tu próxima respuesta va a mostrar el detalle de un trámite o va a preguntar "¿coordinamos?" / a generar un enlace de pago? ' +
+    'Si SÍ y todavía no explicaste los sellos de ese trámite (obligatorios y opcionales, vía `get_sellos_por_tramite`) en esta conversación: ' +
+    'NO avances a la pregunta de coordinar ni al pago — primero llama la tool y da esa explicación.';
 
   return (
     antiHallucinationGate +
