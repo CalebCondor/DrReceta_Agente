@@ -17,3 +17,5 @@ export const CREAR_COMPRA_URL =
   'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/ia-create-session';
 export const VERIFICAR_CODIGO_URL =
   'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/verificar-codigo';
+export const INICIO_PAGO_IA_URL =
+  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Pago/inicioPagoIa';

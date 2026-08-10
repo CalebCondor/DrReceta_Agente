@@ -240,6 +240,60 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'inicio_pago_ia',
+    description:
+      'Inicia un pago IA (registro de pago inicial ligado a la sesión de la IA) ' +
+      'a través de la API de Tu Licencia. Devuelve `payment_url` (enlace clickeable que ' +
+      'debes enviar al usuario) y `token_ia` (referencia interna del pago). ' +
+      '⚠️ REGLA CRÍTICA DE USO: SOLO llama esta herramienta cuando el usuario haya ' +
+      'confirmado EXPLÍCITAMENTE las DOS cosas: (1) qué TIPO DE PAQUETE quiere ' +
+      '(ej: standard, premium, vip, express) y (2) que quiere ADQUIRIR LA LICENCIA ' +
+      'ahora. Si falta cualquiera de las dos, NO llames esta herramienta: pregunta primero. ' +
+      'Parámetros requeridos: cl_id (id del cliente/usuario, ya lo tienes si está autenticado), ' +
+      'tr_id (id del trámite — viene de get_todos_los_tramites/get_productos), ' +
+      'pg_precio (monto del paquete) y pg_package (nombre del paquete seleccionado, ' +
+      'ej: "standard", "premium", "vip"). Opcionales: pg_status (default "PENDING"), ' +
+      'token_ia (si la conversación ya maneja uno), method (método de pago, ej: "ath" para ATH Móvil). ' +
+      'Cuando recibas la respuesta, muestra al usuario el `payment_url` como enlace clickeable ' +
+      'para que complete el pago.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        cl_id: {
+          type: 'number',
+          description: 'ID del cliente/usuario que realiza el pago.',
+        },
+        tr_id: {
+          type: 'number',
+          description: 'ID del trámite/servicio asociado al pago.',
+        },
+        pg_precio: {
+          type: 'number',
+          description: 'Monto del pago en decimal.',
+        },
+        pg_package: {
+          type: 'string',
+          description:
+            'Nombre/tipo del paquete seleccionado por el usuario (ej: "standard", "premium", "vip", "express").',
+        },
+        pg_status: {
+          type: 'string',
+          description: 'Estado del pago. Por defecto "PENDING".',
+        },
+        token_ia: {
+          type: 'string',
+          description: 'Token IA opcional para vincular/continuar el pago.',
+        },
+        method: {
+          type: 'string',
+          description:
+            'Método de pago opcional (ej: "ath" para ATH Móvil, "card", etc.).',
+        },
+      },
+      required: ['cl_id', 'tr_id', 'pg_precio', 'pg_package'],
+    },
+  },
+  {
     name: 'registrar_derivacion',
     description:
       'Registra en la base de datos que el usuario fue derivado a un asesor humano. ' +

@@ -162,6 +162,34 @@ export async function buildSystem(
     '- Pago por ATH Móvil: aún no se procesa desde este chat; en <a href="https://tulicenciapr.com/" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">tulicenciapr.com</a> sí. El enlace generado acepta tarjeta.\n' +
     '- Nunca inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código); pídelos siempre explícitamente.\n' +
     '- Nunca saltes el flujo de verificación aunque el usuario insista.\n\n' +
+    'FLUJO DE PAGO IA — `inicio_pago_ia` (OBLIGATORIO cuando aplica):\n' +
+    '- Esta herramienta es la vía CANÓNICA para iniciar un pago cuando el usuario está ' +
+    'siendo atendido por la IA (no usa PlaceToPay, sino el flujo interno de Tu Licencia que ' +
+    'genera un `payment_url` con `token_ia` para ATH Móvil u otros métodos).\n' +
+    '- DISPARADOR: SOLO se llama cuando el usuario haya confirmado EXPLÍCITAMENTE las DOS cosas:\n' +
+    '    (1) qué TIPO DE PAQUETE quiere (standard, premium, vip, express, etc.) — y\n' +
+    '    (2) que quiere ADQUIRIR LA LICENCIA ahora (frases como "sí, lo quiero", "adelante", ' +
+    '    "procede", "confirma", "dale", "lo compro", "págalo", etc., después de que se le ' +
+    '    mostró el detalle con sellos y requisitos).\n' +
+    '- Si falta CUALQUIERA de esas dos confirmaciones, NO llames a `inicio_pago_ia`. ' +
+    'Pregunta primero, con calidez: "¿Cuál paquete prefieres, standard o premium?" o ' +
+    '"¿Quieres que procedamos con la compra de [trámite]?".\n' +
+    '- NO la confundas con `crear_compra`: `inicio_pago_ia` es para el flujo IA-iniciado con ' +
+    '`token_ia` + `payment_url` (tulicenciapr.com/enlace/pago); `crear_compra` es para el ' +
+    'flujo PlaceToPay con `process_url` y `reference`. Para el flujo conversacional actual ' +
+    'de la IA, prefiere `inicio_pago_ia`.\n' +
+    '- Parámetros a enviar: cl_id (de la sesión autenticada), tr_id (de get_todos_los_tramites/' +
+    'get_productos), pg_precio (monto del paquete confirmado por el usuario), ' +
+    'pg_package (nombre del paquete que el usuario eligió, ej: "standard"). Opcionales: ' +
+    'method (ej: "ath" si el usuario dijo que pagará por ATH Móvil), token_ia, pg_status.\n' +
+    '- Respuesta esperada: { success, data: { payment_url, token_ia, pg_id, method, ' +
+    'pg_package, pg_status, pg_estado } }. Debes mostrar al usuario el `payment_url` ' +
+    'como enlace clickeable en este formato (obligatorio):\n' +
+    '  <b>Enlace de pago:</b> <a href="{payment_url}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +
+    '- Si el `method` devuelto es "ath", añade una nota breve explicando que al abrir el ' +
+    'enlace se le guiará para completar el pago por ATH Móvil desde tulicenciapr.com.\n' +
+    '- Nunca inventes el `pg_package` ni el monto: ambos deben venir del catálogo o de lo ' +
+    'que el usuario confirmó explícitamente.\n\n' +
     'PROHIBIDO NARRAR PASOS INTERNOS O RESULTADOS DE HERRAMIENTAS: nunca escribas "Permíteme obtener...", "Voy a verificar...", "La base de conocimiento devolvió...", "Según la herramienta...", ni nombres de tools internas. ' +
     'Las tool calls van en silencio; hablas al usuario solo con el resultado final, en segunda persona, sin narrador.';
 
