@@ -14,7 +14,6 @@ import {
   VERIFICAR_REGISTRAR_URL,
   CREAR_COMPRA_URL,
   VERIFICAR_CODIGO_URL,
-  INICIO_PAGO_IA_URL,
   TODOS_LOS_TRAMITES_URL,
   SELLOS_POR_TRAMITE_URL,
 } from '../api/urls';
@@ -35,7 +34,6 @@ const AUTH_REQUIRED = new Set([
   'get_ordenes',
   'get_pagos',
   'crear_compra',
-  'inicio_pago_ia',
 ]);
 
 export async function executeTool(
@@ -295,7 +293,7 @@ export async function executeTool(
     return JSON.stringify(result);
   }
 
-  if (toolName === 'inicio_pago_ia') {
+  if (toolName === 'crear_compra') {
     const trId = toolInput['tr_id'];
     const clId = toolInput['cl_id'] ?? s?.user_id;
     const amount = toolInput['amount'];
@@ -351,98 +349,6 @@ export async function executeTool(
       pago_id: pagoId,
       cp_code: reference, // alias para compatibilidad con el system prompt viejo
       url_generado_pago: processUrl, // alias para compatibilidad
-      raw: result,
-    });
-  }
-
-  if (toolName === 'inicio_pago_ia') {
-    const clId = toolInput['cl_id'] ?? s?.user_id;
-    const trId = toolInput['tr_id'];
-    const pgPrecio = toolInput['pg_precio'];
-    const pgPackage = strVal(toolInput['pg_package']).trim();
-    const pgStatus = strVal(toolInput['pg_status']).trim() || 'PENDING';
-    const tokenIa = strVal(toolInput['token_ia']).trim();
-    const method = strVal(toolInput['method']).trim();
-
-    if (
-      !trId ||
-      !clId ||
-      pgPrecio === undefined ||
-      pgPrecio === null ||
-      !pgPackage
-    ) {
-      return JSON.stringify({
-        success: false,
-        error:
-          'Se requieren cl_id, tr_id, pg_precio y pg_package para iniciar el pago IA.',
-      });
-    }
-
-    const clIdNum = Number(clId);
-    const trIdNum = Number(trId);
-    const pgPrecioNum = Number(pgPrecio);
-    if (
-      !Number.isFinite(clIdNum) ||
-      !Number.isFinite(trIdNum) ||
-      !Number.isFinite(pgPrecioNum)
-    ) {
-      return JSON.stringify({
-        success: false,
-        error: 'cl_id, tr_id y pg_precio deben ser numéricos.',
-      });
-    }
-
-    const payload: Record<string, unknown> = {
-      cl_id: clIdNum,
-      tr_id: trIdNum,
-      pg_precio: pgPrecioNum,
-      pg_package: pgPackage,
-      pg_status: pgStatus,
-    };
-    if (tokenIa) payload['token_ia'] = tokenIa;
-    if (method) payload['method'] = method;
-
-    const result = await apiPost(INICIO_PAGO_IA_URL, payload, token);
-
-    let paymentUrl: string | undefined;
-    let pagoId: number | undefined;
-    let tokenIaResp: string | undefined;
-    let respMethod: string | undefined;
-    let respPackage: string | undefined;
-    let respStatus: string | undefined;
-    try {
-      const data = result['data'] as Record<string, unknown> | undefined;
-      if (data) {
-        paymentUrl =
-          typeof data['payment_url'] === 'string'
-            ? data['payment_url']
-            : undefined;
-        const pgId = data['pg_id'];
-        pagoId = typeof pgId === 'number' ? pgId : Number(pgId) || undefined;
-        tokenIaResp =
-          typeof data['token_ia'] === 'string' ? data['token_ia'] : undefined;
-        respMethod =
-          typeof data['method'] === 'string' ? data['method'] : undefined;
-        respPackage =
-          typeof data['pg_package'] === 'string'
-            ? data['pg_package']
-            : undefined;
-        respStatus =
-          typeof data['pg_status'] === 'string' ? data['pg_status'] : undefined;
-      }
-    } catch {
-      /* no es JSON o formato inesperado */
-    }
-
-    return JSON.stringify({
-      success: result['success'] ?? !!paymentUrl,
-      payment_url: paymentUrl,
-      pg_id: pagoId,
-      token_ia: tokenIaResp,
-      method: respMethod,
-      pg_package: respPackage,
-      pg_status: respStatus,
-      url_generado_pago: paymentUrl,
       raw: result,
     });
   }
