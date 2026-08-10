@@ -28,16 +28,35 @@ export class ChatService {
     return (rows as { id: number }[]).length;
   }
 
-  async getAllUserIds(): Promise<{ chat_id: number; fechas: string[] }[]> {
+  async getAllUserIds(): Promise<
+    {
+      chat_id: number;
+      fechas: string[];
+      ultima_actividad: string;
+      inicio_conversacion: string;
+    }[]
+  > {
     const { rows } = await this.db.query(
-      `SELECT chat_id, ARRAY_AGG(DISTINCT (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Puerto_Rico')::date::text ORDER BY (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Puerto_Rico')::date::text ASC) AS fechas
+      `SELECT chat_id,
+              ARRAY_AGG(DISTINCT (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Puerto_Rico')::date::text ORDER BY (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Puerto_Rico')::date::text ASC) AS fechas,
+              MAX(created_at) AS ultima_actividad,
+              MIN(created_at) AS inicio_conversacion
        FROM historial_mensajes
        GROUP BY chat_id
-       ORDER BY chat_id ASC`,
+       ORDER BY MAX(created_at) DESC`,
     );
-    return (rows as { chat_id: number; fechas: string[] }[]).map((r) => ({
+    return (
+      rows as {
+        chat_id: number;
+        fechas: string[];
+        ultima_actividad: string;
+        inicio_conversacion: string;
+      }[]
+    ).map((r) => ({
       chat_id: r.chat_id,
       fechas: r.fechas,
+      ultima_actividad: r.ultima_actividad,
+      inicio_conversacion: r.inicio_conversacion,
     }));
   }
   async listPreguntasRespuestas(): Promise<
