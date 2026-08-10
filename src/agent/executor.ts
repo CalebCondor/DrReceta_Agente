@@ -295,7 +295,7 @@ export async function executeTool(
     return JSON.stringify(result);
   }
 
-  if (toolName === 'crear_compra') {
+  if (toolName === 'inicio_pago_ia') {
     const trId = toolInput['tr_id'];
     const clId = toolInput['cl_id'] ?? s?.user_id;
     const amount = toolInput['amount'];
