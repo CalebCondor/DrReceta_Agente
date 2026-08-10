@@ -202,41 +202,39 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'crear_compra',
     description:
-      'Crea una sesión de pago en PlaceToPay a través de la API de Tu Licencia. ' +
-      'Devuelve el `process_url` que es el enlace de pago que debes enviar al usuario. ' +
-      'ANTES de llamar esta herramienta necesitas: tr_id (id del trámite), cl_id (id del cliente/usuario), ' +
-      'amount (monto en decimal), name (nombre del servicio o del beneficiario). ' +
-      'description y return_url son opcionales. ' +
-      'Una vez que tengas la respuesta, muestra al usuario el `process_url` como enlace clickeable para que pague.',
+      'Crea una sesión de pago contra el endpoint interno `api/Pago/inicioPagoIa` ' +
+      'de Tu Licencia. Devuelve `payment_url`, que es el enlace de pago que debes ' +
+      'enviar al usuario (sirve para ATH Móvil y tarjeta en tulicenciapr.com/enlace/pago). ' +
+      'SOLO llama esta herramienta cuando el usuario haya confirmado EXPLÍCITAMENTE ' +
+      'qué paquete quiere (ej: standard, premium, vip) y que quiere adquirir el servicio ahora. ' +
+      'Parámetros requeridos: cl_id (id del cliente/usuario), tr_id (id del trámite, ' +
+      'viene de get_todos_los_tramites/get_productos), pg_precio (monto del paquete confirmado) ' +
+      'y pg_package (nombre del paquete seleccionado, ej: "standard"). ' +
+      'Una vez que tengas la respuesta, muestra al usuario el `payment_url` como ' +
+      'enlace clickeable para que complete el pago.',
     input_schema: {
       type: 'object',
       properties: {
-        tr_id: {
-          type: 'number',
-          description: 'ID del trámite/servicio a pagar.',
-        },
         cl_id: {
           type: 'number',
           description: 'ID del cliente/usuario que realiza el pago.',
         },
-        amount: {
+        tr_id: {
           type: 'number',
-          description: 'Monto a cobrar en decimal.',
+          description: 'ID del trámite/servicio a pagar.',
         },
-        name: {
-          type: 'string',
-          description: 'Nombre del servicio o descripción corta del pago.',
+        pg_precio: {
+          type: 'number',
+          description:
+            'Monto del pago en decimal (precio del paquete confirmado).',
         },
-        description: {
+        pg_package: {
           type: 'string',
-          description: 'Descripción detallada opcional del pago.',
-        },
-        return_url: {
-          type: 'string',
-          description: 'URL de retorno opcional después del pago.',
+          description:
+            'Nombre del paquete seleccionado por el usuario (ej: "standard", "premium", "vip", "express").',
         },
       },
-      required: ['tr_id', 'cl_id', 'amount', 'name'],
+      required: ['cl_id', 'tr_id', 'pg_precio', 'pg_package'],
     },
   },
   {

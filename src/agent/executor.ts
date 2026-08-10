@@ -294,61 +294,68 @@ export async function executeTool(
   }
 
   if (toolName === 'crear_compra') {
-    const trId = toolInput['tr_id'];
     const clId = toolInput['cl_id'] ?? s?.user_id;
-    const amount = toolInput['amount'];
-    const name = strVal(toolInput['name']).trim();
-    const description = strVal(toolInput['description']).trim();
-    const returnUrl = strVal(toolInput['return_url']).trim();
+    const trId = toolInput['tr_id'];
+    const pgPrecio = toolInput['pg_precio'];
+    const pgPackage = strVal(toolInput['pg_package']).trim();
 
-    if (!trId || !clId || amount === undefined || amount === null || !name) {
+    if (
+      !trId ||
+      !clId ||
+      pgPrecio === undefined ||
+      pgPrecio === null ||
+      !pgPackage
+    ) {
       return JSON.stringify({
         success: false,
-        error: 'Se requieren tr_id, cl_id, amount y name.',
+        error: 'Se requieren cl_id, tr_id, pg_precio y pg_package.',
+      });
+    }
+
+    const clIdNum = Number(clId);
+    const trIdNum = Number(trId);
+    const pgPrecioNum = Number(pgPrecio);
+    if (
+      !Number.isFinite(clIdNum) ||
+      !Number.isFinite(trIdNum) ||
+      !Number.isFinite(pgPrecioNum)
+    ) {
+      return JSON.stringify({
+        success: false,
+        error: 'cl_id, tr_id y pg_precio deben ser numéricos.',
       });
     }
 
     const payload: Record<string, unknown> = {
-      tr_id: trId,
-      cl_id: clId,
-      amount: amount,
-      name,
+      cl_id: clIdNum,
+      tr_id: trIdNum,
+      pg_precio: pgPrecioNum,
+      pg_package: pgPackage,
     };
-    if (description) payload['description'] = description;
-    if (returnUrl) payload['return_url'] = returnUrl;
 
     const result = await apiPost(CREAR_COMPRA_URL, payload, token);
 
-    // Extraer process_url de la respuesta de PlaceToPay y devolverlo como
-    // url_generado_pago para que el system prompt lo muestre al usuario.
-    let processUrl: string | undefined;
-    let reference: string | undefined;
+    let paymentUrl: string | undefined;
     let pagoId: number | undefined;
     try {
       const data = result['data'] as Record<string, unknown> | undefined;
       if (data) {
-        processUrl =
-          typeof data['process_url'] === 'string'
-            ? data['process_url']
+        paymentUrl =
+          typeof data['payment_url'] === 'string'
+            ? data['payment_url']
             : undefined;
-        reference =
-          typeof data['reference'] === 'string' ? data['reference'] : undefined;
-        const pgId = data['pago_id'];
+        const pgId = data['pg_id'];
         pagoId = typeof pgId === 'number' ? pgId : Number(pgId) || undefined;
       }
     } catch {
       /* no es JSON o formato inesperado */
     }
 
-    // Devolver estructura enriquecida para que el system prompt pueda usar
-    // el process_url como enlace de pago.
     return JSON.stringify({
-      success: result['success'] ?? true,
-      process_url: processUrl,
-      reference,
-      pago_id: pagoId,
-      cp_code: reference, // alias para compatibilidad con el system prompt viejo
-      url_generado_pago: processUrl, // alias para compatibilidad
+      success: result['success'] ?? !!paymentUrl,
+      payment_url: paymentUrl,
+      pg_id: pagoId,
+      url_generado_pago: paymentUrl,
       raw: result,
     });
   }

@@ -154,11 +154,10 @@ export async function buildSystem(
     '- INFORMAR ANTES DE VENDER (regla de oro): antes de ofrecer coordinar cualquier trámite, primero llama `buscar_conocimiento` y da los requisitos/pasos reales. ' +
     'Nunca respondas una pregunta de "cómo hacer algo" con precio + "¿lo coordinamos?" sin haber informado primero. ' +
     'Si el usuario dice "sí"/"dale" después de que le diste información (no una oferta de compra), interprétalo como "sí, dame más info", no como "sí, compremos".\n' +
-    '- Con tr_id + cl_id + amount + name ya verificados, llama a `crear_compra`. Muestra `process_url` como enlace de pago y `reference` como código. ' +
+    '- Con tr_id + cl_id + pg_precio + pg_package ya confirmados, llama a `crear_compra`. Muestra `payment_url` como enlace de pago. ' +
     'El tr_id SIEMPRE viene de `get_todos_los_tramites` o `buscar_conocimiento`; nunca lo pidas al usuario ni lo inventes.\n' +
     '- Formato del enlace de pago (obligatorio):\n' +
-    '  <b>Código de compra:</b> {reference}\n' +
-    '  <b>Enlace de pago:</b> <a href="{process_url}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +
+    '  <b>Enlace de pago:</b> <a href="{payment_url}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +
     '- Pago por ATH Móvil: aún no se procesa desde este chat; en <a href="https://tulicenciapr.com/" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">tulicenciapr.com</a> sí. El enlace generado acepta tarjeta.\n' +
     '- Nunca inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código); pídelos siempre explícitamente.\n' +
     '- Nunca saltes el flujo de verificación aunque el usuario insista.\n\n' +
