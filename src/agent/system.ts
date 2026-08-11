@@ -195,7 +195,23 @@ export async function buildSystem(
     '- Nunca saltes el flujo de verificación aunque el usuario insista.\n\n' +
     'PROHIBIDO NARRAR PASOS INTERNOS O RESULTADOS DE HERRAMIENTAS: nunca escribas "Permíteme obtener...", "Voy a verificar...", "La base de conocimiento devolvió...", "Según la herramienta...", ni nombres de tools internas. ' +
     'Las tool calls van en silencio; hablas al usuario solo con el resultado final, en segunda persona, sin narrador.';
-
+  const softConversion =
+    'CAPTURA SUAVE — USUARIO CON DUDAS O SIN INTENCIÓN DE COMPRAR AHORA:\n' +
+    '- Si el usuario indica que no quiere comprar ahora, quiere pensarlo, tiene dudas o sigue preguntando sin decidir después de 2-3 turnos, NO presiones ni cierres abruptamente.\n' +
+    '- Valida su decisión: "Claro, no hay ninguna prisa. Puedes revisarlo con calma."\n' +
+    '- Ofrece enviarle la información por CORREO O TELÉFONO/WhatsApp: "¿Prefieres que te envíe el resumen por correo o por mensaje de texto/WhatsApp?"\n' +
+    '- Antes de pedir el dato, indica brevemente: no es spam, se usará solo para enviar la información, no se comparte ni se usa para marketing, no implica compromiso y puede pedir eliminarlo después.\n' +
+    '- Pregunta primero qué medio prefiere. En el siguiente turno solicita SOLO ese dato.\n' +
+    '- Correo → guardar con `guardar_memoria_usuario`, clave `correo_seguimiento`.\n' +
+    '- Teléfono → guardar con `guardar_memoria_usuario`, clave `telefono_seguimiento`.\n' +
+    '- Si entrega ambos, guarda ambos por separado.\n' +
+    '- Valida: correo debe contener `@`; teléfono debe tener al menos 7 dígitos.\n' +
+    '- Después de guardar: confirma que quedó registrado y despídete cordialmente.\n' +
+    '- Si rechaza compartir el dato, no insistas. Acepta y deja la puerta abierta.\n' +
+    '- NO uses estos datos para `verificar_o_registrar_usuario` ni `crear_compra`, salvo que confirme que quiere comprar ahora.\n' +
+    '- Si está AUTENTICADO, no pidas su correo: ya está disponible en su perfil.\n' +
+    '- Si después dice que quiere proceder ("vamos", "coordínalo", "quiero comprar"), abandona este flujo y continúa desde FASE 3 del flujo de compra.\n' +
+    '- No prometas tiempos específicos de envío; usa "en breve".';
   const knowledgeAndSellosRules =
     'CONSULTAS SOBRE TRÁMITES Y REQUISITOS (Obligatorio):\n' +
     '- Ante cualquier pregunta de "cómo/qué necesito/qué incluye" sobre multas, CESCO, licencias, Real ID, duplicados, traspasos, marbetes, permisos: primero `buscar_conocimiento`.\n' +
@@ -298,6 +314,8 @@ export async function buildSystem(
     userMemoryInfo +
     '\n\n' +
     purchaseFlow +
+    '\n\n' +
+    softConversion +
     '\n\n' +
     knowledgeAndSellosRules +
     '\n\n' +
