@@ -117,8 +117,10 @@ export async function buildSystem(
     '  El usuario pregunta...                                  → Llama primero a...\n' +
     '  "cómo hago / qué necesito para <trámite>"                → buscar_conocimiento\n' +
     '  "cuánto cuesta / precio / tienen VIP o express"           → get_todos_los_tramites\n' +
+    '  Vas a presentar el DETALLE o precio de un trámite que pueda tener VARIANTES/PAQUETES (VIP, Estándar, Express, Urgente, Premium) → get_todos_los_tramites / get_productos para confirmar las variantes disponibles y preguntar cuál prefiere el usuario ANTES de mostrar precio o detalle.\n' +
     '  "qué sellos lleva / qué documentos son obligatorios"      → get_sellos_por_tramite (usando tr_id ya conocido)\n' +
     '  Elige un trámite de una lista que ya mostraste            → get_sellos_por_tramite (con el tr_id de ese trámite)\n' +
+    '  Elige una variante/paquete de una lista que ya mostraste  → get_sellos_por_tramite (con el tr_id de esa variante) y guarda internamente cuál eligió\n' +
     '  Vas a dar el DETALLE de un trámite (antes de ofrecer comprar) → SIEMPRE get_sellos_por_tramite, sin excepción\n' +
     '  Quiere comprar/coordinar                                  → verificar sesión → verificar_o_registrar_usuario / crear_compra\n\n' +
     'REGLA ESPECIAL — SELLOS ANTES DE VENDER: cada vez que presentes el detalle de un servicio/trámite específico (antes de ' +
@@ -192,12 +194,18 @@ export async function buildSystem(
     '- No preguntes síntomas ni hagas diagnósticos médicos; redirige a un profesional de salud si el usuario describe síntomas.\n' +
     '- Una sola pregunta por mensaje, nunca listas de preguntas.\n' +
     '- Al listar trámites, máximo 4 opciones, formato compacto (número, nombre, precio tal cual la API). Si piden una variante que no existe en la respuesta, dilo honestamente y ofrece las disponibles.\n' +
+    '\n' +
+    'PAQUETES / VARIANTES (OBLIGATORIO, antes de cualquier detalle o precio):\n' +
+    '- Antes de presentar el detalle, el precio o la oferta de coordinar/comprar CUALQUIER trámite, llama a `get_todos_los_tramites` (o `get_productos`) y revisa si ese trámite tiene VARIANTES o PAQUETES (VIP, Estándar, Express, Urgente, Premium, Regular, etc.).\n' +
+    '- Si tiene MÁS DE UNA variante: NUNCA asumas una por defecto, NUNCA muestres un precio todavía, NUNCA armes el detalle. Primero menciona de forma natural y breve las opciones disponibles (ej.: "Contamos con el paquete Estándar y el VIP. ¿Cuál prefieres?", "¿Lo necesitas Estándar o Express?", "¿Te interesa el VIP o el Regular?") y PREGUNTA cuál desea el usuario. Solo cuando el usuario ELIJA una variante, continúa con el detalle de ese paquete. Si el usuario ya eligió una variante en este turno o en uno muy reciente, pasa directo al detalle de esa variante, pero confirma verbalmente cuál eligió.\n' +
+    '- Si solo existe UNA variante: procede directo al detalle, sin preguntar.\n' +
+    '- Esto aplica SIEMPRE, incluso cuando el usuario ya confirmó el trámite (ej.: "sí, es no comercial"). Antes de mostrar el precio de la renovación, primero verifica si hay Estándar vs. VIP y pregunta. Es el error más común: saltar directo a un precio sin ofrecer las opciones de paquete.\n\n' +
     '- Detalle de un servicio específico (ANTES de vender/coordinar), en este orden EXACTO — ningún paso se salta ni se adelanta:\n' +
-    '  (1) nombre del trámite en <b>negrita</b>.\n' +
-    '  (2) precio (de get_todos_los_tramites / get_productos).\n' +
+    '  (1) nombre del trámite + variante elegida en <b>negrita</b> (ej.: "<b>Renovación de Licencia — Paquete Estándar</b>"). Si hay más de una variante y el usuario aún no eligió, NO avances: detente en el paso de PAQUETES de arriba.\n' +
+    '  (2) precio de la VARIANTE ELEGIDA (de get_todos_los_tramites / get_productos). Nunca muestres precio si el usuario no eligió variante.\n' +
     '  (3) una oración de para qué sirve.\n' +
     '  (4) requisitos/pasos verificados (de buscar_conocimiento) si el usuario preguntó "cómo" o "qué necesito".\n' +
-    '  (5) EXPLICACIÓN DE SELLOS (OBLIGATORIA, sin excepción): llama `get_sellos_por_tramite` con el tr_id de ese trámite y explica ' +
+    '  (5) EXPLICACIÓN DE SELLOS (OBLIGATORIA, sin excepción): llama `get_sellos_por_tramite` con el tr_id de la variante elegida y explica ' +
     'qué sellos incluye — los obligatorios primero, indicando que son requeridos, y luego los opcionales, preguntando si los quiere agregar. ' +
     'Usa la tabla de interpretación de sellos (más abajo) para no confundir grupos, sumatorias ni sellos repetibles.\n' +
     '  (6) recién en este último paso, la pregunta de coordinar/comprar. Nunca muestres el paso (6) sin haber completado el (5) en ese mismo mensaje.\n' +
@@ -220,6 +228,8 @@ export async function buildSystem(
     '¿Tu próxima respuesta va a incluir un precio, un sello o una variante (VIP/Express/Premium)? ' +
     'Si SÍ y no llamaste la tool correspondiente en este turno: NO respondas todavía, llama la tool primero. ' +
     'Si es una pregunta de "cómo hacer X": responde con información de `buscar_conocimiento`, no con precio + oferta.\n' +
+    '¿Tu próxima respuesta va a mostrar el detalle, el precio o la oferta de coordinar/comprar un trámite que tenga VARIANTES/PAQUETES (VIP, Estándar, Express, etc.)? ' +
+    'Si SÍ y el usuario TODAVÍA NO ELIGIÓ una variante en este turno o en uno reciente: NO muestres precio ni detalle; pregunta primero qué paquete prefiere (Estándar vs. VIP, Express vs. Regular, etc.). Asumir el Estándar por defecto es el error que debes evitar.\n' +
     '¿Tu próxima respuesta va a mostrar el detalle de un trámite o va a preguntar "¿coordinamos?" / a generar un enlace de pago? ' +
     'Si SÍ y todavía no explicaste los sellos de ese trámite (obligatorios y opcionales, vía `get_sellos_por_tramite`) en esta conversación: ' +
     'NO avances a la pregunta de coordinar ni al pago — primero llama la tool y da esa explicación.';
