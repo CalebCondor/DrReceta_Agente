@@ -145,9 +145,10 @@ export const TOOLS: Anthropic.Tool[] = [
     description:
       'PASO 1 del flujo de verificación. Verifica si un usuario existe por correo. ' +
       'Si EXISTE: la API responde con { success: true, data: { codigo: "XXXXXX", us_id, us_nombres, token: null } } — significa que se envió un código de 6 dígitos al correo del usuario (válido 10 min). Tras esto, tu siguiente llamada DEBE ser `verificar_codigo`, NO esta herramienta de nuevo. ' +
-      'Si NO EXISTE: la API responde con un error (ej. 422) pidiendo us_nombres, us_telefono, us_clave. Recopila esos datos del usuario UNO POR UNO y vuelve a llamar a esta herramienta con todos los campos. ' +
+      'Si NO EXISTE: la API responde con un error (ej. 422) pidiendo us_nombres, us_telefono, us_genero y us_clave. Recopila esos datos del usuario UNO POR UNO y vuelve a llamar a esta herramienta con todos los campos. ' +
       'ÚSALO solo cuando el usuario quiera autenticarse para comprar. ' +
-      'NUNCA inventes ni rellenes us_nombres, us_telefono ni us_clave — siempre pídelos al usuario.',
+      'NUNCA inventes ni rellenes us_nombres, us_telefono, us_genero ni us_clave — siempre pídelos al usuario. ' +
+      'Para us_genero, pregunta al usuario con opciones naturales ("¿Eres hombre o mujer?") y envía el valor tal como el usuario lo diga ("masculino", "femenino", "hombre", "mujer", "M", "F"); el executor se encarga de normalizarlo.',
     input_schema: {
       type: 'object',
       properties: {
@@ -164,6 +165,11 @@ export const TOOLS: Anthropic.Tool[] = [
           type: 'string',
           description:
             'Teléfono del usuario. Solo incluir si el usuario ya lo proporcionó.',
+        },
+        us_genero: {
+          type: 'string',
+          description:
+            'Género del usuario. Solo incluir si el usuario ya lo proporcionó. Acepta: "masculino"/"hombre"/"M" o "femenino"/"mujer"/"F" (también "otro" si el usuario lo indica).',
         },
         us_clave: {
           type: 'string',

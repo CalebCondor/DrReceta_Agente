@@ -225,9 +225,32 @@ export async function executeTool(
     const payload: Record<string, unknown> = { us_email: email };
     const nombres = strVal(toolInput['us_nombres']).trim();
     const telefono = strVal(toolInput['us_telefono']).trim();
+    const generoRaw = strVal(toolInput['us_genero']).trim();
     const clave = strVal(toolInput['us_clave']).trim();
     if (nombres) payload['us_nombres'] = nombres;
     if (telefono) payload['us_telefono'] = telefono;
+    if (generoRaw) {
+      const g = generoRaw.toLowerCase();
+      let normalized = generoRaw;
+      if (
+        g === 'm' ||
+        g === 'masculino' ||
+        g === 'hombre' ||
+        g === 'macho' ||
+        g === 'male'
+      ) {
+        normalized = 'M';
+      } else if (
+        g === 'f' ||
+        g === 'femenino' ||
+        g === 'mujer' ||
+        g === 'hembra' ||
+        g === 'female'
+      ) {
+        normalized = 'F';
+      }
+      payload['us_genero'] = normalized;
+    }
     if (clave) payload['us_clave'] = clave;
 
     const result = await apiPost(VERIFICAR_REGISTRAR_URL, payload);

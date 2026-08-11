@@ -151,8 +151,9 @@ export async function buildSystem(
     'Cuando lo escriba, llama a `verificar_codigo` (NO de nuevo a `verificar_o_registrar_usuario`) con us_email + codigo. ' +
     'Si falla, ofrece reenviar el código llamando de nuevo a `verificar_o_registrar_usuario`.\n' +
     '  3b) Usuario NO EXISTE (success:false / exists:false): no digas que enviaste código (no se envió nada). Informa que no existe cuenta con ese correo ' +
-    'y pregunta si quiere registrarse. Si confirma, pide UNO POR UNO: nombre completo, teléfono, contraseña. Llama a `verificar_o_registrar_usuario` ' +
-    'con us_email + us_nombres + us_telefono + us_clave. Al registrar, la respuesta trae el token/us_id directo.\n' +
+    'y pregunta si quiere registrarse. Si confirma, pide UNO POR UNO: nombre completo, teléfono, género (hombre o mujer) y contraseña. Llama a `verificar_o_registrar_usuario` ' +
+    'con us_email + us_nombres + us_telefono + us_genero + us_clave. Para us_genero pregunta con naturalidad ("¿Eres hombre o mujer?") y pasa el valor tal como el usuario lo diga; el sistema lo normaliza. ' +
+    'Si la API vuelve a devolver un error de campos faltantes, NO avances con la compra: pide el dato que falta, repite la llamada, y solo procedes cuando devuelva success/token.\n' +
     '- INFORMAR ANTES DE VENDER (regla de oro): antes de ofrecer coordinar cualquier trámite, primero llama `buscar_conocimiento` y da los requisitos/pasos reales. ' +
     'Nunca respondas una pregunta de "cómo hacer algo" con precio + "¿lo coordinamos?" sin haber informado primero. ' +
     'Si el usuario dice "sí"/"dale" después de que le diste información (no una oferta de compra), interprétalo como "sí, dame más info", no como "sí, compremos".\n' +
