@@ -276,9 +276,18 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'get_todos_los_tramites',
     description:
-      'Obtiene la lista COMPLETA de todos los tramites disponibles (express y no express) con su pricing y detalles. ' +
-      'Usalo cuando el usuario pregunte por la lista completa de tramites, todos los servicios, ' +
-      'el catalogo general, o quiera ver todo lo que Tu Licencia ofrece.',
+      'Obtiene el catálogo completo de trámites disponibles en Tu Licencia. ' +
+      'La respuesta viene en `data` con TRES listas separadas:\n' +
+      '  • `tramites_express[]` — servicios puntuales de bajo costo (ej.: Coordinación de turno para Autoexpreso, cita para recoger Lic. de Aprendizaje, cita para examen Lic. de Aprendizaje, Evaluación Médica, Amnistía 40%, Recurso de revisión de multas, Certificación de multas, Gestión de plan de pago). Cada item trae `id`, `codigo` (ej. "CT-0001", "LC-0002", "MPP-0001"), `nombre`, `descripcion`, `precio` (único, SIN variante VIP), `activo`, `visible`. Categoría en `categoriaId` ("CT" = Citas y Turnos, "LC" = Licencias y Certificaciones, "MPP" = Multas y Planes de Pago).\n' +
+      '  • `tramites[]` — trámites principales de licencia con VARIANTE ESTÁNDAR y VIP. Cada item trae `id`, `nombre` (ej.: "Renovación de Licencia"), `precio` (Estándar), `precioVip` (VIP, puede ser 0 si no aplica), `meta.precioSellos`, `requisitos`, `formularios`.\n' +
+      '  • `tramites_vehiculares[]` — igual estructura que `tramites[]` pero para vehículos (Traspaso, Duplicado de título, etc.).\n\n' +
+      'USO:\n' +
+      '  • Si el usuario dice "quiero un turno", "sacar un turno", "agendar cita", "coordinar cita", o cualquier variante → filtra `tramites_express` por `categoriaId === "CT"` y por palabras clave ("turno", "cita", "coordinación") en `nombre`. Muestra los resultados con su `precio` (sin VIP).\n' +
+      '  • Si el usuario pide una licencia, renovación, duplicado, REAL ID, etc. → usa `tramites[]` y muestra `precio` (Estándar) + `precioVip` (VIP).\n' +
+      '  • Si el usuario pide traspaso, duplicado de título, marbete, etc. → usa `tramites_vehiculares[]`.\n' +
+      '  • Si pide multas, plan de pago, amnistía, recurso de revisión → `tramites_express` con `categoriaId === "MPP"`.\n' +
+      '  • SOLO muestra items con `visible: true` (ignora `visible: false`).\n' +
+      '  • Máximo 4 opciones por respuesta.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
