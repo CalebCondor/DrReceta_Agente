@@ -144,7 +144,7 @@ export const TOOLS: Anthropic.Tool[] = [
     name: 'verificar_o_registrar_usuario',
     description:
       'PASO 1 del flujo de verificación. Verifica si un usuario existe por correo. ' +
-      'Si EXISTE: la API responde con { success: true, data: { codigo: "XXXXXX", us_id, us_nombres, token: null } } — significa que se envió un código de 6 dígitos al correo del usuario (válido 10 min). Tras esto, tu siguiente llamada DEBE ser `verificar_codigo`, NO esta herramienta de nuevo. ' +
+      'Si EXISTE: la API responde con { success: true, data: { codigo: "XXXXXX", us_id, us_nombres, token: null } } — significa que se envió un código de 6 dígitos al correo del usuario (válido 10 min). Tras esto, tu siguiente llamada DEBE ser `verificar_codigo`, NO esta herramienta de nuevo. La respuesta además expone el campo `us_nombres` en el JSON enriquecido: SIEMPRE debes usarlo tal cual para dirigirte al usuario (ej. "¡Listo, Andrés!..."). NUNCA inventes ni sustituyas el nombre de la BD. ' +
       'Si NO EXISTE: la API responde con un error (ej. 422) pidiendo us_nombres, us_telefono, us_genero y us_clave. Recopila esos datos del usuario UNO POR UNO y vuelve a llamar a esta herramienta con todos los campos. ' +
       'ÚSALO solo cuando el usuario quiera autenticarse para comprar. ' +
       'NUNCA inventes ni rellenes us_nombres, us_telefono, us_genero ni us_clave — siempre pídelos al usuario. ' +

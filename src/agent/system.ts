@@ -203,6 +203,7 @@ export async function buildSystem(
     '- Si NO está autenticado:\n' +
     '  1) Pide su correo. 2) Llama a `verificar_o_registrar_usuario` SOLO con us_email.\n' +
     '  3a) Usuario EXISTE (success:true, code_sent:true): dile que le enviaste un código de 6 dígitos (válido 10 min). ' +
+    'La respuesta trae `us_nombres` desde la BD; úsalo TAL CUAL para saludarlo (ej. "¡Listo, Andrés!..."). NUNCA inventes el nombre ni uses el de la memoria de chat si difiere del de la BD. ' +
     'Cuando lo escriba, llama a `verificar_codigo` (NO de nuevo a `verificar_o_registrar_usuario`) con us_email + codigo. ' +
     'Si falla, ofrece reenviar el código llamando de nuevo a `verificar_o_registrar_usuario`.\n' +
     '  3b) Usuario NO EXISTE (success:false / exists:false): no digas que enviaste código (no se envió nada). Informa que no existe cuenta con ese correo ' +

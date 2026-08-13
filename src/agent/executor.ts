@@ -262,6 +262,9 @@ export async function executeTool(
     const data = result['data'] as Record<string, unknown> | undefined;
     const apiSuccess = result['success'] === true;
 
+    // El nombre SIEMPRE debe venir de la BD (us_nombres del API), nunca inventado.
+    const nombreBD = strVal(data?.['us_nombres'] ?? '').trim();
+
     // Si la API devolvió token directo (registro nuevo exitoso), guardarlo
     if (apiSuccess && data?.['token']) {
       sessions.set(chatId, {
@@ -279,11 +282,25 @@ export async function executeTool(
     //   success+codigo=existe (código enviado al correo)
     //   success+token=registrado (cuenta nueva creada)
     //   !success=no existe → el bot debe proceder con el registro pidiendo los datos
+    //   us_nombres siempre se reenvía desde la BD para que la IA lo use tal cual.
     const enriched = {
       ...result,
       exists: apiSuccess && (!!data?.['codigo'] || !!data?.['token']),
       code_sent: apiSuccess && !!data?.['codigo'],
+      us_nombres: nombreBD,
     };
+
+    // Si el usuario ya existe (código enviado) o se acaba de registrar,
+    // sincronizar el nombre de la sesión con el de la BD.
+    if (apiSuccess && (data?.['codigo'] || data?.['token']) && nombreBD) {
+      const actual = sessions.get(chatId);
+      if (actual) {
+        actual.name = nombreBD;
+        if (data?.['us_id']) actual.user_id = strVal(data['us_id']);
+        sessions.set(chatId, actual);
+      }
+    }
+
     return JSON.stringify(enriched);
   }
 
