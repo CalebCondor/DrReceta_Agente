@@ -13,6 +13,7 @@ import {
   MIS_PAGOS_URL,
   VERIFICAR_REGISTRAR_URL,
   CREAR_COMPRA_URL,
+  INICIO_TRAMITE_EXPRESS,
   VERIFICAR_CODIGO_URL,
   TODOS_LOS_TRAMITES_URL,
   SELLOS_POR_TRAMITE_URL,
@@ -34,6 +35,7 @@ const AUTH_REQUIRED = new Set([
   'get_ordenes',
   'get_pagos',
   'crear_compra',
+  'inicio_tramite_express',
 ]);
 
 export async function executeTool(
@@ -395,6 +397,59 @@ export async function executeTool(
       success: result['success'] ?? !!paymentUrl,
       payment_url: paymentUrl,
       pg_id: pagoId,
+      url_generado_pago: paymentUrl,
+      raw: result,
+    });
+  }
+
+  if (toolName === 'inicio_tramite_express') {
+    const clId = toolInput['cl_id'] ?? s?.user_id;
+    const productoId = toolInput['producto_id'];
+    const observacion = strVal(toolInput['observacion']).trim();
+    const meta = strVal(toolInput['meta']).trim();
+
+    if (!productoId || !clId) {
+      return JSON.stringify({
+        success: false,
+        error:
+          'Se requieren cl_id y producto_id para iniciar el trámite express.',
+      });
+    }
+
+    const clIdNum = Number(clId);
+    const productoIdNum = Number(productoId);
+    if (!Number.isFinite(clIdNum) || !Number.isFinite(productoIdNum)) {
+      return JSON.stringify({
+        success: false,
+        error: 'cl_id y producto_id deben ser valores numéricos.',
+      });
+    }
+
+    const payload: Record<string, unknown> = {
+      cl_id: clIdNum,
+      producto_id: productoIdNum,
+    };
+    if (observacion) payload['observacion'] = observacion;
+    if (meta) payload['meta'] = meta;
+
+    const result = await apiPost(INICIO_TRAMITE_EXPRESS, payload, token);
+
+    let paymentUrl: string | undefined;
+    try {
+      const data = result['data'] as Record<string, unknown> | undefined;
+      if (data) {
+        paymentUrl =
+          typeof data['payment_url'] === 'string'
+            ? (data['payment_url'] as string)
+            : undefined;
+      }
+    } catch {
+      /* formato inesperado */
+    }
+
+    return JSON.stringify({
+      success: result['success'] ?? !!paymentUrl,
+      payment_url: paymentUrl,
       url_generado_pago: paymentUrl,
       raw: result,
     });

@@ -17,3 +17,7 @@ export const CREAR_COMPRA_URL =
   'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Pago/inicioPagoIa';
 export const VERIFICAR_CODIGO_URL =
   'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/verificar-codigo';
+
+/*ENDPOINTS PARA EJECUTAR TRAMITES EXPRESS*/
+export const INICIO_TRAMITE_EXPRESS =
+  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Pagoadicional/InicioTramiteExpressIA';

@@ -214,6 +214,7 @@ export async function buildSystem(
     'Nunca respondas una pregunta de "cómo hacer algo" con precio + "¿lo coordinamos?" sin haber informado primero. ' +
     'Si el usuario dice "sí"/"dale" después de que le diste información (no una oferta de compra), interprétalo como "sí, dame más info", no como "sí, compremos".\n' +
     '- Con tr_id + cl_id + pg_precio + pg_package ya confirmados, llama a `crear_compra`. Muestra `payment_url` como enlace de pago. ' +
+    '- Para trámites EXPRESS (listados en `tramites_express`), en vez de `crear_compra` llama a `inicio_tramite_express` con `cl_id` y `producto_id`. La API responde con `data.token_ia` y `data.payment_url` (o `data.url_generado_pago`). Muestra ese `payment_url` al usuario como enlace de pago y confirma que ahí está el enlace. ' +
     'El tr_id SIEMPRE viene de `get_todos_los_tramites` o `buscar_conocimiento`; nunca lo pidas al usuario ni lo inventes.\n' +
     '- Formato del enlace de pago (obligatorio):\n' +
     '  <b>Enlace de pago:</b> <a href="{payment_url}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +

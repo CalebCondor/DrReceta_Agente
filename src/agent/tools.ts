@@ -311,4 +311,33 @@ export const TOOLS: Anthropic.Tool[] = [
       required: ['tr_id'],
     },
   },
+  {
+    name: 'inicio_tramite_express',
+    description:
+      'Inicia un trámite express y devuelve datos para generar el enlace de pago (token_ia, payment_url). ' +
+      'Usalo cuando el usuario confirme que quiere adquirir un trámite express. ' +
+      'Devuelve `payment_url` en el campo `data.payment_url` para enviar al usuario.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        cl_id: {
+          type: 'number',
+          description: 'ID del cliente/usuario que solicita el trámite.',
+        },
+        producto_id: {
+          type: 'number',
+          description: 'ID del producto/trámite express a iniciar.',
+        },
+        observacion: {
+          type: 'string',
+          description: 'Observación opcional para enviar al backend.',
+        },
+        meta: {
+          type: 'string',
+          description: 'Campo meta opcional.',
+        },
+      },
+      required: ['cl_id', 'producto_id'],
+    },
+  },
 ];
