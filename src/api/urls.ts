@@ -1,23 +1,21 @@
-export const LOGIN_URL =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/login.php';
+export const LOGIN_URL = 'https://api.tulicenciapr.com:2053/api/login.php';
 export const VERIFICAR_REGISTRAR_URL =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/verificar-o-registrar-usuario';
-export const PERFIL_URL =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/perfil.php';
+  'https://api.tulicenciapr.com:2053/api/Ia/verificar-o-registrar-usuario';
+export const PERFIL_URL = 'https://api.tulicenciapr.com:2053/api/perfil.php';
 export const MIS_ORDENES_URL =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/mis_ordenes.php';
+  'https://api.tulicenciapr.com:2053/api/mis_ordenes.php';
 export const MIS_PAGOS_URL =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/mis_pagos.php';
+  'https://api.tulicenciapr.com:2053/api/mis_pagos.php';
 export const TODOS_LOS_TRAMITES_URL =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/listaTodosTramite';
+  'https://api.tulicenciapr.com:2053/api/Ia/listaTodosTramite';
 export const SELLOS_POR_TRAMITE_URL =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Sello/Tramite/{id}';
+  'https://api.tulicenciapr.com:2053/api/Sello/Tramite/{id}';
 export const PRODUCTOS_BASE_URL = 'https://drreceta.com/es';
 export const CREAR_COMPRA_URL =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Pago/inicioPagoIa';
+  'https://api.tulicenciapr.com:2053/api/Pago/inicioPagoIa';
 export const VERIFICAR_CODIGO_URL =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Ia/verificar-codigo';
+  'https://api.tulicenciapr.com:2053/api/Ia/verificar-codigo';
 
 /*ENDPOINTS PARA EJECUTAR TRAMITES EXPRESS*/
 export const INICIO_TRAMITE_EXPRESS =
-  'https://graveyard-unroasted-steadying.ngrok-free.dev/api/Pagoadicional/InicioTramiteExpressIA';
+  'https://api.tulicenciapr.com:2053/api/Pagoadicional/InicioTramiteExpressIA';
