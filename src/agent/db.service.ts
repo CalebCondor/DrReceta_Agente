@@ -23,10 +23,13 @@ export class DbService implements OnModuleInit {
 
   private async initTables() {
     await this.pool.query(`
-      CREATE TABLE IF NOT EXISTS conocimiento_especifico (
+CREATE TABLE IF NOT EXISTS conocimiento_especifico (
         id SERIAL PRIMARY KEY, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL,
-        fuente TEXT DEFAULT 'aprendizaje_ia', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        fuente TEXT DEFAULT 'aprendizaje_ia',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      ALTER TABLE conocimiento_especifico ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
       CREATE TABLE IF NOT EXISTS memoria_largo_plazo (
         id SERIAL PRIMARY KEY, chat_id BIGINT NOT NULL, clave TEXT NOT NULL,
         valor TEXT NOT NULL, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

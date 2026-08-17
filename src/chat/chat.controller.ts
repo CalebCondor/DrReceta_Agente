@@ -4,6 +4,7 @@ import {
   HttpCode,
   Post,
   Get,
+  Put,
   Delete,
   Param,
   ParseIntPipe,
@@ -73,6 +74,59 @@ export class ChatController {
       );
       return result;
     } catch (e) {
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Editar (actualizar) una pregunta y respuesta existente por id
+  @Put('/conocimiento/:id')
+  @HttpCode(200)
+  async updatePreguntaRespuesta(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: PreguntaRespuestaDto,
+  ) {
+    try {
+      const result = await this.chatService.updatePreguntaRespuesta(
+        id,
+        body.pregunta,
+        body.respuesta,
+      );
+      if (!result.updated) {
+        throw new HttpException(
+          { success: false, error: `No se encontró el registro con id=${id}.` },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+      return { ...result, message: `Registro ${id} actualizado correctamente.` };
+    } catch (e) {
+      if (e instanceof HttpException) throw e;
+      const message = e instanceof Error ? e.message : 'Internal server error';
+      throw new HttpException(
+        { success: false, error: message },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Eliminar una pregunta y respuesta por id
+  @Delete('/conocimiento/:id')
+  @HttpCode(200)
+  async deletePreguntaRespuesta(@Param('id', ParseIntPipe) id: number) {
+    try {
+      const result = await this.chatService.deletePreguntaRespuesta(id);
+      if (!result.deleted) {
+        throw new HttpException(
+          { success: false, error: `No se encontró el registro con id=${id}.` },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+      return { ...result, message: `Registro ${id} eliminado correctamente.` };
+    } catch (e) {
+      if (e instanceof HttpException) throw e;
       const message = e instanceof Error ? e.message : 'Internal server error';
       throw new HttpException(
         { success: false, error: message },
