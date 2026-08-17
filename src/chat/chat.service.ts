@@ -70,6 +70,51 @@ export class ChatService {
     return { success: true, id };
   }
 
+  async updatePreguntaRespuesta(
+    id: number,
+    pregunta: string,
+    respuesta: string,
+  ): Promise<{ success: boolean; updated: boolean; id?: number }> {
+    if (!Number.isFinite(id) || id <= 0) {
+      return { success: false, updated: false };
+    }
+    const { rows } = await this.db.query(
+      `UPDATE conocimiento_especifico
+         SET pregunta = $1,
+             respuesta = $2,
+             updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3
+       RETURNING id`,
+      [pregunta, respuesta, id],
+    );
+    const row = rows[0] as { id?: number } | undefined;
+    return {
+      success: true,
+      updated: !!row,
+      id: row ? Number(row.id) : undefined,
+    };
+  }
+
+  async deletePreguntaRespuesta(
+    id: number,
+  ): Promise<{ success: boolean; deleted: boolean; id?: number }> {
+    if (!Number.isFinite(id) || id <= 0) {
+      return { success: false, deleted: false };
+    }
+    const { rows } = await this.db.query(
+      `DELETE FROM conocimiento_especifico
+        WHERE id = $1
+        RETURNING id`,
+      [id],
+    );
+    const row = rows[0] as { id?: number } | undefined;
+    return {
+      success: true,
+      deleted: !!row,
+      id: row ? Number(row.id) : undefined,
+    };
+  }
+
   async isChatPaused(chatId: number): Promise<boolean> {
     const { rows } = await this.db.query(
       `SELECT 1 FROM chats_pausados
