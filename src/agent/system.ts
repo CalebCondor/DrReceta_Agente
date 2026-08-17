@@ -10,16 +10,22 @@ export async function buildSystem(
   knownName?: string,
 ): Promise<string> {
   const now = new Date();
-  const dateStr = now.toLocaleDateString('es-ES', {
+  const prTimeZone = 'America/Puerto_Rico';
+
+  const dateStr = new Intl.DateTimeFormat('es-ES', {
+    timeZone: prTimeZone,
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  });
-  const timeStr = now.toLocaleTimeString('es-ES', {
+  }).format(now);
+
+  const timeStr = new Intl.DateTimeFormat('es-ES', {
+    timeZone: prTimeZone,
     hour: '2-digit',
     minute: '2-digit',
-  });
+    hour12: true,
+  }).format(now);
 
   let userMemoryInfo = '';
   const session = sessions.get(chatId);
