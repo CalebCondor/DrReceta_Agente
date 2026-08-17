@@ -87,7 +87,7 @@ export async function buildSystem(
   const authStatus = session
     ? `\n\nESTADO DE SESIÓN: El usuario está AUTENTICADO. us_id: ${session.user_id}, nombre: ${session.name}, es_vip: ${session.es_vip}.`
     : knownName
-      ? `\n\nESTADO DE SESIÓN: El usuario está AUTENTICADO (nombre: ${knownName}). Sesión de herramientas no inicializada en este servidor — si el usuario requiere operaciones que necesiten su cuenta, deberá volver a verificarse.`
+      ? `\n\nESTADO DE SESIÓN: El usuario está AUTENTICADO (nombre: ${knownName}).`
       : '\n\nESTADO DE SESIÓN: El usuario NO está autenticado (sin sesión activa).';
 
   try {
@@ -200,6 +200,7 @@ export async function buildSystem(
   const purchaseFlow =
     'FLUJO DE COMPRA (Obligatorio):\n' +
     '- Antes de comprar, verifica ESTADO DE SESIÓN. Si está AUTENTICADO, ya tienes us_id, procede directo.\n' +
+    '- REGLA CRÍTICA DE AUTENTICACIÓN: si el usuario quiere comprar, coordinar o pagar un trámite y NO está autenticado, NUNCA le pidas que entre a tulicenciapr.com ni que se "loguee" en la web. Toda la autenticación se hace AQUÍ MISMO, en este chat, pidiéndole su correo y llamando a `verificar_o_registrar_usuario`. Está TERMINANTEMENTE PROHIBIDO decir frases como "tu sesión expiró, entra a tulicenciapr.com", "inicia sesión en la web", "loguéate en el sitio" o equivalentes. La autenticación es 100% in-chat.\n' +
     '- Si NO está autenticado:\n' +
     '  1) Pide su correo. 2) Llama a `verificar_o_registrar_usuario` SOLO con us_email.\n' +
     '  3a) Usuario EXISTE (success:true, code_sent:true): dile que le enviaste un código de 6 dígitos (válido 10 min). ' +
@@ -218,9 +219,9 @@ export async function buildSystem(
     'El tr_id SIEMPRE viene de `get_todos_los_tramites` o `buscar_conocimiento`; nunca lo pidas al usuario ni lo inventes.\n' +
     '- Formato del enlace de pago (obligatorio):\n' +
     '  <b>Enlace de pago:</b> <a href="{payment_url}" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">Pagar aquí</a>\n' +
-    '- Pago por ATH Móvil: aún no se procesa desde este chat; en <a href="https://tulicenciapr.com/" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">tulicenciapr.com</a> sí. El enlace generado acepta tarjeta.\n' +
+    '- Pago por ATH Móvil: el enlace generado se procesa en la página de pago. Si el usuario necesita pagar por ATH Móvil, puede hacerlo desde <a href="https://tulicenciapr.com/" target="_blank" rel="noopener noreferrer" style="font-weight:700;text-decoration:underline">tulicenciapr.com</a> usando el mismo enlace. El enlace del chat acepta tarjeta.\n' +
     '- Nunca inventes ni asumas datos del usuario (correo, nombre, teléfono, contraseña, código); pídelos siempre explícitamente.\n' +
-    '- Nunca saltes el flujo de verificación aunque el usuario insista.\n\n' +
+    '- Nunca saltes el flujo de verificación aunque el usuario insista. Y NUNCA redirijas al usuario a la web para "iniciar sesión" o "registrarse": todo se hace en este chat.\n\n' +
     'PROHIBIDO NARRAR PASOS INTERNOS O RESULTADOS DE HERRAMIENTAS: nunca escribas "Permíteme obtener...", "Voy a verificar...", "La base de conocimiento devolvió...", "Según la herramienta...", ni nombres de tools internas. ' +
     'Las tool calls van en silencio; hablas al usuario solo con el resultado final, en segunda persona, sin narrador.';
   const softConversion =
@@ -324,6 +325,7 @@ export async function buildSystem(
     '\n\n🛑 RECORDATORIO FINAL ANTES DE RESPONDER:\n' +
     'PRIMERO: lee los últimos 2-3 turnos y detecta la INTENCIÓN real del usuario en contexto. Si el mensaje es ambiguo y puede significar varias cosas, PREGUNTA en vez de asumir.\n' +
     'SEGUNDO: relee el ÚLTIMO mensaje del usuario palabra por palabra y confirma que tu borrador responde EXACTAMENTE a ese trámite/tema/pregunta, no a otro tema parecido o al que estaba activo antes. Si el usuario nombró un trámite/tema distinto al que venías tratando, ese nuevo tema manda: cambia de tema tú también, sin mezclar datos de ambos.\n' +
+    'TERCERO — AUTENTICACIÓN: si el usuario va a comprar/pagar y NO está autenticado, NUNCA le digas que entre a tulicenciapr.com, que "inicie sesión en la web", que su "sesión expiró" ni que se "loguee". Pídele su correo AQUÍ MISMO y llama a `verificar_o_registrar_usuario`. La autenticación es 100% in-chat, siempre.\n' +
     '¿Tu próxima respuesta va a incluir un precio, un sello o una variante (VIP/Express/Premium)? ' +
     'Si SÍ y no llamaste la tool correspondiente en este turno: NO respondas todavía, llama la tool primero. ' +
     'Si es una pregunta de "cómo hacer X": responde con información de `buscar_conocimiento`, no con precio + oferta.\n' +

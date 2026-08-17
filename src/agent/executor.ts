@@ -51,8 +51,9 @@ export async function executeTool(
   if (AUTH_REQUIRED.has(toolName) && !s) {
     return JSON.stringify({
       success: false,
+      requires_auth: true,
       error:
-        'Usuario no autenticado. Debe iniciar sesión en Tu Licencia (tulicenciapr.com) para acceder a sus datos personales.',
+        'No hay sesión activa en este chat para ejecutar esta acción. NO redirijas al usuario a ningún sitio web ni le pidas que "inicie sesión en la web" o que "entre a tulicenciapr.com". Para continuar, debes pedirle su correo AQUÍ MISMO en el chat y llamar a la herramienta `verificar_o_registrar_usuario` SOLO con `us_email`. Si la API confirma que existe, le enviarán un código de 6 dígitos a su correo: entonces llama a `verificar_codigo` con `us_email` + `codigo`. Si la API indica que NO existe, pide nombre completo, teléfono, género y contraseña, y vuelve a llamar a `verificar_o_registrar_usuario` con todos los campos. Solo después de tener token activo podrás volver a llamar a esta herramienta.',
     });
   }
 
