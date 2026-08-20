@@ -387,10 +387,11 @@ export async function executeTool(
     }
     const userType: 'residente' | 'turista' =
       s?.user_type === 'turista' ? 'turista' : 'residente';
-    const editarUrl: string =
+    const editarUrl: string = String(
       userType === 'turista'
         ? EDITAR_PAGO_TURISTAS_URL
-        : EDITAR_PAGO_RESIDENTES_URL;
+        : EDITAR_PAGO_RESIDENTES_URL,
+    );
     const body: Record<string, unknown> = {
       us_id: usId,
       url_generado_pago: urlGeneradoPago,
