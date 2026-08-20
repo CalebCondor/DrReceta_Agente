@@ -215,15 +215,56 @@ export async function executeTool(
   }
 
   if (toolName === 'buscar_conocimiento') {
-    const b = strVal(toolInput['busqueda']).toLowerCase();
+    const b = strVal(toolInput['busqueda']);
     try {
+      const normalize = (s: string) =>
+        s
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[¿?¡!.,;:'"`()]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+      const tokens = normalize(b)
+        .split(/\s+/)
+        .filter((t) => t.length > 2);
+
+      if (tokens.length === 0) {
+        return JSON.stringify({
+          success: true,
+          total: 0,
+          resultados: [],
+          mensaje: 'Búsqueda demasiado corta o sin palabras útiles.',
+        });
+      }
+
+      const conds = tokens
+        .map(
+          (_, i) =>
+            `(LOWER(pregunta) LIKE $${i + 1} OR LOWER(respuesta) LIKE $${i + 1})`,
+        )
+        .join(' AND ');
+      const params = tokens.map((t) => `%${t}%`);
+
       const { rows } = await db.query(
-        'SELECT pregunta, respuesta FROM conocimiento_especifico ' +
-          'WHERE LOWER(pregunta) LIKE $1 OR LOWER(respuesta) LIKE $1 ' +
-          'ORDER BY created_at DESC LIMIT 5',
-        [`%${b}%`],
+        `SELECT id, pregunta, respuesta, fuente, created_at
+           FROM conocimiento_especifico
+          WHERE ${conds}
+          ORDER BY created_at DESC
+          LIMIT 5`,
+        params,
       );
-      return JSON.stringify({ success: true, resultados: rows });
+
+      return JSON.stringify({
+        success: true,
+        total: rows.length,
+        resultados: rows,
+        mensaje:
+          rows.length === 0
+            ? 'No se encontraron resultados para esta búsqueda. Intenta reformular con sinónimos o términos más generales.'
+            : undefined,
+      });
     } catch (e: unknown) {
       return JSON.stringify({ success: false, error: errMsg(e) });
     }

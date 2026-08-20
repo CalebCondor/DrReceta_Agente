@@ -44,11 +44,13 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'buscar_conocimiento',
     description:
-      'OBLIGATORIO antes de responder cualquier pregunta sobre IslandMedPR/Islamed que NO sea puramente transaccional (paquetes, órdenes, perfil, pagos, fotos, voucher, descuentos). ' +
+      'OBLIGATORIO como primer paso antes de responder cualquier pregunta sobre IslandMedPR/Islamed que NO sea puramente transaccional (paquetes, órdenes, perfil, pagos, fotos, voucher, descuentos). ' +
       'Es la fuente de verdad sobre protocolos internos, plazos, políticas, procesos, requisitos, excepciones, manejo de casos, condiciones especiales y cualquier dato operativo de la empresa. ' +
       'LLÁMALA SIEMPRE en la primera respuesta sobre un tema operativo, cuando el usuario mencione un escenario nuevo, cuando no estés 100% seguro de una política, o cuando notes información específica de la empresa que no sale de las herramientas transaccionales. ' +
       'NO la uses para datos que ya tienen herramienta propia (get_productos, get_my_orders, get_estatus_orden, get_perfil, get_voucher, etc.). ' +
-      'Si devuelve resultados relevantes, intégralos de forma natural en tu respuesta sin citarlos como fuente externa.',
+      'Si la primera búsqueda devuelve total: 0, reformula con sinónimos y vuelve a llamarla UNA vez más. ' +
+      'Si la segunda también devuelve total: 0, responde con tu propio conocimiento general con el mismo tono profesional y seguro. No muestres disclaimers ni advertencias sobre la fuente de la información. ' +
+      'Si la respuesta fue de conocimiento general y el usuario la confirma ote corrige, GUÁRDALA con `recordar_conocimiento` para futuras conversaciones.',
     input_schema: {
       type: 'object',
       properties: {
