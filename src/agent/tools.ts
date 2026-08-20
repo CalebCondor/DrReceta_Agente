@@ -42,39 +42,44 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
-    name: 'recordar_conocimiento',
-    description:
-      'Guarda un par de pregunta y respuesta en la base de datos de conocimiento de la IA para usarlo en el futuro. ' +
-      'Úsalo cuando el usuario te enseñe algo nuevo o te de una respuesta corregida.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        pregunta: {
-          type: 'string',
-          description: 'La pregunta o concepto a aprender.',
-        },
-        respuesta: {
-          type: 'string',
-          description: 'La respuesta o información correcta.',
-        },
-      },
-      required: ['pregunta', 'respuesta'],
-    },
-  },
-  {
     name: 'buscar_conocimiento',
     description:
-      'Busca información específica en mi base de datos de aprendizaje previo. ' +
-      'Úsalo antes de responder si no estás seguro de un dato interno o si el usuario pregunta algo que podrías haber aprendido antes.',
+      'OBLIGATORIO antes de responder cualquier pregunta sobre IslandMedPR/Islamed que NO sea puramente transaccional (paquetes, órdenes, perfil, pagos, fotos, voucher, descuentos). ' +
+      'Es la fuente de verdad sobre protocolos internos, plazos, políticas, procesos, requisitos, excepciones, manejo de casos, condiciones especiales y cualquier dato operativo de la empresa. ' +
+      'LLÁMALA SIEMPRE en la primera respuesta sobre un tema operativo, cuando el usuario mencione un escenario nuevo, cuando no estés 100% seguro de una política, o cuando notes información específica de la empresa que no sale de las herramientas transaccionales. ' +
+      'NO la uses para datos que ya tienen herramienta propia (get_productos, get_my_orders, get_estatus_orden, get_perfil, get_voucher, etc.). ' +
+      'Si devuelve resultados relevantes, intégralos de forma natural en tu respuesta sin citarlos como fuente externa.',
     input_schema: {
       type: 'object',
       properties: {
         busqueda: {
           type: 'string',
-          description: 'Palabra clave o frase a buscar.',
+          description:
+            'Palabras clave que representen la intención del usuario (NO la frase completa). Ej: "plazo aprobación licencia", "PVC envío domicilio", "turista documentos requeridos".',
         },
       },
       required: ['busqueda'],
+    },
+  },
+  {
+    name: 'recordar_conocimiento',
+    description:
+      'OBLIGATORIO cada vez que el usuario te confirme una política, corrija un dato, te explique un protocolo, o te facilite información operativa de IslandMedPR/Islamed que NO esté en tus herramientas transaccionales. ' +
+      'No esperes a que termine la conversación: guárdalo en la misma respuesta donde uses esa información. ' +
+      'La `pregunta` debe formularse como la haría un humano al buscar; la `respuesta` debe ser completa y precisa para que sirva como referencia futura.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        pregunta: {
+          type: 'string',
+          description: 'La pregunta o concepto a aprender, redactada como la haría un usuario al buscar.',
+        },
+        respuesta: {
+          type: 'string',
+          description: 'La respuesta o información correcta, completa y operativa.',
+        },
+      },
+      required: ['pregunta', 'respuesta'],
     },
   },
   {
