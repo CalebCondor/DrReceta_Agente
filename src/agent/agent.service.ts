@@ -9,6 +9,7 @@ import { executeTool } from './executor';
 import { buildSystem } from './system';
 import { DbService } from './db.service';
 import { ChatGateway } from '../chat/chat.gateway';
+import { MailAlertService } from './mail-alert.service';
 
 @Injectable()
 export class AgentService {
@@ -17,6 +18,7 @@ export class AgentService {
   constructor(
     private readonly db: DbService,
     private readonly chatGateway: ChatGateway,
+    private readonly mailAlert: MailAlertService,
   ) {}
 
   /** Carga el historial desde la base de datos si la memoria en vivo está vacía */
@@ -355,12 +357,29 @@ export class AgentService {
 
       return await this.runAgentCore(chatId, userText);
     } catch (e) {
+      if (MailAlertService.isTokenError(e)) {
+        this.logger.error(`Claude tokens agotados: ${e}`);
+        this.mailAlert
+          .notifyTokensExhausted(String(e))
+          .catch((err) =>
+            this.logger.error(`Fallo disparando alerta por correo: ${err}`),
+          );
+      }
       const errStr = String(e);
       if (errStr.includes('valid list') || errStr.includes('400')) {
         try {
           return await this.retryWithFreshHistory(chatId, userText);
         } catch (retryErr) {
           this.logger.error(`Retry failed: ${retryErr}`);
+          if (MailAlertService.isTokenError(retryErr)) {
+            this.mailAlert
+              .notifyTokensExhausted(
+                `Retry falló por tokens agotados: ${String(retryErr)}`,
+              )
+              .catch((err) =>
+                this.logger.error(`Fallo disparando alerta por correo: ${err}`),
+              );
+          }
           throw new Error(
             'Ocurrió un error procesando tu mensaje. Por favor intenta de nuevo.',
           );

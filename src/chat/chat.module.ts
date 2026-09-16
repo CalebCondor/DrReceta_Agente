@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { DbService } from '../agent/db.service';
 import { AgentService } from '../agent/agent.service';
 import { AutoResumeService } from '../agent/auto-resume.service';
+import { MailAlertService } from '../agent/mail-alert.service';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
@@ -16,6 +17,7 @@ import { ChatGateway } from './chat.gateway';
     ChatService,
     ChatGateway,
     AutoResumeService,
+    MailAlertService,
   ],
   exports: [ChatGateway],
 })
