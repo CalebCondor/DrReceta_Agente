@@ -364,6 +364,7 @@ export class AgentService {
           .catch((err) =>
             this.logger.error(`Fallo disparando alerta por correo: ${err}`),
           );
+        throw e;
       }
       const errStr = String(e);
       if (errStr.includes('valid list') || errStr.includes('400')) {
