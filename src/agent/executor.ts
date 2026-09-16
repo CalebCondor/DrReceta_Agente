@@ -239,19 +239,27 @@ export async function executeTool(
         });
       }
 
-      const conds = tokens
+      const matchExpr = tokens
         .map(
           (_, i) =>
-            `(LOWER(pregunta) LIKE $${i + 1} OR LOWER(respuesta) LIKE $${i + 1})`,
+            `(CASE WHEN translate(LOWER(pregunta), 'áéíóúÁÉÍÓÚñÑ', 'aeiouaeiounN') LIKE $${i + 1} THEN 1 ELSE 0 END ` +
+            `+ CASE WHEN translate(LOWER(respuesta), 'áéíóúÁÉÍÓÚñÑ', 'aeiouaeiounN') LIKE $${i + 1} THEN 1 ELSE 0 END)`,
         )
-        .join(' AND ');
+        .join(' + ');
+      const whereExpr = tokens
+        .map(
+          (_, i) =>
+            `(translate(LOWER(pregunta), 'áéíóúÁÉÍÓÚñÑ', 'aeiouaeiounN') LIKE $${i + 1} ` +
+            `OR translate(LOWER(respuesta), 'áéíóúÁÉÍÓÚñÑ', 'aeiouaeiounN') LIKE $${i + 1})`,
+        )
+        .join(' OR ');
       const params = tokens.map((t) => `%${t}%`);
 
       const { rows } = await db.query(
-        `SELECT id, pregunta, respuesta, fuente, created_at
+        `SELECT id, pregunta, respuesta, fuente, created_at, (${matchExpr}) AS score
            FROM conocimiento_especifico
-          WHERE ${conds}
-          ORDER BY created_at DESC
+          WHERE ${whereExpr}
+          ORDER BY score DESC, created_at DESC
           LIMIT 5`,
         params,
       );
