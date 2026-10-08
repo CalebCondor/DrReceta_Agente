@@ -24,7 +24,7 @@ export const VERIFICAR_CODIGO_TURISTAS_URL =
   'https://islandmedpr.com/apiia/api/turistas/verificar_codigo.php';
 
 export const RESIDENTES_PACKAGES_URL =
-  'https://islandmedpr.com/apiia/api/residentes/packages.php';
+  'https://islandmedpr.com/api/api//residentes/packages.php';
 
 export const TURISTAS_PACKAGES_URL =
   'https://islandmedpr.com/apiia/api/turistas/packages.php';
