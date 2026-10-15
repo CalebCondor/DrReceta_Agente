@@ -9,7 +9,10 @@ export class ChatService {
     userId: number,
   ): Promise<{ role: string; content: unknown; created_at: string }[]> {
     const { rows } = await this.db.query(
-      `SELECT role, content, (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Puerto_Rico')::text AS created_at
+      `SELECT role, content,
+              CONVERT(NVARCHAR(MAX),
+                SWITCHOFFSET(TODATETIMEOFFSET(created_at, '+00:00'), '-04:00'),
+                127) AS created_at
        FROM historial_mensajes
        WHERE chat_id = $1
        ORDER BY created_at ASC`,
@@ -21,8 +24,10 @@ export class ChatService {
   async deleteByUserIdAndDate(userId: number, fecha: string): Promise<number> {
     const { rows } = await this.db.query(
       `DELETE FROM historial_mensajes
-       WHERE chat_id = $1 AND (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Puerto_Rico')::date = $2::date
-       RETURNING id`,
+       OUTPUT INSERTED.id
+       WHERE chat_id = $1
+         AND CAST(SWITCHOFFSET(TODATETIMEOFFSET(created_at, '+00:00'), '-04:00') AS DATE)
+             = CAST($2 AS DATE)`,
       [userId, fecha],
     );
     return (rows as { id: number }[]).length;
@@ -37,13 +42,18 @@ export class ChatService {
     }[]
   > {
     const { rows } = await this.db.query(
-      `SELECT chat_id,
-              ARRAY_AGG(DISTINCT (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Puerto_Rico')::date::text ORDER BY (created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/Puerto_Rico')::date::text ASC) AS fechas,
-              MAX(created_at) AS ultima_actividad,
-              MIN(created_at) AS inicio_conversacion
-       FROM historial_mensajes
-       GROUP BY chat_id
-       ORDER BY MAX(created_at) DESC`,
+      `SELECT hm.chat_id,
+              (SELECT STRING_AGG(d.fecha, ',') WITHIN GROUP (ORDER BY d.fecha ASC)
+               FROM (
+                 SELECT DISTINCT CAST(SWITCHOFFSET(TODATETIMEOFFSET(hm2.created_at, '+00:00'), '-04:00') AS DATE) AS fecha
+                 FROM historial_mensajes hm2
+                 WHERE hm2.chat_id = hm.chat_id
+               ) d) AS fechas,
+              MAX(hm.created_at) AS ultima_actividad,
+              MIN(hm.created_at) AS inicio_conversacion
+       FROM historial_mensajes hm
+       GROUP BY hm.chat_id
+       ORDER BY MAX(hm.created_at) DESC`,
     );
     return (
       rows as {
@@ -90,7 +100,9 @@ export class ChatService {
     respuesta: string,
   ): Promise<{ success: boolean; id?: number }> {
     const { rows } = await this.db.query(
-      'INSERT INTO conocimiento_especifico (pregunta, respuesta) VALUES ($1, $2) RETURNING id',
+      `INSERT INTO conocimiento_especifico (pregunta, respuesta)
+       OUTPUT INSERTED.id
+       VALUES ($1, $2)`,
       [pregunta, respuesta],
     );
     const row = rows[0] as { id?: number } | undefined;
@@ -100,9 +112,9 @@ export class ChatService {
   }
   async isChatPaused(chatId: number): Promise<boolean> {
     const { rows } = await this.db.query(
-      `SELECT 1 FROM chats_pausados
-       WHERE chat_id = $1 AND reanudado_en IS NULL
-       LIMIT 1`,
+      `SELECT TOP 1 1
+       FROM chats_pausados
+       WHERE chat_id = $1 AND reanudado_en IS NULL`,
       [chatId],
     );
     return (rows as unknown[]).length > 0;
@@ -114,8 +126,9 @@ export class ChatService {
     const existing = await this.isChatPaused(chatId);
     if (existing) {
       const { rows } = await this.db.query(
-        `SELECT pausado_en FROM chats_pausados
-         WHERE chat_id = $1 AND reanudado_en IS NULL LIMIT 1`,
+        `SELECT TOP 1 pausado_en
+         FROM chats_pausados
+         WHERE chat_id = $1 AND reanudado_en IS NULL`,
         [chatId],
       );
       const r = rows[0] as { pausado_en: Date } | undefined;
@@ -126,12 +139,13 @@ export class ChatService {
     }
 
     await this.db.query(
-      `INSERT INTO chats_pausados (chat_id)
-       VALUES ($1)
-       ON CONFLICT (chat_id) DO UPDATE
-         SET pausado_en = CURRENT_TIMESTAMP,
-             reanudado_en = NULL
-       WHERE chats_pausados.reanudado_en IS NOT NULL`,
+      `MERGE INTO chats_pausados AS target
+       USING (SELECT $1 AS chat_id) AS source
+       ON target.chat_id = source.chat_id
+       WHEN NOT MATCHED THEN
+         INSERT (chat_id) VALUES (source.chat_id)
+       WHEN MATCHED AND target.reanudado_en IS NOT NULL THEN
+         UPDATE SET pausado_en = SYSUTCDATETIME(), reanudado_en = NULL;`,
       [chatId],
     );
     const { rows } = await this.db.query(
@@ -150,9 +164,9 @@ export class ChatService {
   ): Promise<{ wasPaused: boolean; reanudado_en: string }> {
     const { rows } = await this.db.query(
       `UPDATE chats_pausados
-       SET reanudado_en = CURRENT_TIMESTAMP
-       WHERE chat_id = $1 AND reanudado_en IS NULL
-       RETURNING reanudado_en`,
+       SET reanudado_en = SYSUTCDATETIME()
+       OUTPUT INSERTED.reanudado_en
+       WHERE chat_id = $1 AND reanudado_en IS NULL`,
       [chatId],
     );
     const r = rows[0] as { reanudado_en: Date } | undefined;
@@ -171,11 +185,10 @@ export class ChatService {
     reanudado_en?: string;
   }> {
     const { rows } = await this.db.query(
-      `SELECT pausado_en, reanudado_en
+      `SELECT TOP 1 pausado_en, reanudado_en
        FROM chats_pausados
        WHERE chat_id = $1
-       ORDER BY pausado_en DESC
-       LIMIT 1`,
+       ORDER BY pausado_en DESC`,
       [chatId],
     );
     const r = rows[0] as
@@ -204,8 +217,8 @@ export class ChatService {
     try {
       const { rows } = await this.db.query(
         `INSERT INTO historial_mensajes (chat_id, role, content)
-         VALUES ($1, 'human', $2)
-         RETURNING id`,
+         OUTPUT INSERTED.id
+         VALUES ($1, 'human', $2)`,
         [chatId, JSON.stringify(message.trim())],
       );
       const row = rows[0] as { id?: number } | undefined;

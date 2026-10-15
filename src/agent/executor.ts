@@ -180,11 +180,10 @@ export async function executeTool(
       const params = tokens.map((t) => `%${t}%`);
 
       const { rows } = await db.query(
-        `SELECT pregunta, respuesta, (${scoreParts}) AS score
+        `SELECT TOP 5 pregunta, respuesta, (${scoreParts}) AS score
          FROM conocimiento_especifico
          WHERE ${conds}
-         ORDER BY score DESC, id DESC
-         LIMIT 5`,
+         ORDER BY score DESC, id DESC`,
         params,
       );
       return JSON.stringify({ success: true, resultados: rows });
@@ -198,8 +197,13 @@ export async function executeTool(
     const v = strVal(toolInput['valor']).trim();
     try {
       await db.query(
-        'INSERT INTO memoria_largo_plazo (chat_id, clave, valor) VALUES ($1, $2, $3) ' +
-          'ON CONFLICT (chat_id, clave) DO UPDATE SET valor = EXCLUDED.valor, updated_at = CURRENT_TIMESTAMP',
+        `MERGE INTO memoria_largo_plazo AS target
+         USING (SELECT $1 AS chat_id, $2 AS clave, $3 AS valor) AS source
+         ON target.chat_id = source.chat_id AND target.clave = source.clave
+         WHEN MATCHED THEN
+           UPDATE SET valor = source.valor, updated_at = SYSUTCDATETIME()
+         WHEN NOT MATCHED THEN
+           INSERT (chat_id, clave, valor) VALUES (source.chat_id, source.clave, source.valor);`,
         [chatId, k, v],
       );
       return JSON.stringify({ success: true, message: `Memorizado: ${k}` });

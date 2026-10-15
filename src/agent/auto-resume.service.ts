@@ -47,16 +47,17 @@ export class AutoResumeService implements OnModuleInit, OnModuleDestroy {
    */
   private async checkInactiveChats(): Promise<void> {
     const { rows } = await this.db.query(
-      `UPDATE chats_pausados cp
-       SET reanudado_en = NOW()
+      `UPDATE cp
+       SET reanudado_en = SYSUTCDATETIME()
+       OUTPUT INSERTED.chat_id, INSERTED.pausado_en
+       FROM chats_pausados cp
        WHERE cp.reanudado_en IS NULL
          AND COALESCE(
            (SELECT MAX(hm.created_at)
             FROM historial_mensajes hm
             WHERE hm.chat_id = cp.chat_id),
            cp.pausado_en
-         ) < NOW() - ($1 || ' minutes')::interval
-       RETURNING cp.chat_id, cp.pausado_en`,
+         ) < DATEADD(MINUTE, -$1, SYSUTCDATETIME())`,
       [String(this.timeoutMinutes)],
     );
 

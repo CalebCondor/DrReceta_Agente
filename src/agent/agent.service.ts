@@ -39,7 +39,11 @@ export class AgentService {
     if (!conversations.has(chatId)) {
       try {
         const { rows } = await this.db.query(
-          'SELECT role, content FROM historial_mensajes WHERE chat_id = $1 ORDER BY created_at ASC LIMIT 50',
+          `SELECT role, content
+           FROM historial_mensajes
+           WHERE chat_id = $1
+           ORDER BY created_at ASC
+           OFFSET 0 ROWS FETCH NEXT 50 ROWS ONLY`,
           [chatId],
         );
         const history: Anthropic.MessageParam[] = rows
@@ -77,7 +81,7 @@ export class AgentService {
     content: unknown,
   ): Promise<void> {
     try {
-      // La columna `content` es JSONB: siempre hay que enviar JSON válido.
+      // La columna `content` es NVARCHAR(MAX) que almacena JSON serializado.
       // Para texto plano, JSON.stringify lo envuelve como string JSON ("...").
       const stored = JSON.stringify(content);
       await this.db.query(
@@ -277,9 +281,9 @@ export class AgentService {
   async chat(chatId: number, userText: string): Promise<string> {
     try {
       const { rows } = await this.db.query(
-        `SELECT 1 FROM chats_pausados
-         WHERE chat_id = $1 AND reanudado_en IS NULL
-         LIMIT 1`,
+        `SELECT TOP 1 1
+         FROM chats_pausados
+         WHERE chat_id = $1 AND reanudado_en IS NULL`,
         [chatId],
       );
 

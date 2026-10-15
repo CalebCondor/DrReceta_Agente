@@ -1,25 +1,46 @@
-import { Pool } from 'pg';
+import 'dotenv/config';
+import * as sql from 'mssql';
 
-const pool = new Pool({
-  host: process.env.DB_HOST || '187.77.15.77',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME || 'AGENTEIA',
-  user: process.env.DB_USER || 'agente',
-  password: process.env.DB_PASSWORD || 'SmartHiring2025@',
-  max: 1000, // hasta 1000 conexiones simultáneas
-});
+/**
+ * Test de carga de conexiones a SQL Server.
+ * Lee la configuración desde las mismas variables de entorno que DbService.
+ */
+async function main() {
+  const config: sql.config = process.env.DB_CONNECTION_STRING
+    ? ({ connectionString: process.env.DB_CONNECTION_STRING } as sql.config)
+    : {
+        user: process.env.DB_USER || 'sa',
+        password: process.env.DB_PASSWORD || 'sa',
+        server: process.env.DB_SERVER || '192.168.100.133',
+        database: process.env.DB_NAME || 'MEDICA4',
+        port: process.env.DB_PORT
+          ? parseInt(process.env.DB_PORT, 10)
+          : undefined,
+        options: {
+          encrypt:
+            (process.env.DB_ENCRYPT || 'true').toLowerCase() === 'true',
+          trustServerCertificate:
+            (process.env.DB_TRUST_CERT || 'true').toLowerCase() === 'true',
+        },
+      };
 
-async function testConnections() {
+  const pool = new sql.ConnectionPool(config);
+  await pool.connect();
+  console.log('Pool conectado. Probando 1000 queries...');
+
   const promises: Promise<{ ok: boolean; error?: string }>[] = [];
   for (let i = 0; i < 1000; i++) {
     promises.push(
-      pool.query('SELECT 1 as result').then(
-        () => ({ ok: true }),
-        (err) => ({
-          ok: false,
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      ),
+      pool
+        .request()
+        .query('SELECT 1 AS result')
+        .then(
+          () => ({ ok: true }),
+          (err) => ({
+            ok: false,
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        ),
     );
   }
   const results = await Promise.all(promises);
@@ -27,9 +48,12 @@ async function testConnections() {
   const fail = results.filter((r) => !r.ok);
   console.log(`Conexiones exitosas: ${ok}`);
   if (fail.length) {
-    console.log(`Errores:`, fail.slice(0, 5)); // muestra solo los primeros 5 errores
+    console.log(`Errores:`, fail.slice(0, 5));
   }
-  await pool.end();
+  await pool.close();
 }
 
-testConnections();
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
