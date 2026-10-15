@@ -24,6 +24,68 @@ import { ChatGateway } from '../chat/chat.gateway';
 export class AgentService {
   private readonly logger = new Logger(AgentService.name);
 
+/**
+ * Limpia texto generado por el assistant eliminando:
+ *   • Bloques `<pre>...</pre>` completos (multilínea).
+ *   • Frases prohibidas específicas que el modelo imita desde su historial
+ *     viejo aunque el system prompt las prohíba (p.ej.: "Solo los hospitales
+ *     X y Y registran actividad", "tasa de recuperación global").
+ *   • Frases hechas tipo "Se observa que…", "En resumen…", "Como podemos
+ *     ver…", "Esto sugiere que…", "En conclusión…".
+ *   • Líneas finales sueltas que son solo interpretación (sin números) y
+ *     quedaron tras una respuesta de datos.
+ *
+ * Se aplica al texto del assistant ANTES de:
+ *   (a) pasarlo al modelo como parte del historial en `loadHistoryIfEmpty`,
+ *       evitando que el modelo copie el formato viejo.
+ *   (b) guardarlo en BD con `persistMessage`, evitando acumular más
+ *       respuestas contaminadas.
+ */
+function sanitizeAssistantText(text: string): string {
+  if (!text) return text;
+
+  // 1) Eliminar TODO bloque <pre ...>...</pre> (incluso multilínea).
+  let out = text.replace(/<pre\b[^>]*>[\s\S]*?<\/pre>/gi, '');
+
+  // 2) Eliminar frases hechas prohibidas (al inicio, en medio, o como
+  //    línea completa). Coincide con tolerancia a mayúsculas iniciales y
+  //    posibles caracteres intermedios.
+  const forbiddenFragments: RegExp[] = [
+    // Bloques genéricos
+    /^.*\bSolo los hospitales? .*registran actividad\.?\s*$/gim,
+    /^.*\bLos hospitales? .*no tienen datos\.?\s*$/gim,
+    /^.*\btasa de recuperación\b.*$/gim,
+    /^.*\btasa de aprobación\b.*$/gim,
+    /^.*\btasa global\b.*$/gim,
+    // Frases hechas
+    /^.*\bSe observa que\b.*$/gim,
+    /^.*\bEn resumen\b.*$/gim,
+    /^.*\bComo podemos ver\b.*$/gim,
+    /^.*\bEsto sugiere que\b.*$/gim,
+    /^.*\bEn conclusión\b.*$/gim,
+    /^.*\bNótese que\b.*$/gim,
+    /^.*\bCabe destacar que\b.*$/gim,
+    /^.*\bEs importante señalar que\b.*$/gim,
+  ];
+  for (const re of forbiddenFragments) {
+    out = out.replace(re, '');
+  }
+
+  // 3) Eliminar porcentaje suelto pegado a "tasa" o "porcentaje":
+  //    "...es del 8.0%."  o "...fue del 8%."
+  out = out.replace(/(?:^|\s)(?:[A-ZÁÉÍÓÚÑ][^.\n]{2,160}?)\s+(?:es|fue|equivale a|representa|corresponde a)\s+(?:del?|al?)\s+\d[\d.,]*%\.?/gi, '');
+
+  // 4) Recortar líneas vacías duplicadas y espacios sobrantes.
+  out = out
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  return out;
+}
+
+  constructor(
+
   constructor(
     private readonly db: DbService,
     private readonly chatGateway: ChatGateway,
@@ -52,8 +114,24 @@ export class AgentService {
             if (typeof r.content === 'string') {
               try {
                 const parsed = JSON.parse(r.content) as unknown;
-                text =
-                  typeof parsed === 'string' ? parsed : JSON.stringify(parsed);
+                if (typeof parsed === 'string') {
+                  // Caso normal: el contenido se guardó como JSON string
+                  // (entre comillas). Lo deserializamos para obtener el texto plano.
+                  text = parsed;
+                } else if (
+                  parsed !== null &&
+                  typeof parsed === 'object' &&
+                  'text' in (parsed as Record<string, unknown>) &&
+                  typeof (parsed as { text?: unknown }).text === 'string'
+                ) {
+                  // LEGACY: registros antiguos guardados como `{ "text": "..." }`.
+                  // Extraemos el campo `text` para evitar que el envoltorio
+                  // contamine el historial del modelo.
+                  text = (parsed as { text: string }).text;
+                } else {
+                  // Otros objetos/arrays: caemos al string plano por seguridad.
+                  text = JSON.stringify(parsed);
+                }
               } catch {
                 text = r.content;
               }
@@ -62,6 +140,13 @@ export class AgentService {
             }
             const role: 'user' | 'assistant' =
               r.role === 'assistant' ? 'assistant' : 'user';
+            // Sanitizamos los mensajes del assistant al cargarlos: elimina
+            // bloques <pre>, frases hechas y conclusiones interpretativas
+            // que el modelo podría imitar de mensajes antiguos guardados
+            // antes de que se reforzaran las reglas de formato.
+            if (role === 'assistant') {
+              text = sanitizeAssistantText(text);
+            }
             return { role, content: text } as Anthropic.MessageParam;
           })
           .filter((m: Anthropic.MessageParam) => m.content);
@@ -82,19 +167,32 @@ export class AgentService {
   ): Promise<void> {
     try {
       // La columna `content` es NVARCHAR(MAX) con CHECK (ISJSON(content)=1).
-      // `JSON.stringify` puede devolver `undefined` si `content` es
-      // `undefined`, `Symbol` o una `Function` — eso llegaría a SQL Server
-      // como NULL y rompería el CHECK. Forzamos siempre un string JSON
-      // válido envolviendo en un objeto cuando haga falta.
+      // Para guardar un TEXTO PLANO sin envolverlo en `{ "text": "..." }`,
+      // lo serializamos SIEMPRE como JSON string (entre comillas). Eso
+      // produce `'"contenido"'` — un JSON string válido, sin envoltorio,
+      // que cumple el CHECK y se deserializa limpiamente con `JSON.parse`
+      // (devolviendo el string original).
+      //
+      // NUNCA usamos el envoltorio `{ text: ... }` porque eso contamina el
+      // historial del modelo: Aida lo lee en mensajes previos, lo imita y
+      // empieza a responder con `{"text":"..."}` que es lo que ve el cliente.
       let stored: string;
       try {
-        const json = JSON.stringify(content);
-        stored =
-          typeof json === 'string' && json.length > 0
-            ? json
-            : JSON.stringify({ text: String(content ?? '') });
+        // Convertimos cualquier valor a string y luego a JSON string.
+        // Esto evita que `JSON.stringify(undefined)`/`Symbol`/`Function`
+        // devuelvan `undefined` y rompan el CHECK.
+        const str =
+          typeof content === 'string'
+            ? content
+            : content == null
+              ? ''
+              : typeof content === 'object'
+                ? JSON.stringify(content)
+                : String(content);
+        const json = JSON.stringify(str);
+        stored = typeof json === 'string' && json.length > 0 ? json : '""';
       } catch {
-        stored = JSON.stringify({ text: String(content ?? '') });
+        stored = '""';
       }
       await this.db.query(
         'INSERT INTO historial_mensajes (chat_id, [role], content) VALUES ($1, $2, $3)',
@@ -179,11 +277,22 @@ export class AgentService {
         response.stop_reason === 'stop_sequence'
       ) {
         const fallback = collected.join('\n');
-        const textToSave = assistantText || fallback;
+        let textToSave = assistantText || fallback;
         if (textToSave) {
-          collected.push(assistantText || fallback);
-          history.push({ role: 'assistant', content: response.content });
-          await this.persistMessage(chatId, 'assistant', textToSave);
+          // Sanitizamos ANTES de persistir y de devolver al usuario, así
+          // no acumulamos más respuestas con bloques <pre>, frases hechas
+          // o tasas no pedidas en la BD, y el cliente recibe el texto
+          // ya limpio.
+          textToSave = sanitizeAssistantText(textToSave);
+          if (textToSave) {
+            collected[collected.length - 1] = textToSave;
+            history.push({ role: 'assistant', content: response.content });
+            await this.persistMessage(chatId, 'assistant', textToSave);
+          } else {
+            this.logger.warn(
+              `Respuesta del modelo quedó vacía tras sanitizar para chat ${chatId}.`,
+            );
+          }
         } else {
           this.logger.warn(
             `Respuesta del modelo quedó vacía para chat ${chatId}.`,
@@ -277,12 +386,18 @@ export class AgentService {
       .trim();
 
     if (finalText) {
-      conversations.set(chatId, [
-        { role: 'user', content: userText },
-        { role: 'assistant', content: response.content },
-      ]);
-      await this.persistMessage(chatId, 'user', userText);
-      await this.persistMessage(chatId, 'assistant', finalText);
+      // Sanitizamos la respuesta del assistant antes de devolverla al
+      // usuario y antes de guardarla en BD.
+      const sanitized = sanitizeAssistantText(finalText);
+      if (sanitized) {
+        conversations.set(chatId, [
+          { role: 'user', content: userText },
+          { role: 'assistant', content: response.content },
+        ]);
+        await this.persistMessage(chatId, 'user', userText);
+        await this.persistMessage(chatId, 'assistant', sanitized);
+        return sanitized;
+      }
     }
     return finalText;
   }

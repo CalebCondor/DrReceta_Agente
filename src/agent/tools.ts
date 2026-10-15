@@ -378,8 +378,9 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'obtener_planes_disponibles',
     description:
-      'Devuelve el catálogo de planes médicos disponibles para el usuario ' +
-      'autenticado (id + nombre).\n\n' +
+      'Devuelve el catálogo público de planes médicos disponibles (id + nombre).\n\n' +
+      'NO REQUIERE AUTENTICACIÓN: este endpoint es público y puede invocarse aunque ' +
+      'el usuario NO haya iniciado sesión. NO pidas correo ni código antes de llamarla.\n\n' +
       'REGLA OBLIGATORIA — PRERREQUISITO DE LAS TOOLS DE IaPreguntas:\n' +
       '  • DEBES llamar a esta herramienta ANTES de invocar cualquier tool de ' +
       'IaPreguntas (`consultar_resumen_financiero_hospitales`, ' +
@@ -448,7 +449,16 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `idPlanes`: int[] opcional. ANTES de usarlo, llama a `obtener_planes_disponibles` ' +
       'para obtener los IDs válidos. Si el usuario menciona un plan por nombre, esa tool te ' +
       'devuelve el `idPlan` correspondiente. Si NO envías `idPlanes`, OMITE el campo ' +
-      '(no envíes array vacío).',
+      '(no envíes array vacío).\n\n' +
+      'FORMATO DE SALIDA (OBLIGATORIO): usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
+      'con guion (una línea por hospital/plan, con valores separados por comas o espacios). ' +
+      'NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas alineadas para presentar ' +
+      'datos. Aunque tengas varias entidades que comparar (`porHospital[]`, `planes[]`), NO ' +
+      'las pongas en un bloque con columnas; usa SIEMPRE una lista con guion, una línea por ' +
+      'entidad. Ejemplo correcto: "- Hospital San Lucas — aprobados 187, denegados 133, ' +
+      'recuperados 3 (40 auditorías).". Estructura esperada: 1) totales primero con unidad; ' +
+      '2) filtros aplicados en una línea; 3) desglose como lista con guion (NUNCA como tabla ' +
+      'ni bloque <pre>).',
     input_schema: {
       type: 'object',
       properties: {
@@ -515,7 +525,25 @@ export const TOOLS: Anthropic.Tool[] = [
       'RANKINGS:\n' +
       '  • `items[]`: top-N por hospital (default API = 5).\n' +
       '  • `itemsPorPlan[plan].conceptos`: `cantidad desc, totalDiasDenegados desc` (desempate).\n' +
-      '  • Planes pedidos sin actividad NO aparecen en `itemsPorPlan`.',
+      '  • Planes pedidos sin actividad NO aparecen en `itemsPorPlan`.\n\n' +
+      'OBTENCIÓN DE PARÁMETROS:\n' +
+      '  • `anio`: int requerido (1900–2999). Si el usuario no lo da, pregunta.\n' +
+      '  • `meses`: int[] opcional (1–12). Si se omite o se envía vacío, se asumen los 12 meses del año.\n' +
+      '  • `idHospitales`: int[] requerido (al menos uno). Si el usuario solo dice "mis hospitales", ' +
+      'usa el listado derivado de las herramientas de perfil/permisos.\n' +
+      '  • `idPlanes`: int[] opcional. ANTES de usarlo, llama a `obtener_planes_disponibles` ' +
+      'para obtener los IDs válidos. Si el usuario menciona un plan por nombre, esa tool te ' +
+      'devuelve el `idPlan` correspondiente. Si NO envías `idPlanes`, OMITE el campo ' +
+      '(no envíes array vacío) y `itemsPorPlan` vendrá `null`.\n' +
+      '  • `top`: int opcional. Top-N por hospital en `items[]` y por (hospital, plan) en ' +
+      '`itemsPorPlan[].conceptos[]`. Si se omite, la API usa 5. Rango recomendado: 1–20.\n\n' +
+      'FORMATO DE SALIDA (OBLIGATORIO): usa SOLO <b>, <i>, <code>, <a> y listas simples con ' +
+      'guion para presentar el ranking (una línea por concepto, con sus valores separados por ' +
+      'comas o espacios). NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas alineadas. ' +
+      'Aunque tengas varias entradas (`items[]` o `itemsPorPlan[]`), NO las pongas en un bloque ' +
+      'con columnas; usa SIEMPRE una lista con guion. Ejemplo correcto: "- Hospital San Lucas — ' +
+      'concepto "Criterio de Alta", cantidad 25, días denegados 87."; si hay varias, una línea por ' +
+      'concepto. Si agrupas por plan, una sección por plan (encabezado en <b>) y dentro la lista con guion.',
     input_schema: {
       type: 'object',
       properties: {
@@ -529,20 +557,24 @@ export const TOOLS: Anthropic.Tool[] = [
           type: 'array',
           items: { type: 'integer', minimum: 1, maximum: 12 },
           description:
-            'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año.',
+            'Meses a incluir (1–12). Si se omite o se envía vacío, se asumen los 12 meses del año. ' +
+            'Ej: [1, 2, 4] = enero, febrero y abril.',
         },
         idHospitales: {
           type: 'array',
           items: { type: 'integer' },
           minItems: 1,
-          description: 'IDs de hospitales a incluir (al menos uno).',
+          description:
+            'IDs de hospitales a incluir (al menos uno). Ej: [1, 2, 5].',
         },
         idPlanes: {
           type: 'array',
           items: { type: 'integer' },
           description:
-            'IDs de planes médicos para filtrar (opcional). Si se omite, `itemsPorPlan = null` ' +
-            'y solo se devuelve `items[]`. Si se envía, se incluyen ambas vistas. ' +
+            'IDs de planes médicos para filtrar (opcional). Ej: [1127, 1123]. ' +
+            'Si se omite, no se aplica filtro por plan y `itemsPorPlan = null`. ' +
+            'Cuando se envía, se incluyen ambas vistas (items[] flat + itemsPorPlan[] nested) ' +
+            'y se devuelven sólo los planes con actividad. ' +
             'ANTES de usar este parámetro, llama a `obtener_planes_disponibles` para ' +
             'obtener los IDs válidos (y mapear nombres a IDs si el usuario mencionó un plan).',
         },
@@ -590,7 +622,15 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `itemsPorPlan[plan].conceptos`: `totalDiasDenegados desc, cantidad desc` (desempate).\n' +
       '  • `cantidad` se calcula internamente y se usa como tie-breaker — sólo NO se serializa ' +
       'en `masDiasDenegadosGlobal`.\n' +
-      '  • Planes pedidos sin actividad NO aparecen en `itemsPorPlan`.',
+      '  • Planes pedidos sin actividad NO aparecen en `itemsPorPlan`.\n\n' +
+      'FORMATO DE SALIDA (OBLIGATORIO): usa SOLO <b>, <i>, <code>, <a> y listas simples con ' +
+      'guion para presentar el ranking (una línea por concepto, con sus valores separados por ' +
+      'comas o espacios). NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas alineadas. ' +
+      'Aunque tengas varias entradas (`porHospital[]` o `itemsPorPlan[]`), NO las pongas en un ' +
+      'bloque con columnas; usa SIEMPRE una lista con guion. Ejemplo correcto: "- Hospital San ' +
+      'Lucas — concepto "Criterio de Alta", total días denegados 87."; si hay varias, una línea ' +
+      'por concepto. El ganador absoluto (`masDiasDenegadosGlobal`) va primero con su cifra en ' +
+      '<b>. Si agrupas por plan, una sección por plan (encabezado en <b>) y dentro la lista con guion.',
     input_schema: {
       type: 'object',
       properties: {

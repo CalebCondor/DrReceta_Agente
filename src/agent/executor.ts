@@ -52,14 +52,19 @@ function errMsg(e: unknown): string {
  * inicio_tramite_express) están deshabilitadas — sus entradas se mantienen
  * comentadas por si se re-habilitan en el futuro.
  *
- * Las 3 tools nuevas de IaPreguntas también requieren sesión (sólo usuarios
- * autenticados con permisos a hospitales pueden ver estos datos).
+ * Las 3 tools de IaPreguntas (resumen-financiero, determinacion-adversa,
+ * concepto-mas-dias-denegados) requieren sesión (sólo usuarios autenticados
+ * con permisos a hospitales pueden ver esos datos).
+ *
+ * `obtener_planes_disponibles` NO requiere autenticación — el endpoint
+ * `/api/planes/dropdown` es público y debe poder ejecutarse aunque el usuario
+ * no haya iniciado sesión (ni siquiera para listar el catálogo de planes).
  */
 const AUTH_REQUIRED = new Set<string>([
   'consultar_resumen_financiero_hospitales',
   'consultar_determinacion_adversa_mas_frecuente',
   'consultar_concepto_mas_dias_denegados',
-  'obtener_planes_disponibles',
+  // 'obtener_planes_disponibles', // endpoint público, no requiere sesión
   // 'get_perfil',
   // 'actualizar_perfil',
   // 'get_ordenes',
@@ -549,47 +554,68 @@ export async function executeTool(
     }
   }
 
-  // ─── TOOLS DE IaPreguntas — STUBS (pendiente de implementación) ────────
+  // ─── TOOLS DE IaPreguntas — activas (cableadas contra el backend) ──────
   //
-  // Estas 3 tools están definidas en `src/agent/tools.ts` y tienen su URL
-  // activa en `src/api/urls.ts`. Falta implementar la lógica HTTP contra
-  // el backend de Audita. Mientras tanto, devuelven un error claro.
+  // Las 4 tools viven en `src/agent/tools.ts` y tienen su URL activa en
+  // `src/api/urls.ts`. Aquí se arman los payloads y se delega en
+  // `apiGet`/`apiPost` (definidos en `src/api/http.ts`).
 
   if (toolName === 'obtener_planes_disponibles') {
     return JSON.stringify(await apiGet(PLANES_DISPONIBLES_URL, {}, token));
   }
 
+  // Helper local: arma el body estándar de las 3 herramientas de IaPreguntas
+  // (anio + meses? + idHospitales + idPlanes?), omitiendo los campos vacíos
+  // para no enviar arrays vacíos que el backend descarta o interpreta mal.
+  const buildIaPreguntasBody = (): Record<string, unknown> => {
+    const body: Record<string, unknown> = {};
+    if (typeof toolInput['anio'] === 'number') {
+      body['anio'] = toolInput['anio'];
+    }
+    const meses = toolInput['meses'];
+    if (Array.isArray(meses) && meses.length > 0) {
+      body['meses'] = meses;
+    }
+    const idHospitales = toolInput['idHospitales'];
+    if (Array.isArray(idHospitales) && idHospitales.length > 0) {
+      body['idHospitales'] = idHospitales;
+    }
+    const idPlanes = toolInput['idPlanes'];
+    if (Array.isArray(idPlanes) && idPlanes.length > 0) {
+      body['idPlanes'] = idPlanes;
+    }
+    return body;
+  };
+
   if (toolName === 'consultar_resumen_financiero_hospitales') {
-    void RESUMEN_FINANCIERO_HOSPITALES_URL;
-    void token;
-    return JSON.stringify({
-      success: false,
-      error:
-        'Tool pendiente de implementación. La lógica HTTP contra el backend aún no está cableada.',
-      url: RESUMEN_FINANCIERO_HOSPITALES_URL,
-    });
+    const body = buildIaPreguntasBody();
+    return JSON.stringify(
+      await apiPost(RESUMEN_FINANCIERO_HOSPITALES_URL, body, token),
+    );
   }
 
   if (toolName === 'consultar_determinacion_adversa_mas_frecuente') {
-    void DETERMINACION_ADVERSA_MAS_FRECUENTE_URL;
-    void token;
-    return JSON.stringify({
-      success: false,
-      error:
-        'Tool pendiente de implementación. La lógica HTTP contra el backend aún no está cableada.',
-      url: DETERMINACION_ADVERSA_MAS_FRECUENTE_URL,
-    });
+    const body = buildIaPreguntasBody();
+    const top = toolInput['top'];
+    const url =
+      typeof top === 'number'
+        ? `${DETERMINACION_ADVERSA_MAS_FRECUENTE_URL}?top=${encodeURIComponent(String(top))}`
+        : DETERMINACION_ADVERSA_MAS_FRECUENTE_URL;
+    return JSON.stringify(
+      await apiPost(url, body, token),
+    );
   }
 
   if (toolName === 'consultar_concepto_mas_dias_denegados') {
-    void CONCEPTO_MAS_DIAS_DENEGADOS_URL;
-    void token;
-    return JSON.stringify({
-      success: false,
-      error:
-        'Tool pendiente de implementación. La lógica HTTP contra el backend aún no está cableada.',
-      url: CONCEPTO_MAS_DIAS_DENEGADOS_URL,
-    });
+    const body = buildIaPreguntasBody();
+    const top = toolInput['top'];
+    const url =
+      typeof top === 'number'
+        ? `${CONCEPTO_MAS_DIAS_DENEGADOS_URL}?top=${encodeURIComponent(String(top))}`
+        : CONCEPTO_MAS_DIAS_DENEGADOS_URL;
+    return JSON.stringify(
+      await apiPost(url, body, token),
+    );
   }
 
   return JSON.stringify({
