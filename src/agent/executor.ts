@@ -11,7 +11,7 @@ const logger = new Logger('AgentExecutor');
 /*──────────────────────────────────────────────────────────────────────────
   IMPORTS DE URLs
 
-  Las URLs de tulicenciapr.com (PERFIL, MIS_ORDENES, MIS_PAGOS, etc.) están
+  Las URLs externas históricas (PERFIL, MIS_ORDENES, MIS_PAGOS, etc.) están
   comentadas en `src/api/urls.ts`. Sus imports y casos del executor también
   están deshabilitados para no romper la build. Sólo las tools locales (DB)
   y las 3 tools nuevas de IaPreguntas están activas.
@@ -48,9 +48,9 @@ function errMsg(e: unknown): string {
 /**
  * Tools que requieren una sesión autenticada.
  *
- * Las tools de la API de Tu Licencia (get_perfil, get_ordenes, get_pagos,
- * crear_compra, inicio_tramite_express) están deshabilitadas — sus entradas
- * se mantienen comentadas por si se re-habilitan en el futuro.
+ * Las tools externas (get_perfil, get_ordenes, get_pagos, crear_compra,
+ * inicio_tramite_express) están deshabilitadas — sus entradas se mantienen
+ * comentadas por si se re-habilitan en el futuro.
  *
  * Las 3 tools nuevas de IaPreguntas también requieren sesión (sólo usuarios
  * autenticados con permisos a hospitales pueden ver estos datos).
@@ -89,8 +89,8 @@ export async function executeTool(
 
   // ─── TOOLS DESHABILITADAS (URLs comentadas en src/api/urls.ts) ──────────
   //
-  // Las siguientes tools están deshabilitadas porque sus endpoints de la API
-  // de Tu Licencia fueron comentados. Cuando se re-habiliten, también hay que
+  // Las siguientes tools están deshabilitadas porque sus endpoints externos
+  // fueron comentados. Cuando se re-habiliten, también hay que
   // (1) descomentar el import correspondiente arriba, (2) descomentar la
   // entrada en `AUTH_REQUIRED` si aplica, y (3) descomentar la tool en
   // `src/agent/tools.ts`.
@@ -553,7 +553,7 @@ export async function executeTool(
   //
   // Estas 3 tools están definidas en `src/agent/tools.ts` y tienen su URL
   // activa en `src/api/urls.ts`. Falta implementar la lógica HTTP contra
-  // el backend de Tu Licencia. Mientras tanto, devuelven un error claro.
+  // el backend de Audita. Mientras tanto, devuelven un error claro.
 
   if (toolName === 'obtener_planes_disponibles') {
     return JSON.stringify(await apiGet(PLANES_DISPONIBLES_URL, {}, token));

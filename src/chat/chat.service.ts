@@ -9,7 +9,7 @@ export class ChatService {
     userId: number,
   ): Promise<{ role: string; content: unknown; created_at: string }[]> {
     const { rows } = await this.db.query(
-      `SELECT role, content,
+      `SELECT [role], content,
               CONVERT(NVARCHAR(MAX),
                 SWITCHOFFSET(TODATETIMEOFFSET(created_at, '+00:00'), '-04:00'),
                 127) AS created_at
@@ -216,7 +216,7 @@ export class ChatService {
     }
     try {
       const { rows } = await this.db.query(
-        `INSERT INTO historial_mensajes (chat_id, role, content)
+        `INSERT INTO historial_mensajes (chat_id, [role], content)
          OUTPUT INSERTED.id
          VALUES ($1, 'human', $2)`,
         [chatId, JSON.stringify(message.trim())],

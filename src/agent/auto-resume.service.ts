@@ -58,7 +58,7 @@ export class AutoResumeService implements OnModuleInit, OnModuleDestroy {
             WHERE hm.chat_id = cp.chat_id),
            cp.pausado_en
          ) < DATEADD(MINUTE, -$1, SYSUTCDATETIME())`,
-      [String(this.timeoutMinutes)],
+      [this.timeoutMinutes],
     );
 
     const resumed = rows as Array<{

@@ -72,8 +72,20 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
   private buildConfig(): sql.config {
     const connectionString = process.env.DB_CONNECTION_STRING?.trim();
     if (connectionString) {
-      // mssql acepta connectionString en la config y la parsea internamente.
-      return { connectionString } as sql.config;
+      // mssql v12 ya NO acepta `connectionString` como string dentro de
+      // la config — devuelve "config.server is required". Hay que
+      // parsearlo a un objeto config con `ConnectionPool.parseConnectionString`.
+      const parsed = sql.ConnectionPool.parseConnectionString(
+        connectionString,
+      ) as unknown as Partial<sql.config>;
+      return {
+        ...parsed,
+        pool: {
+          max: 10,
+          min: 0,
+          idleTimeoutMillis: 30000,
+        },
+      } as sql.config;
     }
     return {
       user: process.env.DB_USER || 'sa',
@@ -168,30 +180,41 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
     `);
 
     // ─── memoria_largo_plazo ───────────────────────────────────────────────
+    // `clave` debe ser NVARCHAR(MAX) (las queries concatenan prefijos largos
+    // tipo "preferencia_hospital_xyz"); no se puede indexar directamente,
+    // por eso se proyecta a NVARCHAR(450) en una columna computada PERSISTED
+    // (`clave_indice`) sobre la que sí se crea el índice único.
     await req.query(`
       IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'memoria_largo_plazo')
       CREATE TABLE memoria_largo_plazo (
         id INT IDENTITY(1,1) PRIMARY KEY,
         chat_id BIGINT NOT NULL,
-        clave NVARCHAR(255) NOT NULL,
+        clave NVARCHAR(MAX) NOT NULL,
         valor NVARCHAR(MAX) NOT NULL,
-        updated_at DATETIME2 NOT NULL DEFAULT GETDATE()
+        updated_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+        clave_indice AS (CONVERT(NVARCHAR(450), clave)) PERSISTED
       );
     `);
     await req.query(`
       IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_memoria_usuario')
-      CREATE UNIQUE INDEX idx_memoria_usuario ON memoria_largo_plazo (chat_id, clave);
+      CREATE UNIQUE INDEX idx_memoria_usuario
+        ON memoria_largo_plazo (chat_id, clave_indice);
     `);
 
     // ─── historial_mensajes ────────────────────────────────────────────────
+    // `role` está delimitado con corchetes en el esquema real porque `ROLE`
+    // es palabra reservada en T-SQL (funciones ROLE_ID, ROLE_NAME, etc).
+    // La tabla además exige CHECK (isjson(content)) — el código siempre
+    // inserta con JSON.stringify(), así que se cumple naturalmente.
     await req.query(`
       IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'historial_mensajes')
       CREATE TABLE historial_mensajes (
         id INT IDENTITY(1,1) PRIMARY KEY,
         chat_id BIGINT NOT NULL,
-        role NVARCHAR(50) NOT NULL,
+        [role] NVARCHAR(50) NOT NULL,
         content NVARCHAR(MAX) NOT NULL,
-        created_at DATETIME2 NOT NULL DEFAULT GETDATE()
+        created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+        CONSTRAINT CK_historial_mensajes_content_json CHECK (ISJSON(content) = 1)
       );
     `);
     await req.query(`

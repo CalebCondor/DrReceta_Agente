@@ -20,7 +20,7 @@ import Anthropic from '@anthropic-ai/sdk';
         - consultar_determinacion_adversa_mas_frecuente
         - consultar_concepto_mas_dias_denegados
 
-  ✗ DESHABILITADAS (comentadas porque sus URLs de Tu Licencia fueron
+  ✗ DESHABILITADAS (comentadas porque sus URLs externas fueron
   comentadas en `src/api/urls.ts` y sus casos en `executor.ts`):
     • get_perfil, actualizar_perfil, get_ordenes, get_pagos
     • verificar_o_registrar_usuario, verificar_codigo, crear_compra
@@ -31,14 +31,14 @@ export const TOOLS: Anthropic.Tool[] = [
   // {
   //   name: 'get_perfil',
   //   description:
-  //     'Obtiene los datos del perfil del usuario autenticado en Tu Licencia. ' +
+  //     'Obtiene los datos del perfil del usuario autenticado. ' +
   //     'Usalo cuando el usuario pregunte por su perfil, datos personales, nombre, correo, etc.',
   //   input_schema: { type: 'object', properties: {}, required: [] },
   // },
   // {
   //   name: 'actualizar_perfil',
   //   description:
-  //     'Actualiza campos del perfil del usuario en Tu Licencia. ' +
+  //     'Actualiza campos del perfil del usuario. ' +
   //     'Usalo cuando el usuario quiera cambiar su nombre, email, telefono u otros datos. ' +
   //     'Solo incluye los campos que el usuario quiere cambiar. ' +
   //     'Los nombres de campo exactos que acepta la API son: ' +
@@ -61,7 +61,7 @@ export const TOOLS: Anthropic.Tool[] = [
   // {
   //   name: 'get_ordenes',
   //   description:
-  //     'Obtiene las ordenes/pedidos del usuario autenticado en Tu Licencia. ' +
+  //     'Obtiene las ordenes/pedidos del usuario autenticado. ' +
   //     'Usalo cuando pregunte por compras, pedidos, productos comprados o enlaces de descarga.',
   //   input_schema: { type: 'object', properties: {}, required: [] },
   // },
@@ -75,7 +75,7 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'get_productos',
     description:
-      'Obtiene el catalogo de todos los productos disponibles en Tu Licencia. ' +
+      'Obtiene el catalogo de todos los productos disponibles. ' +
       'Usalo cuando pregunte que productos hay, que venden, que esta disponible o quiera buscar algo. ' +
       'IMPORTANTE: cada producto devuelto incluye el campo `pq_id` (identificador numérico del paquete). ' +
       'Usa SIEMPRE ese `pq_id` tal cual viene en la respuesta cuando luego invoques `crear_compra`. ' +
@@ -233,8 +233,8 @@ export const TOOLS: Anthropic.Tool[] = [
   //   name: 'crear_compra',
   //   description:
   //     'Crea una sesión de pago contra el endpoint interno `api/Pago/inicioPagoIa` ' +
-  //     'de Tu Licencia. Devuelve `payment_url`, que es el enlace de pago que debes ' +
-  //     'enviar al usuario (sirve para ATH Móvil y tarjeta en tulicenciapr.com/enlace/pago). ' +
+  //     'del backend de Audita. Devuelve `payment_url`, que es el enlace de pago ' +
+  //     'que debes enviar al usuario (sirve para ATH Móvil y tarjeta). ' +
   //     'SOLO llama esta herramienta cuando el usuario haya confirmado EXPLÍCITAMENTE ' +
   //     'qué paquete quiere (ej: standard, premium, vip) y que quiere adquirir el servicio ahora. ' +
   //     'Parámetros requeridos: cl_id (id del cliente/usuario), tr_id (id del trámite, ' +
@@ -300,7 +300,7 @@ export const TOOLS: Anthropic.Tool[] = [
   // {
   //   name: 'get_todos_los_tramites',
   //   description:
-  //     'Obtiene el catálogo completo de trámites disponibles en Tu Licencia. ' +
+  //     'Obtiene el catálogo completo de trámites disponibles. ' +
   //     'La respuesta viene en `data` con TRES listas separadas:\n' +
   //     '  • `tramites_express[]` — servicios puntuales de bajo costo (ej.: Coordinación de turno para Autoexpreso, cita para recoger Lic. de Aprendizaje, cita para examen Lic. de Aprendizaje, Evaluación Médica, Amnistía 40%, Recurso de revisión de multas, Certificación de multas, Gestión de plan de pago). Cada item trae `id`, `codigo` (ej. "CT-0001", "LC-0002", "MPP-0001"), `nombre`, `descripcion`, `precio` (único, SIN variante VIP), `activo`, `visible`. Categoría en `categoriaId` ("CT" = Citas y Turnos, "LC" = Licencias y Certificaciones, "MPP" = Multas y Planes de Pago).\n' +
   //     '  • `tramites[]` — trámites principales de licencia con VARIANTE ESTÁNDAR y VIP. Cada item trae `id`, `nombre` (ej.: "Renovación de Licencia"), `precio` (Estándar), `precioVip` (VIP, puede ser 0 si no aplica), `meta.precioSellos`, `requisitos`, `formularios`.\n' +

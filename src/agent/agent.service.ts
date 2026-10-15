@@ -39,7 +39,7 @@ export class AgentService {
     if (!conversations.has(chatId)) {
       try {
         const { rows } = await this.db.query(
-          `SELECT role, content
+          `SELECT [role], content
            FROM historial_mensajes
            WHERE chat_id = $1
            ORDER BY created_at ASC
@@ -81,11 +81,23 @@ export class AgentService {
     content: unknown,
   ): Promise<void> {
     try {
-      // La columna `content` es NVARCHAR(MAX) que almacena JSON serializado.
-      // Para texto plano, JSON.stringify lo envuelve como string JSON ("...").
-      const stored = JSON.stringify(content);
+      // La columna `content` es NVARCHAR(MAX) con CHECK (ISJSON(content)=1).
+      // `JSON.stringify` puede devolver `undefined` si `content` es
+      // `undefined`, `Symbol` o una `Function` — eso llegaría a SQL Server
+      // como NULL y rompería el CHECK. Forzamos siempre un string JSON
+      // válido envolviendo en un objeto cuando haga falta.
+      let stored: string;
+      try {
+        const json = JSON.stringify(content);
+        stored =
+          typeof json === 'string' && json.length > 0
+            ? json
+            : JSON.stringify({ text: String(content ?? '') });
+      } catch {
+        stored = JSON.stringify({ text: String(content ?? '') });
+      }
       await this.db.query(
-        'INSERT INTO historial_mensajes (chat_id, role, content) VALUES ($1, $2, $3)',
+        'INSERT INTO historial_mensajes (chat_id, [role], content) VALUES ($1, $2, $3)',
         [chatId, role, stored],
       );
     } catch (e) {
