@@ -113,10 +113,12 @@ export const TOOLS: Anthropic.Tool[] = [
       'NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas alineadas para presentar ' +
       'datos. Aunque tengas varias entidades que comparar (`porHospital[]`, `planes[]`), NO ' +
       'las pongas en un bloque con columnas; usa SIEMPRE una lista con guion, una línea por ' +
-      'entidad. Ejemplo correcto: "- Hospital San Lucas — aprobados 187, denegados 133, ' +
-      'recuperados 3 (40 auditorías).". Estructura esperada: 1) totales primero con unidad; ' +
-      '2) filtros aplicados en una línea; 3) desglose como lista con guion (NUNCA como tabla ' +
-      'ni bloque <pre>).',
+      'entidad.\n\n' +
+      'PRINCIPIO DE MINIMIZACIÓN (CRÍTICO): muestra SOLO las métricas que el usuario pidió en su mensaje. ' +
+      'Si pidió "días denegados y %", devuelve "- Días denegados: 133\\n- % denegado: 41.6%" — NUNCA ' +
+      'incluyas "Días aprobados: 187", "Días recuperados: 3", ni el desglose "(133 ÷ 320)" a menos que ' +
+      'el usuario los pida explícitamente. Ignora los campos extra que devuelva la tool. Si la tool ' +
+      'trae aprobados/denegados/recuperados y el usuario solo pidió denegados, devuelve SOLO denegados.',
     input_schema: {
       type: 'object',
       properties: {

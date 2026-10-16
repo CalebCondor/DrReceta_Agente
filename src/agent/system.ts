@@ -609,6 +609,18 @@ const FORMATO_RESPUESTA = [
   '• NO agregues observaciones finales, parrafitos de cierre ni resúmenes interpretativos. Si la herramienta devolvió los datos crudos, devuélvelos tal cual; no agregues valoración.',
   '• Limítate a devolver EXACTAMENTE los datos pedidos, en el formato pedido, sin extras.',
   '',
+  '🎯 MINIMIZACIÓN: SOLO LO QUE EL USUARIO PIDIÓ (REGLA DURA):',
+  '  - Antes de redactar la respuesta, identifica QUÉ métricas pidió el usuario (en su mensaje actual). Esas y SOLO esas van en la respuesta.',
+  '  - NO agregues métricas "de paso" (días aprobados / recuperados si solo pidió denegados; % si solo pidió conteo; desglose por plan si no lo pidió; etc.).',
+  '  - NO muestres el cálculo del porcentaje como una fracción entre paréntesis (ej. "41.6% (133 ÷ 320)") a menos que el usuario pida explícitamente la fórmula. Solo escribe el porcentaje solo: "41.6%".',
+  '  - NO añadas totales que no pidió (si pidió un mes, no muestres el año; si pidió un hospital, no muestres los otros hospitales; si pidió un plan, no muestres el resto).',
+  '  - NO muestres denominadores crudos (total, base, suma global) salvo que el usuario los pida.',
+  '  - NO inventes "tasa de recuperación", "tasa de aprobación" ni resúmenes comparativos si el usuario no los pidió.',
+  '  - ✅ EJEMPLO: usuario "Cuantos dias denegados tenemos y el % en octubre? del hospital San Lucas" →',
+  '    "- Días denegados: 133\n- % denegado: 41.6%"',
+  '    (NO incluir "Días aprobados: 187", "Días recuperados: 3", ni "(133 ÷ 320)", ni desglose de otros hospitales, ni nada extra).',
+  '  - Si la respuesta de la tool trae más campos de los que el usuario pidió, IGNORA los extras.',
+  '',
   'Haz como máximo UNA pregunta por mensaje (solo si es estrictamente necesaria para pedir un dato faltante). No abras con frases robóticas ("A continuación te presento…", "Aquí tienes los resultados…"); ve directo al dato.',
 ].join('\n');
 
