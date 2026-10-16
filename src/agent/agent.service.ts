@@ -16,7 +16,7 @@ import {
 } from './state';
 import { TOOLS } from './tools';
 import { executeTool } from './executor';
-import { buildSystem } from './system';
+import { buildSystem, containsUnverifiedClaims, ToolStatus } from './system';
 import { DbService } from './db.service';
 import { ChatGateway } from '../chat/chat.gateway';
 
@@ -69,7 +69,10 @@ function sanitizeAssistantText(text: string): string {
 
   // 3) Eliminar porcentaje suelto pegado a "tasa" o "porcentaje":
   //    "...es del 8.0%."  o "...fue del 8%."
-  out = out.replace(/(?:^|\s)(?:[A-ZÁÉÍÓÚÑ][^.\n]{2,160}?)\s+(?:es|fue|equivale a|representa|corresponde a)\s+(?:del?|al?)\s+\d[\d.,]*%\.?/gi, '');
+  out = out.replace(
+    /(?:^|\s)(?:[A-ZÁÉÍÓÚÑ][^.\n]{2,160}?)\s+(?:es|fue|equivale a|representa|corresponde a)\s+(?:del?|al?)\s+\d[\d.,]*%\.?/gi,
+    '',
+  );
 
   // 4) Recortar líneas vacías duplicadas y espacios sobrantes.
   out = out
@@ -113,8 +116,9 @@ export class AgentService {
               try {
                 const parsed = JSON.parse(r.content) as unknown;
                 if (typeof parsed === 'string') {
-                  // Caso normal: el contenido se guardó como JSON string
-                  // (entre comillas). Lo deserializamos para obtener el texto plano.
+                  // Formato antiguo (anterior a SQL Server 2025): contenido
+                  // guardado como JSON string entre comillas (`'"hola"'`).
+                  // JSON.parse devuelve el string original.
                   text = parsed;
                 } else if (
                   parsed !== null &&
@@ -122,9 +126,10 @@ export class AgentService {
                   'text' in (parsed as Record<string, unknown>) &&
                   typeof (parsed as { text?: unknown }).text === 'string'
                 ) {
-                  // LEGACY: registros antiguos guardados como `{ "text": "..." }`.
-                  // Extraemos el campo `text` para evitar que el envoltorio
-                  // contamine el historial del modelo.
+                  // Formato actual: contenido guardado como objeto
+                  // `{"text":"..."}` (SQL Server 2025 ISJSON solo acepta
+                  // objetos/arrays). Extraemos el campo `text` para que el
+                  // modelo vea solo texto plano y no imite el envoltorio.
                   text = (parsed as { text: string }).text;
                 } else {
                   // Otros objetos/arrays: caemos al string plano por seguridad.
@@ -163,41 +168,62 @@ export class AgentService {
     role: string,
     content: unknown,
   ): Promise<void> {
+    // La columna `content` es NVARCHAR(MAX) con CHECK (ISJSON(content)=1).
+    //
+    // IMPORTANTE: en SQL Server 2025 (compat level 170) `ISJSON()` SOLO
+    // acepta objetos y arrays — devuelve 0 para escalares JSON (cadenas,
+    // números, booleans, null). Esto rompe el formato anterior donde
+    // guardábamos el contenido como un string JSON entre comillas
+    // (`'"hola"'`). Ahora lo envolvemos siempre en un objeto
+    // `{"text":"..."}`, que sí pasa `ISJSON()` en cualquier versión.
+    //
+    // Al LEER el historial (`loadHistoryIfEmpty`), extraemos el campo
+    // `text` del objeto, de modo que el modelo nunca ve el envoltorio
+    // y no imita la estructura en sus respuestas.
+    let stored: string;
     try {
-      // La columna `content` es NVARCHAR(MAX) con CHECK (ISJSON(content)=1).
-      // Para guardar un TEXTO PLANO sin envolverlo en `{ "text": "..." }`,
-      // lo serializamos SIEMPRE como JSON string (entre comillas). Eso
-      // produce `'"contenido"'` — un JSON string válido, sin envoltorio,
-      // que cumple el CHECK y se deserializa limpiamente con `JSON.parse`
-      // (devolviendo el string original).
-      //
-      // NUNCA usamos el envoltorio `{ text: ... }` porque eso contamina el
-      // historial del modelo: Aida lo lee en mensajes previos, lo imita y
-      // empieza a responder con `{"text":"..."}` que es lo que ve el cliente.
-      let stored: string;
-      try {
-        // Convertimos cualquier valor a string y luego a JSON string.
-        // Esto evita que `JSON.stringify(undefined)`/`Symbol`/`Function`
-        // devuelvan `undefined` y rompan el CHECK.
-        const str =
-          typeof content === 'string'
-            ? content
-            : content == null
-              ? ''
-              : typeof content === 'object'
-                ? JSON.stringify(content)
-                : String(content);
-        const json = JSON.stringify(str);
-        stored = typeof json === 'string' && json.length > 0 ? json : '""';
-      } catch {
-        stored = '""';
-      }
+      const str =
+        typeof content === 'string'
+          ? content
+          : content == null
+            ? ''
+            : JSON.stringify(content);
+      stored = `{"text":${JSON.stringify(str)}}`;
+    } catch {
+      stored = '{"text":""}';
+    }
+
+    // Defensa: validamos con `JSON.parse` que `stored` sea JSON válido
+    // antes de mandarlo. Si no lo es, caemos al fallback y logueamos el
+    // contenido para diagnosticar.
+    try {
+      JSON.parse(stored);
+    } catch {
+      const preview =
+        stored.length > 300
+          ? `${stored.slice(0, 300)}...[+${stored.length - 300}]`
+          : stored;
+      this.logger.error(
+        `[persistMessage] stored no es JSON valido (chat=${chatId}, role=${role}, ` +
+          `len=${stored.length}): ${preview}`,
+      );
+      stored = '{"text":""}';
+    }
+
+    try {
       await this.db.query(
         'INSERT INTO historial_mensajes (chat_id, [role], content) VALUES ($1, $2, $3)',
         [chatId, role, stored],
       );
     } catch (e) {
-      this.logger.error(`Error persisting message: ${e}`);
+      const preview =
+        stored.length > 300
+          ? `${stored.slice(0, 300)}...[+${stored.length - 300}]`
+          : stored;
+      this.logger.error(
+        `Error persisting message (chat=${chatId}, role=${role}, ` +
+          `content_len=${stored.length}): ${e}. Content: ${preview}`,
+      );
     }
   }
 
@@ -231,16 +257,51 @@ export class AgentService {
 
     const collected: string[] = [];
 
+    // Tracking acumulado de TODAS las tools llamadas en este turno (a través
+    // de todas las rondas del loop). Se usa para validar que las cifras que
+    // el modelo escriba provengan de un resultado de herramienta, y no sean
+    // alucinaciones. Si no se llama ninguna tool y el draft contiene cifras,
+    // se rechaza y se reintenta con una corrección inyectada al historial.
+    const turnToolCalls: string[] = [];
+    const turnToolResults: string[] = [];
+    const turnToolStatuses: ToolStatus[] = [];
+
+    // Bandera: en el próximo round, forzar al modelo a usar una tool
+    // (Anthropic soporta `tool_choice: 'any'`). Se activa cuando detectamos
+    // que el modelo ANUNCIA una acción ("reintentando", "vuelvo a consultar")
+    // sin ejecutarla. Si lo dejamos, el modelo se queda en un bucle de
+    // "digo que voy a llamar a la tool" sin llamarla nunca.
+    let forceToolChoice: 'any' | undefined;
+
     for (let round = 0; round < 10; round++) {
       const systemPrompt = await buildSystem(chatId, this.db);
+
+      // ─── Depurador: qué tools tiene disponibles el modelo en este turno ───
+      // Logueamos los nombres de las tools disponibles y el historial para
+      // poder diagnosticar por qué el modelo elige (o NO elige) una tool
+      // concreta. Especialmente útil cuando el modelo alucina "no dispongo
+      // de herramienta X" pese a estar listada.
+      this.logger.log(
+        `[DEBUG round=${round}] tools_disponibles=[${TOOLS.map((t) => t.name).join(', ')}] ` +
+          `history.len=${history.length} force_tool_choice=${forceToolChoice ?? '-'}`,
+      );
 
       const response = await client.messages.create({
         model: ANTHROPIC_MODEL,
         max_tokens: 4096,
         system: systemPrompt,
         tools: TOOLS,
+        // Si la ronda anterior detectó un anuncio sin ejecución, forzamos
+        // al modelo a llamar a una tool en esta ronda. Si no, lo dejamos
+        // en `auto` (default) para que pueda responder sin tool a saludos
+        // u otras consultas.
+        ...(forceToolChoice
+          ? { tool_choice: { type: forceToolChoice } as const }
+          : {}),
         messages: [...history],
       });
+      // Consumir la bandera: solo se usa una vez por rechazo.
+      forceToolChoice = undefined;
 
       // Separar los bloques por tipo
       const textBlocks = response.content.filter(
@@ -251,6 +312,13 @@ export class AgentService {
       );
       const thinkingBlocks = response.content.filter(
         (b): b is Anthropic.ThinkingBlock => b.type === 'thinking',
+      );
+
+      this.logger.log(
+        `[Anthropic] round=${round} stop_reason=${response.stop_reason} ` +
+          `usage(in={input:${response.usage?.input_tokens ?? 0},` +
+          `output:${response.usage?.output_tokens ?? 0}}) ` +
+          `text=${textBlocks.length} tool=${toolUseBlocks.length} thinking=${thinkingBlocks.length}`,
       );
 
       if (thinkingBlocks.length > 0) {
@@ -268,6 +336,11 @@ export class AgentService {
         .join('')
         .trim();
 
+      this.logger.log(
+        `[Anthropic] round=${round} assistantText.len=${assistantText.length} ` +
+          `preview="${assistantText.slice(0, 120).replace(/\n/g, ' ')}"`,
+      );
+
       // Sin tool calls → respuesta final
       if (
         toolUseBlocks.length === 0 ||
@@ -276,14 +349,108 @@ export class AgentService {
       ) {
         const fallback = collected.join('\n');
         let textToSave = assistantText || fallback;
+
+        // ═══ VALIDACIÓN ANTI-ALUCINACIÓN ═══
+        // Verifica que las cifras/IDs/nombres del draft provengan de los
+        // resultados de herramientas llamadas en este turno. Si NO se
+        // llamó ninguna tool de datos y el draft contiene cifras, o si
+        // las cifras no aparecen en los resultados, RECHAZAMOS la
+        // respuesta, inyectamos una corrección en el historial y dejamos
+        // que el modelo lo intente de nuevo. Esto evita que el modelo
+        // invente IDs (como "1123 — Plan B") cuando debería estar
+        // llamando a `obtener_planes_disponibles`.
         if (textToSave) {
+          // ── Detector: anuncio de acción sin ejecución ──
+          // El modelo a veces responde con frases como "Reintentando…",
+          // "Vuelvo a consultar…", "Permíteme un momento…", "Dame un
+          // momento" SIN haber llamado a una tool. Es un bucle sin salida:
+          // el modelo se queda diciendo que va a actuar y nunca lo hace.
+          // Cuando detectamos este patrón sin tool call, RECHAZAMOS la
+          // respuesta, inyectamos una corrección muy explícita y forzamos
+          // `tool_choice: 'any'` en el siguiente round para que el modelo
+          // ESTÉ OBLIGADO a llamar a una tool antes de volver a hablar.
+          const announceRe =
+            /\b(reintent(ando|o(?:r)?)?|vuelvo a (intentar|consultar|llamar|hacer|mostrar)|perm[íi]teme|dame un momento|ahora (mismo )?(lo )?(consulto|llamo|veo)|dame un segundo|espera un momento|un momento por favor|aquí (va|está|tienes)|voy a (consultar|llamar|verificar|revisar|mostrar|proceder)|procedo a|te (muestro|cuento|digo)|aquí te (muestro|cuento)|aqu[ií] va|el resultado|los resultados)\b/i;
+          if (
+            announceRe.test(textToSave) &&
+            turnToolCalls.length === 0 &&
+            round < 9
+          ) {
+            this.logger.warn(
+              `[Anthropic] round=${round} ANUNCIO_SIN_ACCION (chat=${chatId}): ` +
+                `modelo anunció acción sin tool call. preview="${textToSave.slice(0, 80)}"`,
+            );
+            history.push({ role: 'assistant', content: response.content });
+            history.push({
+              role: 'user',
+              content:
+                '[SISTEMA] Tu respuesta anterior fue RECHAZADA: anunciaste una ' +
+                'acción ("reintentando", "vuelvo a", "permíteme", etc.) sin ' +
+                'ejecutarla. ' +
+                'INSTRUCCIÓN OBLIGATORIA: en tu próxima respuesta DEBES llamar ' +
+                'directamente a una herramienta (ej. `obtener_planes_disponibles` ' +
+                'con `input = {}`) y devolver el resultado. NO escribas texto ' +
+                'previo de "espera", "dame un momento", "voy a…" — EJECUTA la ' +
+                'tool primero y luego redacta la respuesta final con los datos.',
+            });
+            forceToolChoice = 'any';
+            continue;
+          }
+
+          const validation = containsUnverifiedClaims(
+            textToSave,
+            turnToolCalls,
+            turnToolResults,
+            turnToolStatuses,
+            // Pasamos también los tool_results previos del historial para que
+            // el validador no rechace al modelo cuando REUSA datos que ya
+            // obtuvo en turnos anteriores (p.ej. listas de catálogos).
+            extractHistoricalToolResults(history),
+          );
+          if (validation.suspicious && round < 9) {
+            this.logger.warn(
+              `[Anthropic] round=${round} RECHAZADO (chat=${chatId}): ` +
+                validation.reasons.join(' | '),
+            );
+            history.push({ role: 'assistant', content: response.content });
+            history.push({
+              role: 'user',
+              content:
+                '[SISTEMA] Tu respuesta anterior fue RECHAZADA: contenía cifras ' +
+                'o datos concretos que NO provienen de una herramienta de datos ' +
+                'llamada en este turno ni de un resultado previo en el historial. ' +
+                'Motivo: ' +
+                validation.reasons.join(' ') +
+                '\n\n' +
+                'INSTRUCCIONES OBLIGATORIAS para tu próxima respuesta:\n' +
+                '1. NO inventes cifras, hospitales, planes ni determinaciones. ' +
+                '2. Si la consulta del usuario es VAGA (le falta el hospital, el ' +
+                'indicador, el mes, etc.), PREGUNTA al usuario en lugar de asumir. ' +
+                '   Ejemplo: "Para 2026, ¿de qué hospital(es) y qué indicador ' +
+                '   quieres consultar (aprobados, denegados, facturado...)?"\n' +
+                '3. Si la consulta es completa, llama a la herramienta ' +
+                'correspondiente con TODOS los filtros y usa SOLO sus valores.\n' +
+                '4. NO narres pasos internos ("aquí va", "voy a…", "permíteme…"). ' +
+                'O llamas a la tool o respondes con el resultado final.',
+            });
+            continue;
+          }
+
           // Sanitizamos ANTES de persistir y de devolver al usuario, así
           // no acumulamos más respuestas con bloques <pre>, frases hechas
           // o tasas no pedidas en la BD, y el cliente recibe el texto
           // ya limpio.
           textToSave = sanitizeAssistantText(textToSave);
           if (textToSave) {
-            collected[collected.length - 1] = textToSave;
+            // Si `collected` ya tiene entries (de un tool_use previo),
+            // sobreescribimos la última con el texto final del assistant.
+            // Si `collected` está vacío (respuesta directa sin tools),
+            // hay que hacer PUSH — usar `arr[-1] = x` no agrega nada en JS.
+            if (collected.length > 0) {
+              collected[collected.length - 1] = textToSave;
+            } else {
+              collected.push(textToSave);
+            }
             history.push({ role: 'assistant', content: response.content });
             await this.persistMessage(chatId, 'assistant', textToSave);
           } else {
@@ -305,10 +472,57 @@ export class AgentService {
       const toolResults: Anthropic.ToolResultBlockParam[] = [];
       for (const tu of toolUseBlocks) {
         const args = (tu.input ?? {}) as Record<string, unknown>;
-        this.logger.log(`tool=${tu.name} input=${JSON.stringify(args)}`);
+        const toolStart = Date.now();
+        this.logger.log(
+          `[DEBUG] >>> TOOL_CALL name=${tu.name} id=${tu.id} input=${JSON.stringify(args)}`,
+        );
 
         const resultStr = await executeTool(tu.name, args, chatId, this.db);
-        this.logger.log(`result=${resultStr.slice(0, 200)}`);
+        const toolElapsed = Date.now() - toolStart;
+
+        // Status rápido para depuración
+        let quickStatus = 'ok';
+        try {
+          const j = JSON.parse(resultStr) as { success?: boolean };
+          if (j?.success === false) quickStatus = 'error';
+        } catch {
+          if (/error|exception|fail/i.test(resultStr.slice(0, 200))) {
+            quickStatus = 'error';
+          }
+        }
+
+        this.logger.log(
+          `[DEBUG] <<< TOOL_RESULT name=${tu.name} ${toolElapsed}ms status=${quickStatus} ` +
+            `result.len=${resultStr.length} preview="${resultStr.slice(0, 300).replace(/\n/g, ' ')}"`,
+        );
+
+        // Tracking acumulado para `containsUnverifiedClaims`. Necesitamos
+        // registrar nombre + resultado crudo + status (ok/empty/error) de
+        // CADA tool llamada, para que el validador pueda comparar las
+        // cifras del draft final contra los valores reales.
+        turnToolCalls.push(tu.name);
+        turnToolResults.push(resultStr);
+        let toolStatus: ToolStatus = 'ok';
+        try {
+          const parsed = JSON.parse(resultStr) as {
+            success?: boolean;
+            error?: string;
+            message?: string;
+          };
+          if (parsed.success === false) toolStatus = 'error';
+          else if (
+            Array.isArray((parsed as { resultados?: unknown[] }).resultados) &&
+            (parsed as { resultados: unknown[] }).resultados.length === 0
+          ) {
+            toolStatus = 'empty';
+          }
+        } catch {
+          /* resultStr no es JSON — lo tratamos como ok si no es error */
+          if (/error|exception|fail/i.test(resultStr.slice(0, 200))) {
+            toolStatus = 'error';
+          }
+        }
+        turnToolStatuses.push(toolStatus);
 
         // Capturar formatted_html si la herramienta lo devuelve
         try {
@@ -344,6 +558,17 @@ export class AgentService {
 
       // En Anthropic, los tool_results van como un mensaje `user`
       history.push({ role: 'user', content: toolResults });
+    }
+
+    // Resumen de depuración al final del turno: qué tools se llamaron (o NO)
+    this.logger.log(
+      `[DEBUG] FIN chat=${chatId} tools_llamadas=[${turnToolCalls.join(', ') || 'NINGUNA'}] ` +
+        `status=[${turnToolStatuses.join(', ') || '-'}]`,
+    );
+    if (turnToolCalls.length === 0) {
+      this.logger.warn(
+        `[DEBUG] chat=${chatId} ⚠️  el modelo NO llamó ninguna tool de datos en este turno`,
+      );
     }
 
     return collected.join('\n');
@@ -460,4 +685,47 @@ export class AgentService {
       throw e;
     }
   }
+}
+
+/**
+ * Extrae los strings de contenido de TODOS los `tool_result` blocks presentes
+ * en el historial de la conversación. Se usa para que el validador
+ * `containsUnverifiedClaims` acepte como "verificadas" las cifras que el
+ * modelo reusa de turnos anteriores (p.ej. listas de catálogos cacheadas).
+ *
+ * Soporta los dos formatos que Anthropic acepta:
+ *  - `content: string` (texto plano)
+ *  - `content: ContentBlock[]` (puede contener bloques `text`)
+ */
+export function extractHistoricalToolResults(
+  history: Anthropic.Messages.MessageParam[],
+): string[] {
+  const out: string[] = [];
+  for (const msg of history) {
+    if (msg.role !== 'user') continue;
+    const content = msg.content;
+    if (typeof content === 'string') {
+      out.push(content);
+      continue;
+    }
+    if (Array.isArray(content)) {
+      for (const block of content) {
+        const b = block as { type?: string; content?: unknown };
+        if (b.type === 'tool_result') {
+          const c = b.content;
+          if (typeof c === 'string') {
+            out.push(c);
+          } else if (Array.isArray(c)) {
+            for (const sub of c) {
+              const sb = sub as { type?: string; text?: string };
+              if (sb.type === 'text' && typeof sb.text === 'string') {
+                out.push(sb.text);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return out;
 }

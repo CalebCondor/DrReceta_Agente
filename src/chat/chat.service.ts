@@ -215,11 +215,14 @@ export class ChatService {
       return { success: false, error: 'El mensaje está vacío' };
     }
     try {
+      // Wrap en objeto {"text":"..."}: en SQL Server 2025 (compat 170)
+      // ISJSON() rechaza escalares JSON; solo acepta objetos/arrays.
+      const content = `{"text":${JSON.stringify(message.trim())}}`;
       const { rows } = await this.db.query(
         `INSERT INTO historial_mensajes (chat_id, [role], content)
          OUTPUT INSERTED.id
          VALUES ($1, 'human', $2)`,
-        [chatId, JSON.stringify(message.trim())],
+        [chatId, content],
       );
       const row = rows[0] as { id?: number } | undefined;
       return { success: true, id: row?.id };

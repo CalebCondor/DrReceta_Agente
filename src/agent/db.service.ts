@@ -6,23 +6,6 @@ import {
 } from '@nestjs/common';
 import * as sql from 'mssql';
 
-/**
- * Servicio de base de datos sobre SQL Server (T-SQL).
- *
- * Lee la configuración desde variables de entorno (no se hardcodean credenciales):
- *   - DB_CONNECTION_STRING  → cadena completa (opcional, tiene prioridad)
- *   - DB_SERVER, DB_NAME, DB_USER, DB_PASSWORD, DB_PORT
- *   - DB_ENCRYPT, DB_TRUST_CERT (true/false)
- *
- * La API pública `query(text, params)` mantiene la firma compatible con la
- * versión anterior (PostgreSQL): traduce automáticamente placeholders
- * `$1, $2, ...` a `@p1, @p2, ...` y devuelve `{ rows }` poblado desde
- * `recordset` para que el resto del código siga funcionando sin cambios.
- *
- * IMPORTANTE: las queries del proyecto deben seguir usando `$1, $2...`.
- * La conversión a `@p1, @p2...` se hace aquí, además de los reemplazos
- * puntuales de LIMIT/RETURNING/ON CONFLICT/ARRAY_AGG en cada llamada.
- */
 @Injectable()
 export class DbService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DbService.name);
@@ -37,12 +20,9 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
       .connect()
       .then(() => {
         this.connected = true;
-        const server =
-          (poolConfig as sql.config).server ?? 'connectionString';
+        const server = (poolConfig as sql.config).server ?? 'connectionString';
         const database = (poolConfig as sql.config).database ?? '?';
-        this.logger.log(
-          `Conectado a SQL Server: ${server}/${database}`,
-        );
+        this.logger.log(`Conectado a SQL Server: ${server}/${database}`);
         return this.initTables();
       })
       .catch((e) =>
@@ -92,12 +72,9 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
       password: process.env.DB_PASSWORD || 'sa',
       server: process.env.DB_SERVER || '192.168.100.133',
       database: process.env.DB_NAME || 'MEDICA4',
-      port: process.env.DB_PORT
-        ? parseInt(process.env.DB_PORT, 10)
-        : undefined,
+      port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : undefined,
       options: {
-        encrypt:
-          (process.env.DB_ENCRYPT || 'true').toLowerCase() === 'true',
+        encrypt: (process.env.DB_ENCRYPT || 'true').toLowerCase() === 'true',
         trustServerCertificate:
           (process.env.DB_TRUST_CERT || 'true').toLowerCase() === 'true',
       },
@@ -127,7 +104,7 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
         request.input(`p${i + 1}`, value);
       });
     }
-    const result = await request.query(translated);
+    const result = (await request.query(translated)) as sql.IResult<any>;
     return { rows: result.recordset ?? [] };
   }
 

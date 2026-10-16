@@ -1,12 +1,9 @@
 // src/agent/executor.ts
 // Ejecuta la herramienta solicitada por Claude y devuelve el resultado como JSON string
 
-import { Logger } from '@nestjs/common';
 import { sessions } from './state';
 import { apiPost, apiGet } from '../api/http';
 import { DbService } from './db.service';
-
-const logger = new Logger('AgentExecutor');
 
 /*──────────────────────────────────────────────────────────────────────────
   IMPORTS DE URLs
@@ -17,22 +14,13 @@ const logger = new Logger('AgentExecutor');
   y las 3 tools nuevas de IaPreguntas están activas.
   ─────────────────────────────────────────────────────────────────────────*/
 
-// import {
-//   PERFIL_URL,
-//   MIS_ORDENES_URL,
-//   MIS_PAGOS_URL,
-//   VERIFICAR_REGISTRAR_URL,
-//   CREAR_COMPRA_URL,
-//   INICIO_TRAMITE_EXPRESS,
-//   VERIFICAR_CODIGO_URL,
-//   TODOS_LOS_TRAMITES_URL,
-//   SELLOS_POR_TRAMITE_URL,
-// } from '../api/urls';
 import {
   RESUMEN_FINANCIERO_HOSPITALES_URL,
   DETERMINACION_ADVERSA_MAS_FRECUENTE_URL,
   CONCEPTO_MAS_DIAS_DENEGADOS_URL,
   PLANES_DISPONIBLES_URL,
+  HOSPITALES_DISPONIBLES_URL,
+  MONTOS_ESTADO,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -48,23 +36,18 @@ function errMsg(e: unknown): string {
 /**
  * Tools que requieren una sesión autenticada.
  *
- * Las tools externas (get_perfil, get_ordenes, get_pagos, crear_compra,
- * inicio_tramite_express) están deshabilitadas — sus entradas se mantienen
- * comentadas por si se re-habilitan en el futuro.
+ * IMPORTANTE: los endpoints de Audita (`/api/IaPreguntas/*` y los catálogos
+ * `/api/planes/dropdown`, `/api/hospitales/activos`) son PÚBLICOS en este
+ * entorno — responden HTTP 200 sin token. Por lo tanto NINGUNA tool
+ * actualmente activa requiere auth, y el agente NO debe pedir credenciales
+ * al usuario para estas consultas.
  *
- * Las 3 tools de IaPreguntas (resumen-financiero, determinacion-adversa,
- * concepto-mas-dias-denegados) requieren sesión (sólo usuarios autenticados
- * con permisos a hospitales pueden ver esos datos).
- *
- * `obtener_planes_disponibles` NO requiere autenticación — el endpoint
- * `/api/planes/dropdown` es público y debe poder ejecutarse aunque el usuario
- * no haya iniciado sesión (ni siquiera para listar el catálogo de planes).
+ * Si en el futuro se re-habilitan tools privadas (perfil, órdenes, pagos,
+ * compras, etc.), se deben volver a listar aquí. Mientras tanto, este
+ * conjunto queda VACÍO a propósito para no bloquear las herramientas de
+ * datos cuando no hay sesión iniciada.
  */
 const AUTH_REQUIRED = new Set<string>([
-  'consultar_resumen_financiero_hospitales',
-  'consultar_determinacion_adversa_mas_frecuente',
-  'consultar_concepto_mas_dias_denegados',
-  // 'obtener_planes_disponibles', // endpoint público, no requiere sesión
   // 'get_perfil',
   // 'actualizar_perfil',
   // 'get_ordenes',
@@ -81,7 +64,6 @@ export async function executeTool(
 ): Promise<string> {
   const s = sessions.get(chatId);
   const token = s?.token;
-  const userId = s?.user_id;
 
   if (AUTH_REQUIRED.has(toolName) && !s) {
     return JSON.stringify({
@@ -91,350 +73,6 @@ export async function executeTool(
         'No hay sesión activa en este chat para ejecutar esta acción. Debes pedirle al usuario su correo y código de verificación (flujo de autenticación) antes de poder usar esta herramienta.',
     });
   }
-
-  // ─── TOOLS DESHABILITADAS (URLs comentadas en src/api/urls.ts) ──────────
-  //
-  // Las siguientes tools están deshabilitadas porque sus endpoints externos
-  // fueron comentados. Cuando se re-habiliten, también hay que
-  // (1) descomentar el import correspondiente arriba, (2) descomentar la
-  // entrada en `AUTH_REQUIRED` si aplica, y (3) descomentar la tool en
-  // `src/agent/tools.ts`.
-
-  // if (toolName === 'get_perfil') {
-  //   return JSON.stringify(await apiGet(PERFIL_URL, {}, token));
-  // }
-
-  // if (toolName === 'actualizar_perfil') {
-  //   const rawCampos = Object.assign(
-  //     {},
-  //     toolInput['campos'] as Record<string, unknown>,
-  //   );
-  //
-  //   const FIELD_MAP: Record<string, string> = {
-  //     nombre: 'us_nombres',
-  //     nombres: 'us_nombres',
-  //     name: 'us_nombres',
-  //     email: 'us_email',
-  //     correo: 'us_email',
-  //     telefono: 'us_telefono',
-  //     phone: 'us_telefono',
-  //     pais: 'us_pais',
-  //     country: 'us_pais',
-  //     direccion: 'us_direccion',
-  //     address: 'us_direccion',
-  //     ciudad: 'us_ciudad',
-  //     city: 'us_ciudad',
-  //     fecha_nacimiento: 'us_fech_nac',
-  //     fech_nac: 'us_fech_nac',
-  //     codigo_postal: 'us_code_postal',
-  //     code_postal: 'us_code_postal',
-  //   };
-  //
-  //   const camposNuevos: Record<string, unknown> = {};
-  //   for (const [key, value] of Object.entries(rawCampos)) {
-  //     const mappedKey = FIELD_MAP[key.toLowerCase()] ?? key;
-  //     camposNuevos[mappedKey] = value;
-  //   }
-  //
-  //   const camposReales = Object.keys(camposNuevos).filter((k) => k !== 'us_id');
-  //   if (camposReales.length === 0) {
-  //     return JSON.stringify({
-  //       success: false,
-  //       error: 'No se especificaron campos a actualizar.',
-  //     });
-  //   }
-  //
-  //   const perfilActual = await apiGet(PERFIL_URL, {}, token);
-  //   const datosActuales =
-  //     perfilActual['success'] &&
-  //     perfilActual['data'] &&
-  //     typeof perfilActual['data'] === 'object'
-  //       ? (perfilActual['data'] as Record<string, unknown>)
-  //       : {};
-  //
-  //   const PERFIL_FIELDS = [
-  //     'us_nombres',
-  //     'us_email',
-  //     'us_telefono',
-  //     'us_pais',
-  //     'us_direccion',
-  //     'us_ciudad',
-  //     'us_fech_nac',
-  //     'us_code_postal',
-  //   ];
-  //
-  //   const payload: Record<string, unknown> = { us_id: userId };
-  //   for (const field of PERFIL_FIELDS) {
-  //     payload[field] = camposNuevos[field] ?? datosActuales[field] ?? '';
-  //   }
-  //
-  //   return JSON.stringify(await apiPost(PERFIL_URL, payload, token));
-  // }
-
-  // if (toolName === 'get_ordenes') {
-  //   return JSON.stringify(
-  //     await apiGet(MIS_ORDENES_URL, { us_id: String(userId) }, token),
-  //   );
-  // }
-
-  // if (toolName === 'get_pagos') {
-  //   return JSON.stringify(await apiPost(MIS_PAGOS_URL, {}, token));
-  // }
-
-  // if (toolName === 'verificar_o_registrar_usuario') {
-  //   const email = strVal(toolInput['us_email']).trim();
-  //   if (!email) {
-  //     return JSON.stringify({ success: false, error: 'Se requiere us_email.' });
-  //   }
-  //
-  //   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  //   if (!emailRegex.test(email)) {
-  //     return JSON.stringify({
-  //       success: false,
-  //       exists: false,
-  //       error:
-  //         'El correo electrónico no tiene un formato válido. Verifica e intenta de nuevo.',
-  //     });
-  //   }
-  //
-  //   const payload: Record<string, unknown> = { us_email: email };
-  //   const nombres = strVal(toolInput['us_nombres']).trim();
-  //   const telefono = strVal(toolInput['us_telefono']).trim();
-  //   const generoRaw = strVal(toolInput['us_genero']).trim();
-  //   const clave = strVal(toolInput['us_clave']).trim();
-  //   if (nombres) payload['us_nombres'] = nombres;
-  //   if (telefono) payload['us_telefono'] = telefono;
-  //   if (generoRaw) {
-  //     const g = generoRaw.toLowerCase();
-  //     let normalized = generoRaw;
-  //     if (
-  //       g === 'm' ||
-  //       g === 'masculino' ||
-  //       g === 'hombre' ||
-  //       g === 'macho' ||
-  //       g === 'male'
-  //     ) {
-  //       normalized = 'M';
-  //     } else if (
-  //       g === 'f' ||
-  //       g === 'femenino' ||
-  //       g === 'mujer' ||
-  //       g === 'hembra' ||
-  //       g === 'female'
-  //     ) {
-  //       normalized = 'F';
-  //     }
-  //     payload['us_genero'] = normalized;
-  //   }
-  //   if (clave) payload['us_clave'] = clave;
-  //
-  //   const result = await apiPost(VERIFICAR_REGISTRAR_URL, payload);
-  //
-  //   logger.log(
-  //     `[verificar_o_registrar_usuario] payload=${JSON.stringify(payload)} result=${JSON.stringify(result)}`,
-  //   );
-  //
-  //   const data = result['data'] as Record<string, unknown> | undefined;
-  //   const apiSuccess = result['success'] === true;
-  //   const nombreBD = strVal(data?.['us_nombres'] ?? '').trim();
-  //
-  //   if (apiSuccess && data?.['token']) {
-  //     sessions.set(chatId, {
-  //       token: strVal(data['token']),
-  //       user_id: strVal(data['us_id'] ?? ''),
-  //       name: strVal(data['us_nombres'] ?? ''),
-  //       es_vip: false,
-  //     });
-  //     logger.log(
-  //       `[verificar_o_registrar_usuario] sesión creada (registro) chat=${chatId} us_id=${strVal(data['us_id'] ?? '')}`,
-  //     );
-  //   }
-  //
-  //   const enriched = {
-  //     ...result,
-  //     exists: apiSuccess && (!!data?.['codigo'] || !!data?.['token']),
-  //     code_sent: apiSuccess && !!data?.['codigo'],
-  //     us_nombres: nombreBD,
-  //   };
-  //
-  //   if (apiSuccess && (data?.['codigo'] || data?.['token']) && nombreBD) {
-  //     const actual = sessions.get(chatId);
-  //     if (actual) {
-  //       actual.name = nombreBD;
-  //       if (data?.['us_id']) actual.user_id = strVal(data['us_id']);
-  //       sessions.set(chatId, actual);
-  //     }
-  //   }
-  //
-  //   return JSON.stringify(enriched);
-  // }
-
-  // if (toolName === 'verificar_codigo') {
-  //   const email = strVal(toolInput['us_email']).trim();
-  //   const codigo = strVal(toolInput['codigo']).trim();
-  //   if (!email || !codigo) {
-  //     return JSON.stringify({
-  //       success: false,
-  //       error: 'Se requieren us_email y codigo.',
-  //     });
-  //   }
-  //
-  //   const result = await apiPost(VERIFICAR_CODIGO_URL, {
-  //     us_email: email,
-  //     codigo,
-  //   });
-  //
-  //   const data = result['data'] as Record<string, unknown> | undefined;
-  //   if (result['success'] && data?.['token']) {
-  //     sessions.set(chatId, {
-  //       token: strVal(data['token']),
-  //       user_id: strVal(data['us_id'] ?? ''),
-  //       name: strVal(data['us_nombres'] ?? ''),
-  //       es_vip: false,
-  //     });
-  //   }
-  //
-  //   return JSON.stringify(result);
-  // }
-
-  // if (toolName === 'crear_compra') {
-  //   const clId = toolInput['cl_id'] ?? s?.user_id;
-  //   const trId = toolInput['tr_id'];
-  //   const pgPrecio = toolInput['pg_precio'];
-  //   const pgPackage = strVal(toolInput['pg_package']).trim();
-  //
-  //   if (
-  //     !trId ||
-  //     !clId ||
-  //     pgPrecio === undefined ||
-  //     pgPrecio === null ||
-  //     !pgPackage
-  //   ) {
-  //     return JSON.stringify({
-  //       success: false,
-  //       error: 'Se requieren cl_id, tr_id, pg_precio y pg_package.',
-  //     });
-  //   }
-  //
-  //   const clIdNum = Number(clId);
-  //   const trIdNum = Number(trId);
-  //   const pgPrecioNum = Number(pgPrecio);
-  //   if (
-  //     !Number.isFinite(clIdNum) ||
-  //     !Number.isFinite(trIdNum) ||
-  //     !Number.isFinite(pgPrecioNum)
-  //   ) {
-  //     return JSON.stringify({
-  //       success: false,
-  //       error: 'cl_id, tr_id y pg_precio deben ser numéricos.',
-  //     });
-  //   }
-  //
-  //   const payload: Record<string, unknown> = {
-  //     cl_id: clIdNum,
-  //     tr_id: trIdNum,
-  //     pg_precio: pgPrecioNum,
-  //     pg_package: pgPackage,
-  //   };
-  //
-  //   const result = await apiPost(CREAR_COMPRA_URL, payload, token);
-  //
-  //   let paymentUrl: string | undefined;
-  //   let pagoId: number | undefined;
-  //   try {
-  //     const data = result['data'] as Record<string, unknown> | undefined;
-  //     if (data) {
-  //       paymentUrl =
-  //         typeof data['payment_url'] === 'string'
-  //           ? data['payment_url']
-  //           : undefined;
-  //       const pgId = data['pg_id'];
-  //       pagoId = typeof pgId === 'number' ? pgId : Number(pgId) || undefined;
-  //     }
-  //   } catch {
-  //     /* no es JSON o formato inesperado */
-  //   }
-  //
-  //   return JSON.stringify({
-  //     success: result['success'] ?? !!paymentUrl,
-  //     payment_url: paymentUrl,
-  //     pg_id: pagoId,
-  //     url_generado_pago: paymentUrl,
-  //     raw: result,
-  //   });
-  // }
-
-  // if (toolName === 'inicio_tramite_express') {
-  //   const clId = toolInput['cl_id'] ?? s?.user_id;
-  //   const productoId = toolInput['producto_id'];
-  //   const observacion = strVal(toolInput['observacion']).trim();
-  //   const meta = strVal(toolInput['meta']).trim();
-  //
-  //   if (!productoId || !clId) {
-  //     return JSON.stringify({
-  //       success: false,
-  //       error:
-  //         'Se requieren cl_id y producto_id para iniciar el trámite express.',
-  //     });
-  //   }
-  //
-  //   const clIdNum = Number(clId);
-  //   const productoIdNum = Number(productoId);
-  //   if (!Number.isFinite(clIdNum) || !Number.isFinite(productoIdNum)) {
-  //     return JSON.stringify({
-  //       success: false,
-  //       error: 'cl_id y producto_id deben ser valores numéricos.',
-  //     });
-  //   }
-  //
-  //   const payload: Record<string, unknown> = {
-  //     cl_id: clIdNum,
-  //     producto_id: productoIdNum,
-  //   };
-  //   if (observacion) payload['observacion'] = observacion;
-  //   if (meta) payload['meta'] = meta;
-  //
-  //   const result = await apiPost(INICIO_TRAMITE_EXPRESS, payload, token);
-  //
-  //   let paymentUrl: string | undefined;
-  //   try {
-  //     const data = result['data'] as Record<string, unknown> | undefined;
-  //     if (data) {
-  //       paymentUrl =
-  //         typeof data['payment_url'] === 'string'
-  //           ? (data['payment_url'] as string)
-  //           : undefined;
-  //     }
-  //   } catch {
-  //     /* formato inesperado */
-  //   }
-  //
-  //   return JSON.stringify({
-  //     success: result['success'] ?? !!paymentUrl,
-  //     payment_url: paymentUrl,
-  //     url_generado_pago: paymentUrl,
-  //     raw: result,
-  //   });
-  // }
-
-  // if (toolName === 'get_todos_los_tramites') {
-  //   return JSON.stringify(await apiGet(TODOS_LOS_TRAMITES_URL));
-  // }
-
-  // if (toolName === 'get_sellos_por_tramite') {
-  //   const rawTrId = toolInput['tr_id'];
-  //   const trId = Number(rawTrId);
-  //   if (!Number.isFinite(trId) || trId <= 0) {
-  //     return JSON.stringify({
-  //       success: false,
-  //       error: 'Se requiere tr_id valido (numero mayor a 0).',
-  //     });
-  //   }
-  //   const url = SELLOS_POR_TRAMITE_URL.replace('{id}', String(trId));
-  //   return JSON.stringify(await apiGet(url));
-  // }
-
-  // ─── TOOLS LOCALES (DB) — ACTIVAS ──────────────────────────────────────
 
   if (toolName === 'recordar_conocimiento') {
     const q = strVal(toolInput['pregunta']);
@@ -564,6 +202,10 @@ export async function executeTool(
     return JSON.stringify(await apiGet(PLANES_DISPONIBLES_URL, {}, token));
   }
 
+  if (toolName === 'obtener_hospitales_disponibles') {
+    return JSON.stringify(await apiGet(HOSPITALES_DISPONIBLES_URL, {}, token));
+  }
+
   // Helper local: arma el body estándar de las 3 herramientas de IaPreguntas
   // (anio + meses? + idHospitales + idPlanes?), omitiendo los campos vacíos
   // para no enviar arrays vacíos que el backend descarta o interpreta mal.
@@ -601,9 +243,7 @@ export async function executeTool(
       typeof top === 'number'
         ? `${DETERMINACION_ADVERSA_MAS_FRECUENTE_URL}?top=${encodeURIComponent(String(top))}`
         : DETERMINACION_ADVERSA_MAS_FRECUENTE_URL;
-    return JSON.stringify(
-      await apiPost(url, body, token),
-    );
+    return JSON.stringify(await apiPost(url, body, token));
   }
 
   if (toolName === 'consultar_concepto_mas_dias_denegados') {
@@ -613,9 +253,12 @@ export async function executeTool(
       typeof top === 'number'
         ? `${CONCEPTO_MAS_DIAS_DENEGADOS_URL}?top=${encodeURIComponent(String(top))}`
         : CONCEPTO_MAS_DIAS_DENEGADOS_URL;
-    return JSON.stringify(
-      await apiPost(url, body, token),
-    );
+    return JSON.stringify(await apiPost(url, body, token));
+  }
+
+  if (toolName === 'consultar_montos_por_estado') {
+    const body = buildIaPreguntasBody();
+    return JSON.stringify(await apiPost(MONTOS_ESTADO, body, token));
   }
 
   return JSON.stringify({

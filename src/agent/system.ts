@@ -65,10 +65,33 @@ export function updateActiveFilters(
   const s = sessions.get(chatId) as unknown as SessionExt | undefined;
   if (!s) return;
   const f: ActiveFilters = s.activeFilters ?? {};
-  const pick = (...keys: string[]) => {
+  const pick = (...keys: string[]): string | undefined => {
     for (const k of keys) {
-      const v = params[k];
-      if (v !== undefined && v !== null && v !== '') return String(v);
+      const v: unknown = params[k];
+      if (v === undefined || v === null || v === '') continue;
+      if (typeof v === 'string') return v;
+      if (typeof v === 'number' || typeof v === 'boolean') {
+        return String(v);
+      }
+      if (typeof v === 'object') {
+        const obj = v as Record<string, unknown>;
+        const raw: unknown =
+          obj.name ??
+          obj.nombre ??
+          obj.label ??
+          obj.descripcion ??
+          obj.id ??
+          obj.value;
+        if (typeof raw === 'string' && raw.length > 0) return raw;
+        if (typeof raw === 'number' || typeof raw === 'boolean') {
+          return String(raw);
+        }
+        try {
+          return JSON.stringify(v);
+        } catch {
+          continue;
+        }
+      }
     }
     return undefined;
   };
@@ -76,7 +99,9 @@ export function updateActiveFilters(
   const indicador = pick('indicador', 'metric');
   const desde = pick('fecha_desde', 'desde');
   const hasta = pick('fecha_hasta', 'hasta');
-  const periodo = pick('periodo') ?? (desde || hasta ? `${desde ?? '…'} → ${hasta ?? '…'}` : undefined);
+  const periodo =
+    pick('periodo') ??
+    (desde || hasta ? `${desde ?? '…'} → ${hasta ?? '…'}` : undefined);
 
   if (indicador) f.indicador = indicador;
   if (periodo) f.periodo = periodo;
@@ -115,7 +140,10 @@ function numberCandidates(raw: string): NumCandidate[] {
     const dec = t.lastIndexOf('.') > t.lastIndexOf(',') ? '.' : ',';
     const th = dec === '.' ? ',' : '.';
     const [intPart, decPart = ''] = t.split(dec);
-    push(Number(intPart.split(th).join('') + (decPart ? '.' + decPart : '')), decPart.length);
+    push(
+      Number(intPart.split(th).join('') + (decPart ? '.' + decPart : '')),
+      decPart.length,
+    );
   } else if (hasDot || hasComma) {
     const sep = hasDot ? '.' : ',';
     const parts = t.split(sep);
@@ -148,6 +176,9 @@ function cleanDraftForNumbers(draft: string): string {
 /**
  * Compara las cifras del borrador contra las de los resultados de tools.
  * - toolResultsThisTurn: JSON/texto devuelto por las tools en ESTE turno.
+ * - toolResultsHistory: resultados de tools llamadas en turnos ANTERIORES
+ *   (de `tool_result` blocks en el historial). Se aceptan como "verificados"
+ *   para no rechazar al modelo cuando reusa datos ya obtenidos antes.
  * - toolStatuses: estado de cada tool ('ok' | 'empty' | 'error').
  * Los porcentajes se excluyen (los calcula Aida con fórmula declarada).
  */
@@ -156,17 +187,38 @@ export function containsUnverifiedClaims(
   toolCallsThisTurn: string[],
   toolResultsThisTurn: string[] = [],
   toolStatuses: ToolStatus[] = [],
+  toolResultsHistory: string[] = [],
 ): { suspicious: boolean; reasons: string[] } {
   const reasons: string[] = [];
-  const calledDataTool = toolCallsThisTurn.some((t) => !NON_DATA_TOOLS.includes(t));
+  const calledDataTool = toolCallsThisTurn.some(
+    (t) => !NON_DATA_TOOLS.includes(t),
+  );
 
   // 1) Cifras sin respaldo
   const draftNumbers = extractNumbers(cleanDraftForNumbers(draftText));
   if (draftNumbers.length > 0) {
     if (!calledDataTool) {
-      reasons.push(
-        'Presenta cifras sin haber llamado a ninguna herramienta de datos en este turno.',
-      );
+      // Si NO se llamó tool de datos en este turno, pero los números
+      // SÍ aparecen en resultados de tools previas (en el historial),
+      // aceptamos: el modelo está reusando datos ya verificados.
+      const historicalValues = toolResultsHistory
+        .flatMap((r) => extractNumbers(r))
+        .flat();
+      const allCovered =
+        historicalValues.length > 0 &&
+        draftNumbers.every((cands) =>
+          cands.some((d) =>
+            historicalValues.some(
+              (v) =>
+                Math.abs(v.value - d.value) <= 0.5 * 10 ** -d.decimals + 1e-9,
+            ),
+          ),
+        );
+      if (!allCovered) {
+        reasons.push(
+          'Presenta cifras sin haber llamado a ninguna herramienta de datos en este turno.',
+        );
+      }
     } else {
       const toolValues = toolResultsThisTurn
         .flatMap((r) => extractNumbers(r))
@@ -175,7 +227,8 @@ export function containsUnverifiedClaims(
       for (const cands of draftNumbers) {
         const ok = cands.some((d) =>
           toolValues.some(
-            (v) => Math.abs(v.value - d.value) <= 0.5 * 10 ** -d.decimals + 1e-9,
+            (v) =>
+              Math.abs(v.value - d.value) <= 0.5 * 10 ** -d.decimals + 1e-9,
           ),
         );
         if (!ok) missing.push(String(cands[0]?.value));
@@ -199,20 +252,30 @@ export function containsUnverifiedClaims(
     );
   }
   if (claimsEmpty && toolCallsThisTurn.length === 0) {
-    reasons.push('Afirma que no hay registros sin haber consultado datos en este turno.');
+    reasons.push(
+      'Afirma que no hay registros sin haber consultado datos en este turno.',
+    );
   }
 
   // 3) Fuga de detalles internos
   const visibleText = draftText.replace(/<[^>]*>/g, ' ');
-  const knownNames = [...new Set([...toolCallsThisTurn, ...MEMORY_TOOLS])].filter(Boolean);
+  const knownNames = [
+    ...new Set([...toolCallsThisTurn, ...MEMORY_TOOLS]),
+  ].filter(Boolean);
   const leaksKnownTool =
     knownNames.length > 0 &&
     new RegExp(`\\b(${knownNames.join('|')})\\b`, 'i').test(visibleText);
   const leaksSnakeCase = /\b[a-z]{2,}_[a-z_]{2,}\b/.test(visibleText); // identificadores tipo nombre_de_tool
   if (leaksKnownTool || leaksSnakeCase) {
-    reasons.push('Menciona nombres de herramientas o identificadores internos.');
+    reasons.push(
+      'Menciona nombres de herramientas o identificadores internos.',
+    );
   }
-  if (/\b(select\s.+\sfrom|insert\s+into|update\s+\w+\s+set|delete\s+from)\b/i.test(draftText)) {
+  if (
+    /\b(select\s.+\sfrom|insert\s+into|update\s+\w+\s+set|delete\s+from)\b/i.test(
+      draftText,
+    )
+  ) {
     reasons.push('Expone SQL o detalles de base de datos.');
   }
 
@@ -316,16 +379,90 @@ const REGLAS_DE_DATOS = [
   '',
   'ELECCIÓN DE HERRAMIENTA: elige la herramienta cuya descripción corresponde al indicador y la entidad pedidos, y llámala ANTES de responder. Guía por intención:',
   '  El usuario pregunta por...                                   → Qué debes hacer',
-  '  días aprobados / denegados / recuperados                      → herramienta de días; indicador exacto pedido',
+  '  "qué planes hay" / "listado/catálogo de planes" / "qué planes médicos existen" / "id y nombre de cada plan" → `obtener_planes_disponibles` (catálogo completo, sin filtros)',
+  '  "qué hospitales hay" / "listado/catálogo de hospitales" / "qué hospitales activos existen" → `obtener_hospitales_disponibles` (catálogo de hospitales activos, sin filtros)',
+  '  días aprobados / denegados / recuperados                      → `consultar_resumen_financiero_hospitales` (indicador exacto pedido)',
+  '  MONTOS / PLATA por estado (aprobado $, denegado $, recuperado $) → `consultar_montos_por_estado`',
   '  facturado / perdido / potencial recuperable / recuperado      → herramienta financiera; indicador exacto pedido',
-  '  determinación adversa MÁS FRECUENTE                           → ordenar por conteo (indica qué cuentas)',
-  '  determinación con MÁS DÍAS DENEGADOS                          → ordenar por días denegados',
+  '  determinación adversa MÁS FRECUENTE                           → `consultar_determinacion_adversa_mas_frecuente`',
+  '  determinación con MÁS DÍAS DENEGADOS                          → `consultar_concepto_mas_dias_denegados`',
   '  determinación con MAYOR PÉRDIDA                               → ordenar por importe perdido',
-  '  qué hospitales/planes/niveles/auditores/manejadores existen    → herramienta de catálogo; no inventes nombres',
+  '  qué hospitales/niveles/auditores/manejadores existen           → herramienta de catálogo; no inventes nombres',
   '  qué significa un concepto (ACUTE, SNF, potencial recuperable…) → responde directo con el glosario, sin herramienta',
   '  fuera del ámbito de Audita                                    → responde brevemente si es apropiado, o explica tu especialidad',
   '',
+  '⚠️ SOBRE `obtener_planes_disponibles`:',
+  '  - SIEMPRE está disponible. Si el usuario pregunta por el catálogo de planes, LLÁMALA. No digas que no existe esa herramienta.',
+  '  - Devuelve TODOS los planes del catálogo (con y sin actividad). Si el usuario quiere solo planes con actividad, esa respuesta es distinta y debe usar una tool de datos.',
+  '  - Es endpoint público: NO requiere autenticación. NO pidas correo ni código antes de llamarla.',
+  '  - El `id` es INTERNO: cuando listes los planes al usuario, muestra SOLO el `label` (el nombre) un plan por línea. NO muestres, menciones ni antepongas el `id`. El usuario solo quiere ver los nombres de los planes.',
+  '',
+  '⚠️ AUTENTICACIÓN:',
+  '  - TODOS los endpoints habilitados actualmente (`/api/planes/dropdown`, ' +
+    '`/api/hospitales/activos`, y los 4 de `/api/IaPreguntas/*`) son PÚBLICOS. ' +
+    'No requieren token, sesión, correo ni código de verificación.',
+  '  - NUNCA pidas al usuario su correo, código, ni que "inicie sesión" para ' +
+    'usar estas herramientas. Si la respuesta llega vacía, di que no hay ' +
+    'registros para esos filtros y sugiere ampliar el período o quitar un ' +
+    'filtro — NO asumas que es un problema de autenticación.',
+  '',
   'PARÁMETROS: usa exactamente los nombres de parámetros que define cada herramienta. Conceptualmente los filtros posibles son: indicador, periodo (desde/hasta), hospital, plan, nivel, categoría (ACUTE/SNF), auditor, manejador de casos, agrupación, criterio de orden y límite. Pasa SOLO los filtros que el usuario pidió o que siguen vigentes (ver FILTROS ACTIVOS). Si el nombre dicho por el usuario no coincide exactamente con el catálogo, resuélvelo con la herramienta de catálogo; si hay varias coincidencias razonables, pregunta cuál.',
+  '',
+  'FORMATO DE FILTROS (todas las tools de datos siguen este mismo shape):',
+  '```json',
+  '{',
+  '  "anio": 2026,',
+  '  "meses": [10],',
+  '  "idHospitales": [3, 4, 5, 6]',
+  '  // "idPlanes": [1117, 1123]   ← opcional, solo si el usuario filtra por plan',
+  '}',
+  '```',
+  '  - `anio` (int, requerido, 1900–2999): el año del período.',
+  '  - `meses` (int[], opcional, 1–12): meses a incluir. Si se omite, se asumen los 12 del año.',
+  '  - `idHospitales` (int[], requerido, ≥1): uno o más ids de hospital (campo `hosId` del catálogo).',
+  '  - `idPlanes` (int[], opcional): uno o más ids de plan (campo `id` del catálogo de planes). Omite el campo si no filtras por plan.',
+  '',
+  '🔄 WORKFLOW antes de tools de datos que requieren filtros:',
+  '  Solo cuando la tool de datos que vas a llamar NECESITA un filtro de hospital o plan (las 4 tools de IaPreguntas), aplica este flujo:',
+  '  1. Si vas a usar `idHospitales` y NO tienes un catálogo de hospitales reciente en el historial de este turno → llama a `obtener_hospitales_disponibles` (campo `hosId`).',
+  '  2. Si vas a usar `idPlanes` y NO tienes un catálogo de planes reciente en el historial de este turno → llama a `obtener_planes_disponibles` (campo `id`).',
+  '  3. Con los catálogos en mano, analiza si tienes TODOS los filtros requeridos:',
+  '     a) `anio` (requerido)',
+  '     b) `idHospitales` (requerido, ≥1)',
+  '     c) indicador / qué dato quiere (requerido — denegados, facturado, etc.)',
+  '     d) `meses` (opcional)',
+  '     e) `idPlanes` (opcional)',
+  '  4. Si falta CUALQUIERA de los requeridos, PREGUNTA al usuario (no asumas, no infieras de contexto).',
+  '  5. Si tienes todos los requeridos, llama a la tool de datos con esos IDs exactos del catálogo.',
+  '',
+  '  ⚠️ NO llames al catálogo "por si acaso". Solo cuando la tool destino lo necesite.',
+  '',
+  '🛑 NO INVENTES IDs:',
+  '  - NO uses ids de hospital o plan memorizados de conversaciones anteriores — pueden estar desactualizados.',
+  '  - Cuando necesites un ID y no tengas catálogo reciente, llama a la tool de catálogo correspondiente en el MISMO turno.',
+  '  - Si el usuario menciona un nombre (p.ej. "HOSPITAL SAN LUCAS"), PRIMERO llama a `obtener_hospitales_disponibles` y mapea el nombre al `hosId` correspondiente.',
+  '  - Si no hay match exacto en el catálogo, NO adivines: pregunta al usuario.',
+  '',
+  '❓ CONSULTA VAGA → PREGUNTA, NO ASUMAS (REGLA CRÍTICA, NO NEGOCIABLE):',
+  '  El modelo tiende a "rellenar" los huecos con datos de contexto previo (p.ej. Hospital San Lucas porque fue el último mencionado). ESO ES ALUCINACIÓN.',
+  '  Si la consulta del usuario NO especifica TODOS los filtros requeridos por la tool, NO LLAMES A LA TOOL. En su lugar, PREGUNTA.',
+  '',
+  '  CASOS CONCRETOS DE QUERY VAGA (todos requieren PREGUNTA, no asunción):',
+  '    - "del hospital" (sin nombre)                                  → ¿cuál hospital?',
+  '    - "del año 2026" (sin hospital ni indicador)                   → ¿qué hospital(es) y qué indicador?',
+  '    - "del Hospital San Lucas" (sin año ni indicador)               → ¿qué año y qué indicador?',
+  '    - "del 2026 de HUMANA" (sin hospital)                           → ¿qué hospital(es) y qué indicador?',
+  '    - "del Hospital San Lucas de octubre" (sin indicador)           → ¿qué indicador (denegaciones, facturado, ...)?',
+  '    - "de HUMANA" (sin hospital ni año)                             → ¿qué hospital y año?',
+  '    - Solo un número suelto (p.ej. "2026")                         → ¿qué quieres saber y de qué hospital?',
+  '',
+  '  PROCEDIMIENTO:',
+  '    1. Identifica qué filtros faltan (hospital, plan, año, meses, indicador).',
+  '    2. NO asumas valores. NO uses ids de contexto previo.',
+  '    3. Responde con una pregunta corta listando los datos que faltan.',
+  '       Ejemplo: "Para 2026, ¿de qué hospital(es) y qué indicador quieres ' +
+  'consultar (aprobados, denegados, facturado, determinaciones adversas...)?".',
+  '    4. Solo cuando el usuario responda con TODOS los filtros, llama a la tool.',
   '',
   'RESULTADOS DE HERRAMIENTAS: cada herramienta devuelve status = ok | empty | error.',
   '- ok → presenta los datos.',
@@ -447,7 +584,9 @@ export async function buildSystem(
   const scope = session?.scope;
   const usuarioYAlcance = [
     'USUARIO Y ALCANCE DE DATOS:',
-    userName ? `- Usuario: ${userName}.` : '- Usuario no identificado por nombre.',
+    userName
+      ? `- Usuario: ${userName}.`
+      : '- Usuario no identificado por nombre.',
     scope?.rol ? `- Rol: ${scope.rol}.` : '',
     scope?.hospitales?.length
       ? `- Hospitales a los que tiene acceso: ${scope.hospitales.join(', ')}. No muestres ni insinúes datos de otros hospitales.`
@@ -471,7 +610,9 @@ export async function buildSystem(
       memoria =
         'MEMORIA A LARGO PLAZO DEL USUARIO (preferencias; no sustituye datos de las herramientas):\n' +
         rows
-          .map((r: { clave: string; valor: string }) => `- ${r.clave}: ${r.valor}`)
+          .map(
+            (r: { clave: string; valor: string }) => `- ${r.clave}: ${r.valor}`,
+          )
           .join('\n');
     }
   } catch (e) {
@@ -505,8 +646,7 @@ export async function buildSystem(
     'Un "—" significa sin filtro. Si el usuario cambia un filtro, conserva los demás compatibles; si cambia de tema por completo, ignora estos filtros.',
   ].join('\n');
 
-  const capacidades =
-    `CAPACIDADES ADICIONALES: puedes usar guardar_memoria_usuario / consultar_memoria_usuario para recordar preferencias del usuario (por ejemplo, su nombre con la clave "nombre_usuario" o su hospital o periodo habitual). No guardes datos de pacientes. Llama varias herramientas en paralelo cuando sea necesario. Si una herramienta devuelve formatted_html, inclúyelo en tu respuesta.`;
+  const capacidades = `CAPACIDADES ADICIONALES: puedes usar guardar_memoria_usuario / consultar_memoria_usuario para recordar preferencias del usuario (por ejemplo, su nombre con la clave "nombre_usuario" o su hospital o periodo habitual). No guardes datos de pacientes. Llama varias herramientas en paralelo cuando sea necesario. Si una herramienta devuelve formatted_html, inclúyelo en tu respuesta.`;
 
   const recordatorioFinal = [
     '🛑 RECORDATORIO FINAL ANTES DE RESPONDER:',

@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsNumber, IsString, IsNotEmpty, IsOptional } from 'class-validator';
@@ -42,6 +43,8 @@ class ChatDto {
 
 @Controller('chat')
 export class ChatController {
+  private readonly logger = new Logger(ChatController.name);
+
   constructor(
     private readonly agentService: AgentService,
     private readonly chatService: ChatService,
@@ -84,11 +87,26 @@ export class ChatController {
   @Post('')
   @HttpCode(200)
   async chat(@Body() body: ChatDto) {
+    const incomingAt = Date.now();
+    this.logger.log(
+      `[chat] RECIBIDO  chat_id=${body.chat_id} user=${body.user_name ?? '-'} ` +
+        `len=${body.message.length} preview="${body.message.slice(0, 80).replace(/\n/g, ' ')}"`,
+    );
     try {
       const response = await this.agentService.chat(body.chat_id, body.message);
+      const elapsedMs = Date.now() - incomingAt;
+      const ok = typeof response === 'string' && response.length > 0;
+      this.logger.log(
+        `[chat] RESPONDIDO chat_id=${body.chat_id} ok=${ok} ${elapsedMs}ms ` +
+          `resp_len=${response?.length ?? 0} preview="${(response ?? '').slice(0, 80).replace(/\n/g, ' ')}"`,
+      );
       return { success: true, response };
     } catch (e) {
+      const elapsedMs = Date.now() - incomingAt;
       const message = e instanceof Error ? e.message : 'Internal server error';
+      this.logger.error(
+        `[chat] ERROR      chat_id=${body.chat_id} ${elapsedMs}ms - ${message}`,
+      );
       throw new HttpException(
         { success: false, error: message },
         HttpStatus.INTERNAL_SERVER_ERROR,
