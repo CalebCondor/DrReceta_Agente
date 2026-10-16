@@ -62,6 +62,16 @@ function sanitizeAssistantText(text: string): string {
     /^.*\bNótese que\b.*$/gim,
     /^.*\bCabe destacar que\b.*$/gim,
     /^.*\bEs importante señalar que\b.*$/gim,
+    // Filtraciones de tool calls / JSON crudo / tablas (NUNCA debe aparecer en respuesta al usuario)
+    /^.*\bJSON crudo\b.*$/gim,
+    /^.*\bAqui está el JSON\b.*$/gim,
+    /^.*\bAquí está el JSON\b.*$/gim,
+    /^.*\bEl sistema añadió\b.*$/gim,
+    /^.*\bLa tabla (anterior|anterior|con|que se muestra)\b.*$/gim,
+    /^.*\b(tabla con|tabla anterior|tabla arriba|tabla de arriba)\b.*$/gim,
+    /^.*\bdevuelt[oa]s? por (la herramienta|el (endpoint|sistema|backend))\b.*$/gim,
+    /^.*\b(raw|rawJson|rawjson|tool[_ ]?result)\b.*$/gi,
+    /^.*\b(Respuesta|HTTP) (cruda|sin procesar)\b.*$/gim,
   ];
   for (const re of forbiddenFragments) {
     out = out.replace(re, '');
