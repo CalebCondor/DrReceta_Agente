@@ -99,6 +99,15 @@ function sanitizeAssistantText(text: string): string {
     /^.*\b(yo )?calcul[eé] (el|la|los|las)?\s*(%|porcentaje|tasa)/i,
     /^.*\bcalcul[eé] (el|la)?\s*(%|porcentaje) (de (la )?distribuci[oó]n|de (los|las) (datos|porcentajes)|sobre el total)\b/i,
     /^.*\b(la|el) % (de la distribuci[oó]n|sobre el total|de (los|las) datos)\b/i,
+    // DIVISIÓN MANUAL DE MONTOS PARA OBTENER PORCENTAJE: "$X / $Y = Z% de ..."
+    /[^\n]*\$\s*[\d,.]+\s*\)?\s*[\u00f7\u002f\\\/÷]\s*\$?\s*[\d,.]+\s*\)?\s*=\s*[\d,.]+\s*%\s*de\s+(p[eé]rdida|recuperaci[oó]n|aprobaci[oó]n|denegaci[oó]n|denegados|rechazo|rechazados)\b[^\n]*/gi,
+    /[^\n]*\$\s*[\d,.]+\s*[\u00f7\u002f\\\/÷]\s*\$?\s*[\d,.]+\s*=\s*[\d,.]+\s*%[^\n]*/gi,
+    /[^\n]*=\s*[\d,.]+\s*%\s*de\s+(p[eé]rdida|recuperaci[oó]n|aprobaci[oó]n|denegaci[oó]n)\b[^\n]*/gi,
+    // "X% de pérdida" / "X% de recuperación" sin mostrar la fórmula
+    /[^\n]*[\d,.]+\s*%\s*de\s+(p[eé]rdida|recuperaci[oó]n|aprobaci[oó]n|denegaci[oó]n|rechazo)\b[^\n]*/gi,
+    // "aplicando la fórmula % pérdida = perdido ÷ facturado"
+    /[^\n]*\baplicando (la )?f[oó]rmula\b[^\n]*%[^\n]*/gi,
+    /[^\n]*\bf[oó]rmula\s+%\s+(p[eé]rdida|recuperaci[oó]n|aprobaci[oó]n|denegaci[oó]n)\s*=[^\n]*/gi,
     // PEDIR AÑO / MES / HOSPITAL / PLAN CUANDO YA SE DISCUTIÓ EN ESTA CONVERSACIÓN
     /^.*\b¿(para|en|a|de) (qué|cu[áa]l|cu[áa]les) (a[ñn]o|mes|periodo|período|hospital(es)?|plan(es)?|indicador(es)?)\??\s*$/i,
     /^.*\b¿(para|en|a|de) (20\d{2}|20\d{2} o 20\d{2})\??\s*$/i,
@@ -110,6 +119,44 @@ function sanitizeAssistantText(text: string): string {
     /[^\n]*\bsin (filtro|cambio|modificaci[oó]n) (de |del |de la |de los |de las )(hospital|plan|mes|a[ñn]o|periodo)[^\n]*/gi,
     /[^\n]*\bno se aprecia (un |el |la )?(corte|filtro|distinci[oó]n|cambio)[^\n]*/gi,
     /[^\n]*\b(para ver|para obtener) (octubre|noviembre|...?) (real|de verdad|concreto|espec[ií]fico)[^\n]*/gi,
+    // EXCUSAS DE "NO DISPONGO" / "NO HAY ENDPOINT" / "LAS HERRAMIENTAS NO DEVUELVEN"
+    /[^\n]*\bno dispongo de (un|una|el|los|las)?\s*(campo|herramienta|tool|funci[oó]n|endpoint|m[eé]todo|recurso)\b[^\n]*/gi,
+    /[^\n]*\b(las herramientas|las tools|los endpoints) (de (audita|la api))?\s*(no |s[oó]lo )?(entregan|devuelven|tienen|traen|muestran|exponen|cubren|soportan|ofrecen)\b[^\n]*/gi,
+    /[^\n]*\bno (hay|tengo|existe|existen) (un|una|el|los|las)?\s*(campo|herramienta|tool|endpoint|m[eé]todo)\b[^\n]*/gi,
+    /[^\n]*\b(esa|esta) (informaci[oó]n|m[eé]trica|consulta|pregunta) (no (est[aá])? (disponible|expuesta|soportada|cubierta|accesible)|est[aá] (disponible|expuesta|soportada|cubierta|accesible))\b[^\n]*/gi,
+    // EXCUSAS DE "NO CUENTO CON" / "NO TENGO" / "NO POSEO" / "LO QUE PUEDO"
+    /[^\n]*\bno (cuento con|tengo|poseo|dispongo de) (un|una|el|los|las|alguna?)?\s*(herramienta|tool|funci[oó]n|capacidad|m[eé]todo|endpoint|recurso|forma|manera)\b[^\n]*/gi,
+    /[^\n]*\b(disculpa|perd[oó]n|lo siento),?\s+pero (no puedo|no me es posible|no tengo)\b[^\n]*/gi,
+    /[^\n]*\bno puedo (cumplir|ejecutar|atender|procesar|realizar|seguir|continuar) (esa|esa|esta|las?|los?)\b[^\n]*/gi,
+    /[^\n]*\bno puedo (cumplir|ejecutar|atender|procesar|realizar|seguir|continuar)\s+al pie de la letra\b[^\n]*/gi,
+    /[^\n]*\bno puedo (cumplir|ejecutar|atender|procesar|realizar|seguir|continuar) (esa|esta) (instrucci[oó]n|cadena|solicitud|petic[ií]on)\b[^\n]*/gi,
+    /[^\n]*\bno (es posible|puedo) (consultar|obtener|ver|mostrar|agrupar|comparar|calcular|filtrar|desglosar)\b[^\n]*/gi,
+    /[^\n]*\blo que (puedo|s[ií]) (consultar|hacer|ofrecer|es) (es |son )?\b[^\n]*/gi,
+    /[^\n]*\b(la herramienta|el endpoint|el m[eé]todo) (no|s[oó]lo) (permite|soporta|devuelve|cubre|hace)\b[^\n]*/gi,
+    // PREGUNTAR CONFIRMACIÓN DESPUÉS DE QUE EL USUARIO YA PIDIÓ COMPARAR/ANALIZAR
+    /[^\n]*¿[Qq]uieres que (compare|compre|calcule|vea|muestre|consulte|intente|filtre|agrupe|desglose|busque|haga)\b[^\n]*\?/gi,
+    /[^\n]*¿[Dd]eseas que (compare|compre|calcule|vea|muestre|consulte|intente|filtre|agrupe|desglose|busque|haga)\b[^\n]*\?/gi,
+    /[^\n]*¿[Pp]refieres que (compare|compre|calcule|vea|muestre|consulte|intente|filtre|agrupe|desglose|busque|haga)\b[^\n]*\?/gi,
+    /[^\n]*¿[Qq]uieres (que (lo|la) )?(intente|filtre|agrupe|desglose|busque|haga|consulte)\b[^\n]*\?/gi,
+    /[^\n]*¿[Ll]o (intente|intento|agrego|aplico|hago|consulto)\b[^\n]*\?/gi,
+    // EXCUSAS DE "PARA RESPONDER NECESITARÍA" / "FALTARÍA QUE"
+    /[^\n]*\bpara (responder|contestar|resolver) (con (precisi[oó]n|datos?))? (necesitar[ií]a|hace falta|faltar[ií]a)\b[^\n]*/gi,
+    /[^\n]*\bnecesitar[ií]a\s+(que\s+)?(un|una|el|los|las)?\s*(hospital|plan|mes|a[ñn]o|filtro|categor[ií]a|nivel)\b[^\n]*/gi,
+    /[^\n]*\b(la herramienta|el endpoint|el m[eé]todo) (no|s[oó]lo) (permite|soporta|devuelve|cubre|hace|entrega|expone|ofrece)\b[^\n]*/gi,
+    /[^\n]*\b(la herramienta|el endpoint) (no|s[oó]lo) (da|entrega|expone|ofrece|soporta) (totales|desglose|detalle|datos?)\b[^\n]*/gi,
+    // EXCUSAS DE "NO SE ENVIÓ FILTRO" / "FALTA ENVIAR"
+    /[^\n]*\bsin (desglose|detalle|informaci[oó]n) (por|de) (plan|hospital|mes|a[ñn]o|nivel|categor[ií]a) (porque )?no (se |te )?(envi[oó]|incluy[oó]|pas[oó]|agreg[oó]) (el |los |un |una |filtro )?\b[^\n]*/gi,
+    /[^\n]*\b(no se (envi[oó]|incluy[oó]|pas[oó]|agreg[oó])|falta (enviar|incluir|pasar|agregar)) (el |los |un |una |filtro )?(de )?(plan|hospital|mes|a[ñn]o|nivel|categor[ií]a)\b[^\n]*/gi,
+    /[^\n]*\bno (se |te )?(envi[oó]|incluy[oó]|pas[oó]|agreg[oó]) (filtro|el filtro|los filtros|par[aá]metros) (de |del |de la |de los |de las )?(plan|hospital|mes|a[ñn]o|nivel|categor[ií]a)\b[^\n]*/gi,
+    // EXCUSAS DE "INDÍCAME CUÁL O TODOS" / "DIME CUÁL O TODOS"
+    /[^\n]*\bsi quieres[ ,]+(puedo|te (puedo|env[ií]o|mando|muestro)|puedo (traer|mostrar|enviar|consultar|calcular))\b[^\n]*/gi,
+    /[^\n]*\bsi quieres[ ,]+puedo (traer|mostrar|enviar|consultar|calcular|ver|agregar|filtrar)\b[^\n]*/gi,
+    /[^\n]*\b(los datos|el registro|la informacion|el resultado|la respuesta)\s+(de|del|para)\s+([a-z]+\s+){0,3}(no|solo)\s+(incluye|incluyen|contiene|contienen|trae|traen|devuelve|devuelven|muestra|muestran|apoya|apoyan|soporta|soportan|cubre|cubren)\b[^\n]*/gi,
+    /[^\n]*\b(los datos|el registro|la informaci[oó]n|el resultado|la respuesta)[^\n]{0,40}?(no|si[oó]lo) (incluye|incluyen|contiene|contienen|trae|traen|devuelve|devuelven|muestra|muestran|soporta|soportan|cubre|cubren)\b[^\n]*/gi,
+    /[^\n]*\b(los datos|el registro|la informacion|el resultado)\s+(solo\s+)?(contiene|contienen|trae|traen|devuelve|devuelven|muestra|muestran|soporta|soportan|cubre|cubren)\s+(totales|desglose|detalle|datos?)\b[^\n]*/gi,
+    /[^\n]*\b(ind[ií]came|dime|pasame|p[aá]same) (cu[aá]l|cu[aá]les|qu[eé] plan|qu[eé] planes?)\s+(quieres|deseas|prefieres|te interesa|quieres ver|en espec[íi]fico|concreto|particular|exacto)\b[^\n]*/gi,
+    /[^\n]*\b(ind[ií]came|dime|pasame|p[aá]same) (cu[aá]l|cu[aá]les)\s*(o|y|,)?\s*(todos|ambos)\b[^\n]*/gi,
+    /[^\n]*¿(alg[uú]n|alguno|alguna|algunos|algunas|cu[aá]l|cu[aá]les|qu[eé]) plan(es)?[^\n]*\?/gi,
     // PEDIR HOSPITAL/PLAN CUANDO YA ESTÁ EN EL CONTEXTO
     /¿(agrego|filtrar|filtramos)\s+(un|una|el|la|los|las)\s+(hospital|plan|hospitales|planes)[^\n]*/gi,
     /¿(qu[eé]|cu[aá]l|cu[aá]les)\s+(hospital|plan|hospitales|planes)\s+(quieres|deseas|prefieres|te gustar[ií]a|concreto|espec[ií]fico)[^\n]*\??/gi,
@@ -374,6 +421,13 @@ export class AgentService {
     const recentDrafts: string[] = [];
     const MAX_RECENT_DRAFTS = 4;
 
+    // Bandera: el modelo YA llamó a una tool de datos en esta
+    // conversación. Si detecta BUCLE después de tener datos disponibles,
+    // NO cortamos: forzamos un retry con un mensaje fuerte de "USA LOS
+    // DATOS QUE YA TIENES" en lugar de aceptar la alucinación o devolver
+    // un mensaje genérico de error técnico.
+    let dataToolCalledInConversation = false;
+
     // Bandera: en el próximo round, forzar al modelo a usar una tool
     // (Anthropic soporta `tool_choice: 'any'`). Se activa cuando detectamos
     // que el modelo ANUNCIA una acción ("reintentando", "vuelvo a consultar")
@@ -492,6 +546,46 @@ export class AgentService {
             (d) => d.slice(0, 80) === last.slice(0, 80),
           ).length;
           if (similarCount >= 3) {
+            // BUCLE detectado. Si el modelo YA llamó a una tool de datos
+            // en esta conversación, está ignorando los datos reales de
+            // la API y re-produciendo el texto alucinado. NO cortamos:
+            // forzamos un último retry con un mensaje muy explícito de
+            // "USA LOS DATOS QUE YA TIENES". Sólo cuando NO hay datos
+            // disponibles (todas las alucinaciones vienen del vacío)
+            // cortamos y devolvemos el mensaje genérico de error.
+            if (dataToolCalledInConversation) {
+              this.logger.warn(
+                `[Anthropic] BUCLE_CON_DATOS (chat=${chatId}): ` +
+                  `el modelo repite la misma respuesta ${similarCount} rondas ` +
+                  `PERO YA tiene datos en el historial. Forzando retry con ` +
+                  `mensaje fuerte de "USA LOS DATOS".`,
+              );
+              history.push({ role: 'assistant', content: response.content });
+              history.push({
+                role: 'user',
+                content:
+                  '[SISTEMA — ÚLTIMO INTENTO] Estás repitiendo textualmente la ' +
+                  'misma respuesta que ya diste antes, IGNORANDO los datos ' +
+                  'reales que la herramienta de datos te devolvió en rondas ' +
+                  'anteriores. Esos datos están en tu historial como mensajes ' +
+                  'de rol `user` con prefijo `[Resultado de herramienta...]`.\n\n' +
+                  'Tienes que:\n' +
+                  '  1. LEER los valores numéricos que la herramienta devolvió ' +
+                  '(porcentajes, días, montos).\n' +
+                  '  2. RESPONDER usando EXCLUSIVAMENTE esos valores, citándolos ' +
+                  'explícitamente en tu respuesta (ej: "según los datos: días ' +
+                  'denegados = 138, % denegado = 39.2%").\n' +
+                  '  3. Si la herramienta devolvió un objeto agregado (no una ' +
+                  'lista por hospital), EXPLÍCALO: "Esta herramienta devuelve ' +
+                  'totales agregados para los hospitales filtrados; no desglosa ' +
+                  'por hospital individual. Para ver el desglose por hospital ' +
+                  'usa otra herramienta."\n\n' +
+                  'PROHIBIDO: re-producir el mismo texto, inventar números, o ' +
+                  'mencionar nombres de herramientas al usuario.',
+              });
+              forceToolChoice = undefined;
+              continue;
+            }
             this.logger.warn(
               `[Anthropic] BUCLE detectado (chat=${chatId}): ` +
                 `el modelo repite la misma respuesta ${similarCount} rondas. Cortando.`,
@@ -514,6 +608,136 @@ export class AgentService {
         // invente IDs (como "1123 — Plan B") cuando debería estar
         // llamando a `obtener_planes_disponibles`.
         if (textToSave) {
+          // ── Detector: mismatch de porcentaje vs. término del usuario ──
+          // Si el usuario pidió un porcentaje específico ("% sobre LOS",
+          // "% aprobados", "% de denegados", "% de pérdida", "% de
+          // recuperación", "% facturado") y el bot está usando un campo
+          // de porcentaje con un nombre DIFERENTE al que pidió el usuario,
+          // RECHAZAMOS. Esto evita que el bot devuelva "porcentaje
+          // facturado" cuando se pidió "porcentaje de aprobados", o
+          // "porcentaje de denegación" cuando se pidió "porcentaje sobre
+          // LOS".
+          if (round < 4 && userMessageText) {
+            const um = userMessageText.toLowerCase();
+            const tm = textToSave.toLowerCase();
+            const hasPercent = /\d[\d.,]*\s?%/.test(textToSave);
+            if (hasPercent) {
+              const checks: Array<{
+                userPattern: RegExp;
+                requiredInResponse: RegExp;
+                label: string;
+                fieldHint: string;
+              }> = [
+                {
+                  userPattern: /\b(sobre|segun|según|en)\s+los\b/i,
+                  requiredInResponse: /\b(los|length of stay)\b/i,
+                  label: 'sobre LOS',
+                  fieldHint: 'porcentajeSobreLos',
+                },
+                {
+                  userPattern: /\b(aprobad[oa]s?|tasa de aprobaci[oó]n|% de aprobaci[oó]n|porcentaje de aprobaci[oó]n)\b/i,
+                  requiredInResponse: /\b(aprobad[oa]s?|aprobaci[oó]n)\b/i,
+                  label: 'aprobados',
+                  fieldHint: 'porcentajeAprobado',
+                },
+                {
+                  userPattern: /\b(denegad[oa]s?)\b/i,
+                  requiredInResponse: /\b(denegad[oa]s?|denegaci[oó]n)\b/i,
+                  label: 'denegados',
+                  fieldHint: 'porcentajeDenegado',
+                },
+                {
+                  userPattern: /\b(p[eé]rdid[oa]s?|tasa de p[eé]rdida)\b/i,
+                  requiredInResponse: /\b(p[eé]rdid[oa]s?|p[eé]rdida)\b/i,
+                  label: 'perdida',
+                  fieldHint: 'porcentajePerdida',
+                },
+                {
+                  userPattern: /\b(recuperad[oa]s?|tasa de recuperaci[oó]n)\b/i,
+                  requiredInResponse: /\b(recuperad[oa]s?|recuperaci[oó]n)\b/i,
+                  label: 'recuperados',
+                  fieldHint: 'porcentajeRecuperado',
+                },
+                {
+                  userPattern: /\b(facturad[oa]s?|tasa de facturaci[oó]n)\b/i,
+                  requiredInResponse: /\b(facturad[oa]s?|facturaci[oó]n)\b/i,
+                  label: 'facturado',
+                  fieldHint: 'porcentajeFacturado',
+                },
+              ];
+              let mismatch: typeof checks[number] | null = null;
+              for (const c of checks) {
+                if (c.userPattern.test(um) && !c.requiredInResponse.test(tm)) {
+                  mismatch = c;
+                  break;
+                }
+              }
+              if (mismatch) {
+                this.logger.warn(
+                  `[Anthropic] round=${round} PORCENTAJE_MISMATCH (chat=${chatId}): user asked for "${mismatch.label}" but response doesn't mention it. Rejecting.`,
+                );
+                history.push({ role: 'assistant', content: response.content });
+                history.push({
+                  role: 'user',
+                  content:
+                    `[SISTEMA] El usuario pidió específicamente el porcentaje de "${mismatch.label}" y tu respuesta NO menciona ese término. ` +
+                    `Tu respuesta debe incluir exactamente "${mismatch.label}" (no otra métrica similar como "denegación", "facturado" o "pérdida" si el usuario no las pidió). ` +
+                    `Lee la respuesta de la herramienta y muestra el campo que coincida con "${mismatch.label}" (p.ej. si la herramienta devuelve un campo con ese nombre, úsalo). ` +
+                    `Si la herramienta NO devuelve ese campo, di literalmente: "Ese porcentaje específico no lo devuelve la herramienta con esos filtros; los porcentajes disponibles son [lista de los campos que sí trae]."`,
+                });
+                continue;
+              }
+            }
+          }
+
+          // ── Detector: PORCENTAJE SIN TOOL CALL ──
+          // Si el usuario pidió un porcentaje (% aprobado, % denegado, % sobre
+          // LOS, % de pérdida, % de recuperación, % facturado) y el bot
+          // responde con un porcentaje SIN haber llamado a una tool de datos
+          // en este turno, RECHAZAMOS. El bot está alucinando el porcentaje
+          // desde datos viejos o inventándolo. Tiene que RE-LLAMAR la
+          // herramienta de datos con los filtros actuales y mostrar el campo
+          // exacto que la API devuelve.
+          if (
+            round < 4 &&
+            userMessageText &&
+            /\b(porcentaje|% |tasa de|qué porcentaje|cu[aá]l es el porcentaje)\b/i.test(
+              userMessageText,
+            ) &&
+            /\d[\d.,]*\s?%/.test(textToSave) &&
+            turnToolCalls.length === 0
+          ) {
+            this.logger.warn(
+              `[Anthropic] round=${round} PORCENTAJE_SIN_TOOL (chat=${chatId}): ` +
+                `user asked for percentage but model responded without tool call. ` +
+                `preview="${textToSave.slice(0, 80)}"`,
+            );
+            history.push({ role: 'assistant', content: response.content });
+            history.push({
+              role: 'user',
+              content:
+                '[SISTEMA] Tu respuesta anterior fue rechazada. El usuario pidió un ' +
+                'porcentaje (aprobados, denegados, sobre LOS, pérdida, recuperación, ' +
+                'facturado, etc.) y tú respondiste con una cifra SIN haber llamado a ' +
+                'ninguna herramienta de datos en este turno. Esa cifra es INVENTADA.\n\n' +
+                'Tienes que EJECUTAR la herramienta de datos correspondiente con los ' +
+                'filtros del usuario (año, hospital, plan, meses, loc) y mostrar el ' +
+                'campo de porcentaje que la API devuelva. El campo exacto depende de ' +
+                'lo que el usuario pidió:\n' +
+                '  - "% aprobados" / "% de aprobación" → campo `porcentajeAprobado`\n' +
+                '  - "% denegados" / "% de denegación" → campo `porcentajeDenegado`\n' +
+                '  - "% sobre LOS" / "% según LOS" → campo `porcentajeSobreLos`\n' +
+                '  - "% de pérdida" → campo `porcentajePerdida`\n' +
+                '  - "% de recuperación" → campo `porcentajeRecuperado`\n' +
+                '  - "% facturado" → campo `porcentajeFacturado`\n' +
+                'Si la herramienta no devuelve ese campo exacto, di literalmente: ' +
+                '"Ese porcentaje específico no lo devuelve la herramienta con esos ' +
+                'filtros; los porcentajes disponibles son [lista]". NO INVENTES el valor.',
+            });
+            forceToolChoice = 'any';
+            continue;
+          }
+
           // ── Detector: anuncio de acción sin ejecución ──
           // El modelo a veces responde con frases como "Reintentando…",
           // "Vuelvo a consultar…", "Permíteme un momento…", "Dame un
@@ -538,23 +762,17 @@ export class AgentService {
             history.push({
               role: 'user',
               content:
-                '[SISTEMA — ANUNCIO SIN ACCIÓN] Tu respuesta anterior fue RECHAZADA: ' +
-                'anunciaste una acción ("reintentando", "llamando al catálogo", "voy a…", ' +
-                '"no puedo ejecutar la consulta", "no tengo en contexto los hosId", etc.) ' +
-                'sin EJECUTAR la herramienta. NO la repitas.\n\n' +
-                'FLUJO CORRECTO cuando te falta un `hosId`:\n' +
-                '1. LLAMA INMEDIATAMENTE a `obtener_hospitales_disponibles` con `{}`.\n' +
-                '2. Cuando recibas el catálogo, mapea "San Lucas" → `hosId` internamente.\n' +
-                '3. Si también falta el plan, LLAMA a `obtener_planes_disponibles` con `{}`.\n' +
-                '4. SOLO DESPUÉS de tener los IDs, llama a la herramienta de DATOS.\n\n' +
-                'PROHIBIDO en tu próxima respuesta:\n' +
-                '❌ Decir "llamando al catálogo", "consultando el catálogo", "ejecutando la consulta", ' +
-                '   "reintentando", "permíteme", "voy a…", "no puedo ejecutar la consulta", ' +
-                '   "no tengo en contexto los hosId", "obteniendo datos".\n\n' +
-                'OBLIGATORIO en tu próxima respuesta:\n' +
-                '✅ LLAMAR a `obtener_hospitales_disponibles` con `input = {}` (tool_use, no texto).\n' +
-                '✅ O, si ya tienes el hosId mapeado, llamar a la herramienta de datos correspondiente.\n' +
-                '✅ El primer elemento de tu respuesta DEBE ser un `tool_use`, no texto.',
+                '[SISTEMA] Tu respuesta anterior fue rechazada porque anunciaste una ' +
+                'acción ("reintentando", "llamando al catálogo", "voy a…", ' +
+                '"no puedo ejecutar la consulta", "no tengo en contexto los IDs", etc.) ' +
+                'pero NO ejecutaste ninguna herramienta. Está prohibido anunciar.\n\n' +
+                'Cuando el usuario menciona un hospital o plan por nombre, tienes que ' +
+                'EJECUTAR inmediatamente la herramienta de catálogo (catálogo de ' +
+                'hospitales o de planes) para mapear el nombre al identificador ' +
+                'interno. Después, ejecuta la herramienta de datos con los ' +
+                'identificadores correctos. Si ya tienes los identificadores, ejecuta ' +
+                'directamente la herramienta de datos. En tu próxima respuesta, el ' +
+                'primer elemento debe ser la llamada a la herramienta, no texto.',
             });
             forceToolChoice = 'any';
             continue;
@@ -581,26 +799,17 @@ export class AgentService {
             history.push({
               role: 'user',
               content:
-                '[SISTEMA — ALUCINACIÓN RECHAZADA] Tu respuesta anterior contenía ' +
+                '[SISTEMA] Tu respuesta anterior fue rechazada porque contenía ' +
                 'cifras o datos concretos que NO provienen de una herramienta de ' +
-                'datos llamada en este turno. Esos números son INVENTADOS.\n\n' +
-                'PRÓXIMA RESPUESTA — REGLA ÚNICA Y OBLIGATORIA:\n' +
-                'TU PRIMER Y ÚNICO MOVIMIENTO debe ser un `tool_use` (no texto, no ' +
-                'muletillas, no saludos). NADA de texto antes del tool_use.\n\n' +
-                'FLUJO CORRECTO (en este orden estricto):\n' +
-                '1. Si NO tienes el `hosId` mapeado en este turno, PRIMER `tool_use` = ' +
-                '   `obtener_hospitales_disponibles` con `input = {}`.\n' +
-                '2. Con el `hosId` mapeado, SEGUNDO `tool_use` = la herramienta de ' +
-                '   datos que corresponda al indicador pedido:\n' +
-                '   - "facturado" / "perdido" / "dinero" / "$" / "monto" → `consultar_montos_por_estado`\n' +
-                '   - "días aprobados/denegados/recuperados" → `consultar_resumen_financiero_hospitales`\n' +
-                '   - "determinación más frecuente" / "más común" → `consultar_determinacion_adversa_mas_frecuente`\n' +
-                '   - "más días denegados" / "mayores pérdidas" / "conceptos con pérdidas" → `consultar_concepto_mas_dias_denegados`\n' +
-                '3. Cuando recibas el `tool_result`, redacta la respuesta final usando ' +
-                '   SOLO los datos del resultado, en formato limpio.\n\n' +
-                '❌ NUNCA produzcas texto antes del primer tool_use. NUNCA pidas filtros ' +
-                'que el usuario ya dio. NUNCA inventes cifras. NUNCA digas "no tengo ' +
-                'resultados válidos" sin haber llamado antes a una herramienta.',
+                'datos en este turno. Esos números son INVENTADOS.\n\n' +
+                'El usuario hace una pregunta concreta (ranking de planes, días ' +
+                'denegados, facturado, etc.). Para responder con datos reales, ' +
+                'tienes que EJECUTAR las herramientas necesarias. Si el usuario ' +
+                'menciona un hospital o plan por nombre, primero ejecuta la ' +
+                'herramienta de catálogo correspondiente para mapear el nombre al ' +
+                'identificador. Después, ejecuta la herramienta de datos que ' +
+                'corresponda al indicador. En tu próxima respuesta, el primer ' +
+                'elemento debe ser la llamada a la herramienta, no texto.',
             });
             // Forzamos al modelo a llamar a una tool en el siguiente round.
             // Sin esto, el modelo puede volver a inventar texto.
@@ -635,22 +844,16 @@ export class AgentService {
             history.push({
               role: 'user',
               content:
-                '[SISTEMA — NO TE RINDAS] Tu respuesta anterior fue RECHAZADA: ' +
-                'pides filtros que el usuario YA DIJO (o que ya deberían estar ' +
-                'en el contexto de esta conversación).\n\n' +
-                'PRÓXIMA RESPUESTA — REGLA ÚNICA:\n' +
-                'Tu primer y único movimiento DEBE ser un `tool_use`. NADA de ' +
-                'texto antes. NADA de "permíteme", "voy a…", "dame un momento".\n\n' +
-                'LLAMA INMEDIATAMENTE a la herramienta de datos correspondiente. ' +
-                'Si necesitas el `hosId`, PRIMER tool_use = `obtener_hospitales_disponibles` ' +
-                'con `input = {}`. Si necesitas el `id` del plan, PRIMER tool_use = ' +
-                '`obtener_planes_disponibles` con `input = {}`. Después de mapear, ' +
-                'llama a la herramienta de DATOS con los IDs.\n\n' +
-                'Indicador pedido → herramienta:\n' +
-                '- "facturado" / "perdido" / "$" / "monto" / "dinero" → `consultar_montos_por_estado`\n' +
-                '- "días aprobados/denegados/recuperados" → `consultar_resumen_financiero_hospitales`\n' +
-                '- "determinación más frecuente" / "más común" → `consultar_determinacion_adversa_mas_frecuente`\n' +
-                '- "más días denegados" / "mayores pérdidas" → `consultar_concepto_mas_dias_denegados`',
+                '[SISTEMA] Tu respuesta anterior fue rechazada porque pediste ' +
+                'filtros que el usuario YA DIJO o que ya están en el contexto. ' +
+                'No pidas de nuevo el hospital, plan, año o mes si ya fueron ' +
+                'mencionados. Tampoco pidas "todos los planes" o "algún plan en ' +
+                'específico": cuando el usuario pide un ranking, debes llamar ' +
+                'a la herramienta de catálogo de planes, obtener todos los ' +
+                'identificadores y luego llamar a la herramienta de datos con ' +
+                'todos los identificadores. En tu próxima respuesta, ejecuta ' +
+                'directamente la herramienta correspondiente sin pedir filtros ' +
+                'de nuevo.',
             });
             forceToolChoice = 'any';
             continue;
@@ -669,6 +872,7 @@ export class AgentService {
               'consultar_montos_por_estado',
               'consultar_determinacion_adversa_mas_frecuente',
               'consultar_concepto_mas_dias_denegados',
+              'consultar_determinacion_adversa_monto',
             ]
               .map((tn) => extractLastToolInput(history, tn))
               .find((x) => x !== null && x !== undefined) ?? null;
@@ -713,6 +917,7 @@ export class AgentService {
               'consultar_montos_por_estado',
               'consultar_determinacion_adversa_mas_frecuente',
               'consultar_concepto_mas_dias_denegados',
+              'consultar_determinacion_adversa_monto',
             ].includes(name),
           );
           if (
@@ -728,16 +933,19 @@ export class AgentService {
             history.push({
               role: 'user',
               content:
-                '[SISTEMA — SIN DATOS SIN TOOL] Tu respuesta anterior fue RECHAZADA: ' +
-                'dijiste "sin registros" / "no hay datos" / "sin información" SIN HABER LLAMADO ' +
-                'a una herramienta de datos en este turno. Eso es ALUCINAR AUSENCIA DE DATOS.\n\n' +
-                'NO PUEDES afirmar que no hay datos si no llamaste a la herramienta de datos. ' +
-                'La única forma válida de saber si hay datos es llamar a la herramienta correspondiente ' +
-                '(`consultar_montos_por_estado`, `consultar_resumen_financiero_hospitales`, etc.) y ' +
-                'recibir el resultado real.\n\n' +
-                'ACCIÓN OBLIGATORIA: llama INMEDIATAMENTE a la herramienta de datos con los ' +
-                'filtros correctos. NO respondas con texto. NO digas "sin registros" hasta que la ' +
-                'API te devuelva un resultado vacío real.',
+                '[SISTEMA] Tu respuesta anterior fue rechazada porque dijiste ' +
+                '"sin registros" / "no hay datos" / "sin información" SIN HABER ' +
+                'LLAMADO a una herramienta de datos en este turno. Eso es ' +
+                'alucinar ausencia de datos.\n\n' +
+                'La única forma válida de saber si hay datos es ejecutar la ' +
+                'herramienta de datos correspondiente (la de montos, la de ' +
+                'resumen financiero, la de determinación o la de conceptos) y ' +
+                'recibir el resultado real de la API. Si ya ejecutaste la ' +
+                'herramienta de catálogo en este turno pero no la de datos, ' +
+                'ahora tienes que ejecutar la de datos con los identificadores ' +
+                'obtenidos. En tu próxima respuesta, ejecuta la herramienta de ' +
+                'datos correspondiente. NO respondas con "sin registros" hasta ' +
+                'que la API te devuelva un resultado vacío real.',
             });
             forceToolChoice = 'any';
             continue;
@@ -762,21 +970,19 @@ export class AgentService {
             history.push({
               role: 'user',
               content:
-                '[SISTEMA — RECHAZO] Tu respuesta anterior contenía SOLO frases prohibidas ' +
-                '("indícame el ID", "ID o nombre", "para identificar", "¿de qué año?", etc.) y ' +
-                'tras limpiarla quedó VACÍA. NO la repitas.\n\n' +
-                'FORMATO DE PREGUNTA OBLIGATORIO cuando faltan filtros:\n' +
-                '✅ "Para 2026, ¿de qué hospital y qué plan?"\n' +
-                '✅ "¿Hospital San Lucas y MMM Advantage, correcto?"\n' +
-                '❌ "indícame: año, ID o nombre del hospital"  ← ESTO ESTÁ PROHIBIDO\n' +
-                '❌ "indícame el año y el ID del hospital"     ← ESTO ESTÁ PROHIBIDO\n' +
-                '❌ "para identificar… indícame el ID"         ← ESTO ESTÁ PROHIBIDO\n' +
-                '❌ "¿de qué año?"                              ← ESTO ESTÁ PROHIBIDO\n\n' +
-                'RECUERDA:\n' +
-                '1. NUNCA pidas IDs. Pide SIEMPRE por nombre (hospital y/o plan).\n' +
-                '2. NUNCA preguntes por el año: usa 2026 (currentYear) por defecto.\n' +
-                '3. Si faltan filtros, pregunta TODOS a la vez en UNA sola frase corta.\n' +
-                '4. Si la consulta es completa (hospital + plan), llama YA a la herramienta correspondiente.',
+                '[SISTEMA] Tu respuesta anterior contenía solo frases prohibidas ' +
+                '(pedir IDs, pedir el año, "indícame el ID", excusas de "no ' +
+                'tengo", "no dispongo", "necesitaría un hospital", etc.) y tras ' +
+                'limpiarla quedó vacía. NO repitas esas frases.\n\n' +
+                'Cuando el usuario pregunta algo concreto, tienes que llamar a ' +
+                'la herramienta tú mismo. Si la consulta tiene hospital o plan ' +
+                'por nombre, primero llamas al catálogo correspondiente para ' +
+                'obtener el identificador, y luego llamas a la herramienta de ' +
+                'datos. Si la consulta ya está completa, llamas directamente a ' +
+                'la herramienta de datos. En tu próxima respuesta, ejecuta la ' +
+                'herramienta sin pedir filtros que el usuario ya dio, sin ' +
+                'pedir IDs, sin preguntar el año (usa 2026 por defecto), y ' +
+                'sin excusas.',
             });
             forceToolChoice = 'any';
             continue;
@@ -829,8 +1035,10 @@ export class AgentService {
           'consultar_montos_por_estado',
           'consultar_determinacion_adversa_mas_frecuente',
           'consultar_concepto_mas_dias_denegados',
+          'consultar_determinacion_adversa_monto',
         ]);
         if (DATA_TOOLS.has(tu.name) && round < 4) {
+          dataToolCalledInConversation = true;
           const lastInput = extractLastToolInput(history, tu.name);
           if (lastInput) {
             const newHospitals: number[] = Array.isArray(args.idHospitales)

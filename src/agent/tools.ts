@@ -16,8 +16,8 @@ export const TOOLS: Anthropic.Tool[] = [
       'debes pedir correo ni código antes de llamarla.\n\n' +
       'ADEMÁS es prerrequisito de las tools de datos:\n' +
       '  • Si después vas a llamar `consultar_resumen_financiero_hospitales`, ' +
-      '`consultar_determinacion_adversa_mas_frecuente`, `consultar_concepto_mas_dias_denegados` ' +
-      'o `consultar_montos_por_estado` con filtro por plan, llama primero a esta tool ' +
+      '`consultar_determinacion_adversa_mas_frecuente`, `consultar_concepto_mas_dias_denegados`, ' +
+      '`consultar_determinacion_adversa_monto` o `consultar_montos_por_estado` con filtro por plan, llama primero a esta tool ' +
       'para mapear el nombre del plan al `idPlan`.\n' +
       '  • NUNCA inventes `idPlanes` ni uses IDs memorizados de conversaciones anteriores — el ' +
       'catálogo puede cambiar entre sesiones.\n\n' +
@@ -45,8 +45,8 @@ export const TOOLS: Anthropic.Tool[] = [
       'llamarla.\n\n' +
       'ADEMÁS es prerrequisito de las tools de datos:\n' +
       '  • Si después vas a llamar `consultar_resumen_financiero_hospitales`, ' +
-      '`consultar_determinacion_adversa_mas_frecuente`, `consultar_concepto_mas_dias_denegados` ' +
-      'o `consultar_montos_por_estado`, necesitas el `idHospital` de cada hospital. ' +
+      '`consultar_determinacion_adversa_mas_frecuente`, `consultar_concepto_mas_dias_denegados`, ' +
+      '`consultar_determinacion_adversa_monto` o `consultar_montos_por_estado`, necesitas el `idHospital` de cada hospital. ' +
       'Llama primero a esta tool para mapear el nombre al `idHospital`.\n' +
       '  • NUNCA inventes `idHospitales` ni uses IDs memorizados de conversaciones anteriores — ' +
       'el catálogo puede cambiar entre sesiones. El mapeo nombre → `idHospital` lo haces con ' +
@@ -150,6 +150,23 @@ export const TOOLS: Anthropic.Tool[] = [
             'Si se omite, no se aplica filtro por plan. Cuando se envía, las auditorías ' +
             'sin plan asociado quedan excluidas.',
         },
+        loc: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['ACUTE', 'SNF'],
+          },
+          description:
+            'Filtro por Location / Nivel de cuidado del hospital (opcional, ' +
+            'array de enum). Valores válidos: "ACUTE" (hospitales de cuidado ' +
+            'agudo) o "SNF" (Skilled Nursing Facility — centro de enfermería ' +
+            'especializada). Se envía SIEMPRE como ARRAY: ej ["ACUTE"] o ' +
+            '["SNF"] o ["ACUTE", "SNF"]. Si el usuario menciona "ACUTE", "SNF", ' +
+            '"agudos", "cuidado agudo", "nivel de cuidado", "enfermería ' +
+            'especializada" o un valor específico, pásalo en este campo como ' +
+            'array. Si el usuario no menciona nivel de cuidado / location, ' +
+            'OMITE el campo (no envíes array vacío ni [""]).',
+        },
       },
       required: ['anio', 'idHospitales'],
     },
@@ -246,6 +263,23 @@ export const TOOLS: Anthropic.Tool[] = [
           minimum: 1,
           maximum: 50,
         },
+        loc: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['ACUTE', 'SNF'],
+          },
+          description:
+            'Filtro por Location / Nivel de cuidado del hospital (opcional, ' +
+            'array de enum). Valores válidos: "ACUTE" (hospitales de cuidado ' +
+            'agudo) o "SNF" (Skilled Nursing Facility — centro de enfermería ' +
+            'especializada). Se envía SIEMPRE como ARRAY: ej ["ACUTE"] o ' +
+            '["SNF"] o ["ACUTE", "SNF"]. Si el usuario menciona "ACUTE", "SNF", ' +
+            '"agudos", "cuidado agudo", "nivel de cuidado", "enfermería ' +
+            'especializada" o un valor específico, pásalo en este campo como ' +
+            'array. Si el usuario no menciona nivel de cuidado / location, ' +
+            'OMITE el campo (no envíes array vacío ni [""]).',
+        },
       },
       required: ['anio', 'idHospitales'],
     },
@@ -328,6 +362,23 @@ export const TOOLS: Anthropic.Tool[] = [
           minimum: 1,
           maximum: 50,
         },
+        loc: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['ACUTE', 'SNF'],
+          },
+          description:
+            'Filtro por Location / Nivel de cuidado del hospital (opcional, ' +
+            'array de enum). Valores válidos: "ACUTE" (hospitales de cuidado ' +
+            'agudo) o "SNF" (Skilled Nursing Facility — centro de enfermería ' +
+            'especializada). Se envía SIEMPRE como ARRAY: ej ["ACUTE"] o ' +
+            '["SNF"] o ["ACUTE", "SNF"]. Si el usuario menciona "ACUTE", "SNF", ' +
+            '"agudos", "cuidado agudo", "nivel de cuidado", "enfermería ' +
+            'especializada" o un valor específico, pásalo en este campo como ' +
+            'array. Si el usuario no menciona nivel de cuidado / location, ' +
+            'OMITE el campo (no envíes array vacío ni [""]).',
+        },
       },
       required: ['anio', 'idHospitales'],
     },
@@ -402,6 +453,129 @@ export const TOOLS: Anthropic.Tool[] = [
             'Si se omite, no se aplica filtro por plan. Cuando se envía, sólo se ' +
             'incluyen planes con actividad. ANTES de usar este parámetro, llama a ' +
             '`obtener_planes_disponibles` para mapear el nombre del plan al `idPlan`.',
+        },
+        loc: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['ACUTE', 'SNF'],
+          },
+          description:
+            'Filtro por Location / Nivel de cuidado del hospital (opcional, ' +
+            'array de enum). Valores válidos: "ACUTE" (hospitales de cuidado ' +
+            'agudo) o "SNF" (Skilled Nursing Facility — centro de enfermería ' +
+            'especializada). Se envía SIEMPRE como ARRAY: ej ["ACUTE"] o ' +
+            '["SNF"] o ["ACUTE", "SNF"]. Si el usuario menciona "ACUTE", "SNF", ' +
+            '"agudos", "cuidado agudo", "nivel de cuidado", "enfermería ' +
+            'especializada" o un valor específico, pásalo en este campo como ' +
+            'array. Si el usuario no menciona nivel de cuidado / location, ' +
+            'OMITE el campo (no envíes array vacío ni [""]).',
+        },
+      },
+      required: ['anio', 'idHospitales'],
+    },
+  },
+
+  {
+    name: 'consultar_determinacion_adversa_monto',
+    description:
+      'Responde: "¿Qué determinación adversa genera mayor monto perdido / denegado?"\n\n' +
+      'Devuelve un ranking de las determinaciones adversas ordenadas por el MONTO ' +
+      '($) que generan (perdido / denegado), agrupadas por hospital y, opcionalmente, ' +
+      'por plan.\n\n' +
+      'DIFERENCIA CLAVE con `consultar_determinacion_adversa_mas_frecuente`: aquella ' +
+      'rankea por FRECUENCIA (cantidad de registros), esta rankea por MONTO ($) ' +
+      'generado.\n\n' +
+      'DIFERENCIA con `consultar_concepto_mas_dias_denegados`: aquel rankea por DÍAS ' +
+      'denegados, este rankea por MONTO ($) perdido/denegado.\n\n' +
+      'USO:\n' +
+      '  • Úsala cuando el usuario pregunte por la "determinación que más dinero ' +
+      'pierde", "el concepto con mayor pérdida", "lo que más denegación económica ' +
+      'genera", "ranking de determinaciones por monto", o similares donde la métrica ' +
+      'principal es el MONTO ($), no la cantidad ni los días.\n\n' +
+      'PRERREQUISITO OBLIGATORIO:\n' +
+      '  • Antes de invocar esta tool, DEBES llamar primero a ' +
+      '`obtener_planes_disponibles` para tener el catálogo actualizado de planes ' +
+      '(ids + nombres). Sin ese catálogo en contexto, NO puedes construir el ' +
+      'parámetro `idPlanes` de forma fiable.\n' +
+      '  • Si el usuario menciona un plan por nombre ("Plan A", "plan premium"), ' +
+      'usa esa tool para mapear el nombre al `idPlan` correspondiente.\n' +
+      '  • NUNCA inventes `idPlanes` ni uses IDs memorizados de conversaciones ' +
+      'anteriores.\n\n' +
+      'OBTENCIÓN DE PARÁMETROS:\n' +
+      '  • `anio`: int requerido (1900–2999). Si el usuario no lo da, pregunta.\n' +
+      '  • `meses`: int[] opcional (1–12). Si se omite o se envía vacío, se asumen ' +
+      'los 12 meses del año.\n' +
+      '  • `idHospitales`: int[] requerido (al menos uno). Si el usuario solo ' +
+      'dice "mis hospitales", usa el listado derivado de las herramientas de ' +
+      'perfil/permisos.\n' +
+      '  • `idPlanes`: int[] opcional. ANTES de usarlo, llama a ' +
+      '`obtener_planes_disponibles` para obtener los IDs válidos. Si NO envías ' +
+      '`idPlanes`, OMITE el campo (no envíes array vacío).\n' +
+      '  • `top`: int opcional. Top-N por hospital. Si se omite, la API usa 10. ' +
+      'Rango recomendado: 1–20.\n\n' +
+      'FORMATO DE SALIDA (OBLIGATORIO): usa SOLO <b>, <i>, <code>, <a> y listas ' +
+      'simples con guion (una línea por concepto, con sus valores separados por ' +
+      'comas o espacios). NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas ' +
+      'alineadas para presentar datos.\n\n' +
+      'PRINCIPIO DE MINIMIZACIÓN (CRÍTICO): muestra SOLO las métricas que el ' +
+      'usuario pidió en su mensaje. Si pidió "monto perdido y plan", devuelve ' +
+      '"- Concepto X — monto $Y\n- Plan Z — monto $W" — NUNCA incluyas ' +
+      'cantidad de registros, días denegados, ni tasa de recuperación a menos ' +
+      'que el usuario los pida explícitamente.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        anio: {
+          type: 'integer',
+          description: 'Año del período. Rango válido: 1900–2999.',
+          minimum: 1900,
+          maximum: 2999,
+        },
+        meses: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 12 },
+          description:
+            'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
+            'Ej: [1, 2, 4] = enero, febrero y abril.',
+        },
+        idHospitales: {
+          type: 'array',
+          items: { type: 'integer' },
+          minItems: 1,
+          description:
+            'IDs de hospitales a incluir (al menos uno). Ej: [1, 2, 5].',
+        },
+        idPlanes: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'IDs de planes médicos para filtrar (opcional). Ej: [1127, 1123]. ' +
+            'Si se omite, no se aplica filtro por plan. Cuando se envía, las ' +
+            'auditorías sin plan asociado quedan excluidas. ANTES de usar este ' +
+            'parámetro, llama a `obtener_planes_disponibles` para mapear el ' +
+            'nombre del plan al `idPlan`.',
+        },
+        top: {
+          type: 'integer',
+          description:
+            'Top-N por hospital. Si se omite, la API usa 10. Rango recomendado: 1–20.',
+          minimum: 1,
+          maximum: 50,
+        },
+        loc: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['ACUTE', 'SNF'],
+          },
+          description:
+            'Filtro por Location / Nivel de cuidado del hospital (opcional, ' +
+            'array de enum). Valores válidos: "ACUTE" (hospitales de cuidado ' +
+            'agudo) o "SNF" (Skilled Nursing Facility — centro de enfermería ' +
+            'especializada). Se envía SIEMPRE como ARRAY: ej ["ACUTE"] o ' +
+            '["SNF"] o ["ACUTE", "SNF"]. Si el usuario no menciona nivel de ' +
+            'cuidado / location, OMITE el campo.',
         },
       },
       required: ['anio', 'idHospitales'],

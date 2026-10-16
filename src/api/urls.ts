@@ -23,3 +23,4 @@ export const DETERMINACION_ADVERSA_MAS_FRECUENTE_URL = `${AUDITA_API_URL}/api/Ia
 export const PLANES_DISPONIBLES_URL = `${AUDITA_API_URL}/api/planes/dropdown`;
 export const HOSPITALES_DISPONIBLES_URL = `${AUDITA_API_URL}/api/hospitales/activos`;
 export const MONTOS_ESTADO = `${AUDITA_API_URL}/api/IaPreguntas/montos-por-estado`;
+export const DETERMINACION_ADVERSA_MONTO_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-monto`;

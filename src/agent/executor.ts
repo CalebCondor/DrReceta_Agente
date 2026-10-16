@@ -21,6 +21,7 @@ import {
   PLANES_DISPONIBLES_URL,
   HOSPITALES_DISPONIBLES_URL,
   MONTOS_ESTADO,
+  DETERMINACION_ADVERSA_MONTO_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -206,9 +207,10 @@ export async function executeTool(
     return JSON.stringify(await apiGet(HOSPITALES_DISPONIBLES_URL, {}, token));
   }
 
-  // Helper local: arma el body estándar de las 3 herramientas de IaPreguntas
-  // (anio + meses? + idHospitales + idPlanes?), omitiendo los campos vacíos
-  // para no enviar arrays vacíos que el backend descarta o interpreta mal.
+  // Helper local: arma el body estándar de las herramientas de IaPreguntas
+  // (anio + meses? + idHospitales + idPlanes? + loc?), omitiendo los campos
+  // vacíos para no enviar arrays vacíos que el backend descarta o interpreta
+  // mal.
   const buildIaPreguntasBody = (): Record<string, unknown> => {
     const body: Record<string, unknown> = {};
     if (typeof toolInput['anio'] === 'number') {
@@ -225,6 +227,17 @@ export async function executeTool(
     const idPlanes = toolInput['idPlanes'];
     if (Array.isArray(idPlanes) && idPlanes.length > 0) {
       body['idPlanes'] = idPlanes;
+    }
+    const loc = toolInput['loc'];
+    if (Array.isArray(loc) && loc.length > 0) {
+      const cleaned = loc
+        .filter((v) => typeof v === 'string' && v.trim().length > 0)
+        .map((v) => (v as string).trim());
+      if (cleaned.length > 0) {
+        body['loc'] = cleaned;
+      }
+    } else if (typeof loc === 'string' && loc.trim().length > 0) {
+      body['loc'] = [loc.trim()];
     }
     return body;
   };
@@ -259,6 +272,16 @@ export async function executeTool(
   if (toolName === 'consultar_montos_por_estado') {
     const body = buildIaPreguntasBody();
     return JSON.stringify(await apiPost(MONTOS_ESTADO, body, token));
+  }
+
+  if (toolName === 'consultar_determinacion_adversa_monto') {
+    const body = buildIaPreguntasBody();
+    const top = toolInput['top'];
+    const url =
+      typeof top === 'number'
+        ? `${DETERMINACION_ADVERSA_MONTO_URL}?top=${encodeURIComponent(String(top))}`
+        : DETERMINACION_ADVERSA_MONTO_URL;
+    return JSON.stringify(await apiPost(url, body, token));
   }
 
   return JSON.stringify({
