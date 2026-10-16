@@ -104,6 +104,15 @@ function sanitizeAssistantText(text: string): string {
     /^.*\b¿(para|en|a|de) (20\d{2}|20\d{2} o 20\d{2})\??\s*$/i,
     /^.*\b(20\d{2})\s+o\s+(20\d{2})\??\s*$/i,
     /^.*\b(a[ñn]o|mes|periodo|hospital|plan)s?\s+(anterior(es)?|previo(s)?|pasado(s)?)\??\s*$/i,
+    // EXCUSAS DEL BOT PARA NO LLAMAR A LA API
+    /[^\n]*\bla api (devolvi[oó]|retorn[oó]|muestra) (los mismos|el mismo|las mismas) (datos?|totales?|valores?|resultados?)[^\n]*/gi,
+    /[^\n]*\bpese a (pedir|solicitar|indicar|mencionar) (solo|solamente|[uú]nicamente)[^\n]*/gi,
+    /[^\n]*\bsin (filtro|cambio|modificaci[oó]n) (de |del |de la |de los |de las )(hospital|plan|mes|a[ñn]o|periodo)[^\n]*/gi,
+    /[^\n]*\bno se aprecia (un |el |la )?(corte|filtro|distinci[oó]n|cambio)[^\n]*/gi,
+    /[^\n]*\b(para ver|para obtener) (octubre|noviembre|...?) (real|de verdad|concreto|espec[ií]fico)[^\n]*/gi,
+    // PEDIR HOSPITAL/PLAN CUANDO YA ESTÁ EN EL CONTEXTO
+    /¿(agrego|filtrar|filtramos)\s+(un|una|el|la|los|las)\s+(hospital|plan|hospitales|planes)[^\n]*/gi,
+    /¿(qu[eé]|cu[aá]l|cu[aá]les)\s+(hospital|plan|hospitales|planes)\s+(quieres|deseas|prefieres|te gustar[ií]a|concreto|espec[ií]fico)[^\n]*\??/gi,
     // PEDIR IDs AL USUARIO (NUNCA — el modelo debe mapear internamente con tools de catálogo)
     /^.*\b(ind[ií]came|indica|dame|dime|p[aá]same|m[aá]ndame|env[ií]ame|necesito|requiero|facil[ií]tame|comparte) (el |los )?(id|ID|Id|c[oó]digo|identificador)( (num[eé]rico|de (hospital|plan|hospitales|planes)))?\b.*$/gim,
     /^.*\b(¿)?(cu[aá]l|cu[aá]les) (es|son) (el|los) (id|ID|Id|c[oó]digo|identificador)( (num[eé]rico|de (hospital|plan|hospitales|planes)))?\??/gim,
@@ -690,6 +699,50 @@ export class AgentService {
             }
           }
 
+          // ═══ RECHAZO POR "SIN DATOS" SIN LLAMAR A TOOL DE DATOS ═══
+          // Si el bot responde con "sin registros" / "no hay datos" /
+          // "sin información" / "0 resultados" pero NO llamó a ninguna
+          // herramienta de datos en este turno, está ALUCINANDO ausencia
+          // de datos. La única forma válida de saber si hay datos es
+          // llamar a la herramienta. RECHAZAMOS y forzamos la llamada.
+          const sinDatosRe =
+            /\b(sin registros?|sin datos|no hay datos|no hay registros|no se encontraron|0 resultados?|sin resultados?|sin informaci[oó]n|informaci[oó]n no disponible|sin montos?|sin d[ií]as? (denegados?|aprobados?|recuperados?))\b/i;
+          const llamoDataTool = turnToolCalls.some((name) =>
+            [
+              'consultar_resumen_financiero_hospitales',
+              'consultar_montos_por_estado',
+              'consultar_determinacion_adversa_mas_frecuente',
+              'consultar_concepto_mas_dias_denegados',
+            ].includes(name),
+          );
+          if (
+            sinDatosRe.test(textToSave) &&
+            !llamoDataTool &&
+            round < 4
+          ) {
+            this.logger.warn(
+              `[Anthropic] round=${round} SIN_DATOS_SIN_TOOL (chat=${chatId}): ` +
+                `modelo dijo "sin datos" sin llamar a tool de datos. preview="${textToSave.slice(0, 100)}"`,
+            );
+            history.push({ role: 'assistant', content: response.content });
+            history.push({
+              role: 'user',
+              content:
+                '[SISTEMA — SIN DATOS SIN TOOL] Tu respuesta anterior fue RECHAZADA: ' +
+                'dijiste "sin registros" / "no hay datos" / "sin información" SIN HABER LLAMADO ' +
+                'a una herramienta de datos en este turno. Eso es ALUCINAR AUSENCIA DE DATOS.\n\n' +
+                'NO PUEDES afirmar que no hay datos si no llamaste a la herramienta de datos. ' +
+                'La única forma válida de saber si hay datos es llamar a la herramienta correspondiente ' +
+                '(`consultar_montos_por_estado`, `consultar_resumen_financiero_hospitales`, etc.) y ' +
+                'recibir el resultado real.\n\n' +
+                'ACCIÓN OBLIGATORIA: llama INMEDIATAMENTE a la herramienta de datos con los ' +
+                'filtros correctos. NO respondas con texto. NO digas "sin registros" hasta que la ' +
+                'API te devuelva un resultado vacío real.',
+            });
+            forceToolChoice = 'any';
+            continue;
+          }
+
           // Sanitizamos ANTES de persistir y de devolver al usuario, así
           // no acumulamos más respuestas con bloques <pre>, frases hechas
           // o tasas no pedidas en la BD, y el cliente recibe el texto
@@ -847,6 +900,53 @@ export class AgentService {
                     'INVENTASTE idPlanes. El usuario NO pidió cambiar el filtro de planes en este turno. La última consulta de esta misma herramienta usó idPlanes: [' +
                     lastPlanes.join(', ') +
                     ']. DEBES re-llamar esta herramienta con ESE MISMO idPlanes. NO inventes otros IDs.',
+                }),
+              });
+              continue;
+            }
+
+            // ═══ RECHAZO POR IDPLANCES_INCOMPLETO ═══
+            // Si el bot llama a una tool de DATOS con `idPlanes` con un
+            // subconjunto pequeño (1, 2 o 3 planes) y el usuario pidió
+            // "todos los planes" / "el plan que más facturó" / "ranking" /
+            // "qué plan" sin mencionar un plan específico, RECHAZAMOS.
+            // El bot debe llamar a `obtener_planes_disponibles` primero y
+            // luego pasar TODOS los IDs a la herramienta de datos.
+            const userMsgLowerPlan = userMessageText.toLowerCase();
+            const userWantsAllPlans =
+              /\b(todos los planes|el plan(es)? (que m[áa]s|con m[áa]s)|qu[ée] plan|qu[ée] planes|plan(es)? (m[áa]s|principal)|ranking|cu[áa]l(es)? (es|son) (el|los) plan(es)?|mejor plan|plan ganador|plan top|top de planes)\b/.test(
+                userMsgLowerPlan,
+              );
+            const userMentionedSpecificPlan =
+              /\b(plan\s+(MAPFRE|HUMANA|IMC|ACAA|AUXILIO|TRIPLE|BLUE|FIRST|COMPREHENSIVE|MMM|TRIPLE S|MMM ADVANTAGE|TRIPLE S VITAL|TRIPLE S ADVANTAGE|TRIPLE S COMERCIAL|TRIPLE S BASICO|TRIPLE S SELECTO|TRIPLE S PLATINO|TRIPLE S ORO|TRIPLE S PLATA|HUMANA ADVANTAGE|HUMANA PREV|HUMANA CHOICE))\b/i.test(
+                userMessageText,
+              ) ||
+              /\b(id\s*plan|plan\s*id)\b/i.test(userMsgLowerPlan);
+            if (
+              userWantsAllPlans &&
+              !userMentionedSpecificPlan &&
+              newPlanes.length > 0 &&
+              newPlanes.length < 4 &&
+              tu.name === 'consultar_montos_por_estado'
+            ) {
+              this.logger.warn(
+                `[Anthropic] round=${round} IDPLANCES_INCOMPLETO (chat=${chatId}): tool=${tu.name} user pidió todos los planes pero solo envió [${newPlanes.join(',')}].`,
+              );
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: tu.id,
+                is_error: true,
+                content: JSON.stringify({
+                  _sistema: 'IDPLANCES_INCOMPLETO',
+                  error:
+                    'ENVISTE SOLO ' +
+                    newPlanes.length +
+                    ' PLANES. El usuario pidió "todos los planes" / "el plan que más facturó" / "ranking". NO puedes hacer ranking con un subconjunto.\n\n' +
+                    'FLUJO CORRECTO:\n' +
+                    '1. PRIMER tool_use = `obtener_planes_disponibles` con `input = {}` para obtener TODOS los IDs.\n' +
+                    '2. SEGUNDO tool_use = `consultar_montos_por_estado` con `idPlanes: [TODOS_LOS_IDS]` (TODOS, no una selección).\n' +
+                    '3. La API devolverá `porHospital[].planes[]` con cada plan y su `totalFacturado`. Identifica el de mayor monto.\n\n' +
+                    'ACCIÓN OBLIGATORIA: llama primero a `obtener_planes_disponibles` para resolver TODOS los IDs, luego re-llama a `consultar_montos_por_estado` con el array COMPLETO de `idPlanes`.',
                 }),
               });
               continue;
