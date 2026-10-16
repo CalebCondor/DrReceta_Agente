@@ -569,19 +569,31 @@ export class AgentService {
                   'reales que la herramienta de datos te devolvió en rondas ' +
                   'anteriores. Esos datos están en tu historial como mensajes ' +
                   'de rol `user` con prefijo `[Resultado de herramienta...]`.\n\n' +
-                  'Tienes que:\n' +
-                  '  1. LEER los valores numéricos que la herramienta devolvió ' +
-                  '(porcentajes, días, montos).\n' +
-                  '  2. RESPONDER usando EXCLUSIVAMENTE esos valores, citándolos ' +
-                  'explícitamente en tu respuesta (ej: "según los datos: días ' +
-                  'denegados = 138, % denegado = 39.2%").\n' +
-                  '  3. Si la herramienta devolvió un objeto agregado (no una ' +
-                  'lista por hospital), EXPLÍCALO: "Esta herramienta devuelve ' +
-                  'totales agregados para los hospitales filtrados; no desglosa ' +
-                  'por hospital individual. Para ver el desglose por hospital ' +
-                  'usa otra herramienta."\n\n' +
-                  'PROHIBIDO: re-producir el mismo texto, inventar números, o ' +
-                  'mencionar nombres de herramientas al usuario.',
+                  'PASOS OBLIGATORIOS (en este orden estricto):\n' +
+                  '  1. LEE los valores numéricos que la herramienta devolvió ' +
+                  '(porcentajes, días, montos). Están en el mensaje de rol ' +
+                  '`user` con prefijo `[Resultado de herramienta...]`.\n' +
+                  '  2. RESPONDE usando EXCLUSIVAMENTE esos valores, citándolos ' +
+                  'explícitamente (ej: "según los datos: días denegados = 138, ' +
+                  '% denegado = 39.2%").\n' +
+                  '  3. VERIFICA la estructura de la respuesta: ¿la ' +
+                  'herramienta devolvió un objeto agregado (campos planos: ' +
+                  'totalLos, totalDenegado, etc.) o una lista por hospital?\n' +
+                  '     • Si el usuario pidió "por hospital" y la herramienta ' +
+                  'devolvió OBJETO AGREGADO (campos planos), EXPLÍCALO ' +
+                  'literalmente: "Esta herramienta devuelve totales agregados ' +
+                  'para los hospitales filtrados; no desglosa por hospital ' +
+                  'individual. Para ver el desglose por hospital, otra ' +
+                  'herramienta sería necesaria." NO inventes un desglose por ' +
+                  'hospital.\n' +
+                  '     • Si la herramienta devolvió LISTA por hospital, ' +
+                  'entonces sí muestra cada hospital con sus valores.\n' +
+                  '  4. NUNCA justifiques campos faltantes con fórmulas ' +
+                  'matemáticas (NO escribas "X% es equivalente a Y% porque ' +
+                  'la fórmula es…"). Si falta el campo, dilo.\n\n' +
+                  'PROHIBIDO: re-producir el mismo texto, inventar números, ' +
+                  'derivar campos por equivalencia matemática, o mencionar ' +
+                  'nombres de herramientas al usuario.',
               });
               forceToolChoice = undefined;
               continue;
@@ -690,6 +702,64 @@ export class AgentService {
             }
           }
 
+          // ── Detector: PORCENTAJE_EQUIVALENCIA_FALSA ──
+          // Cubre el caso en que el bot DECLARA que dos campos de
+          // porcentaje distintos son equivalentes entre sí (ej: "% sobre
+          // LOS = % denegado", "% aprobados coincide con % recuperación",
+          // "X% equivale a Y%"). Aunque la fórmula matemática sea la
+          // misma, son CAMPOS DE API DISTINTOS y la API puede
+          // devolverlos con valores diferentes.
+          //
+          // Si el usuario pidió un campo específico de porcentaje
+          // (aprobados, denegados, sobre LOS, pérdida, recuperación,
+          // facturado) y la respuesta contiene una "justificación
+          // matemática" de equivalencia con otro campo, RECHAZAMOS.
+          if (
+            round < 4 &&
+            userMessageText &&
+            /\b(porcentaje|% |tasa de|qu[eé] porcentaje|cu[aá]l es el porcentaje)\b/i.test(
+              userMessageText,
+            ) &&
+            /\b(es equivalente|equivale a?|coincide con|es lo mismo que|igual a|=\s*%|es igual a|i(gual)?ual (que|a)|se (puede )?interpretar como)\b/i.test(
+              textToSave,
+            )
+          ) {
+            this.logger.warn(
+              `[Anthropic] round=${round} PORCENTAJE_EQUIVALENCIA_FALSA (chat=${chatId}): ` +
+                `model declared equivalence between percentage fields. ` +
+                `preview="${textToSave.slice(0, 100)}"`,
+            );
+            history.push({ role: 'assistant', content: response.content });
+            history.push({
+              role: 'user',
+              content:
+                '[SISTEMA] Tu respuesta anterior fue rechazada. Declaraste que ' +
+                'un campo de porcentaje es "equivalente", "igual" o "coincide" ' +
+                'con otro campo, basándote en una fórmula matemática. ESTO ESTÁ ' +
+                'PROHIBIDO.\n\n' +
+                'Aunque la fórmula parezca la misma, "% sobre LOS", ' +
+                '"% denegado", "% aprobado", "% pérdida", "% recuperación" y ' +
+                '"% facturado" son CAMPOS DISTINTOS DE LA API. La API puede ' +
+                'devolverlos con valores diferentes (por redondeo, base de ' +
+                'cálculo, o porque no son idénticos internamente).\n\n' +
+                'Haz esto en su lugar:\n' +
+                '  1. Identifica qué campo específico pidió el usuario ' +
+                'consultando el MAPEO de términos a campos en tu system prompt.\n' +
+                '  2. Lee la respuesta de la herramienta de datos y busca ESE ' +
+                'campo exacto.\n' +
+                '  3. Si la herramienta devuelve el campo: úsalo directamente, ' +
+                'sin explicaciones matemáticas de equivalencia.\n' +
+                '  4. Si la herramienta NO devuelve ese campo exacto: di ' +
+                'literalmente "La herramienta devuelve [campos que sí trae] ' +
+                'pero no devuelve [el campo que pidió el usuario] con esos ' +
+                'filtros."\n\n' +
+                'PROHIBIDO: cualquier frase del tipo "X% es equivalente a Y%", ' +
+                '"coincide con", "se puede interpretar como", "es lo mismo que", ' +
+                'etc.',
+            });
+            continue;
+          }
+
           // ── Detector: PORCENTAJE SIN TOOL CALL ──
           // Si el usuario pidió un porcentaje (% aprobado, % denegado, % sobre
           // LOS, % de pérdida, % de recuperación, % facturado) y el bot
@@ -733,6 +803,88 @@ export class AgentService {
                 'Si la herramienta no devuelve ese campo exacto, di literalmente: ' +
                 '"Ese porcentaje específico no lo devuelve la herramienta con esos ' +
                 'filtros; los porcentajes disponibles son [lista]". NO INVENTES el valor.',
+            });
+            forceToolChoice = 'any';
+            continue;
+          }
+
+          // ── Detector: DATA_FABRICATED_SIN_TOOL ──
+          // Cubre el caso general (no sólo porcentajes) en que el
+          // usuario pide datos concretos y el bot responde con cifras
+          // específicas o montos SIN haber llamado a ninguna
+          // herramienta de datos en este turno. Es una ALUCINACIÓN:
+          // los números provienen de la nada, no de la API.
+          //
+          // Disparamos cuando SE CUMPLEN LAS 3 CONDICIONES:
+          //   1) El mensaje del usuario contiene una "petición de
+          //      datos" — ya sea un verbo imperativo (dame, sumar,
+          //      cuánto, listame) O un término del dominio
+          //      (dinero, monto, importe, días, denegado, aprobado,
+          //      recuperado, facturado, pérdida, %, etc.) — O un
+          //      conector de seguimiento (ahora, y, también).
+          //   2) La respuesta del bot contiene un valor numérico
+          //      concreto (≥2 dígitos) o un monto en $ — no frases
+          //      vagas como "varios" o "algunos".
+          //   3) El bot NO llamó a ninguna data tool en este turno.
+          if (
+            round < 4 &&
+            userMessageText &&
+            turnToolCalls.length === 0 &&
+            (
+              // (a) Verbo/nombre de petición de datos
+              /\b(sumar|suma|sumame|súmale|súmame|total(?:izar)?|total de|dame (el|la|los|las)|dame|cu[áa]nto|cu[áa]nt[oa]s?|cu[áa]nta|cu[áa]l(es)? es|cu[áa]l (es|ser[íi]a)|mu[ée]strame|l[íi]stame|ind[íi]came|ind[íi]queme|d[íi]game|consulta(r)?|consultame|hazme (un|el|la) (resumen|corte|c[áa]lculo)|c[áa]lculame|calcula|categor[íi]a|registros?|auditor[íi]as?|auditados?)\b/i.test(
+                userMessageText,
+              ) ||
+              // (b) Términos del dominio de Audita que indican que el
+              //     usuario quiere un dato concreto
+              /\b(dinero|plata|monto|montos|importe|importes|p[eé]rdida|p[eé]rdidas|perdido|perdidos|denegado|denegados|denegaci[oó]n|aprobado|aprobados|aprobaci[oó]n|recuperado|recuperados|recuperaci[oó]n|facturado|facturados|facturaci[oó]n|cantidad|cantidades|registro|registros|porcentaje|%|tasa|LOS|d[ií]as? denegados?|d[ií]as? aprobados?|d[ií]as? recuperados?|d[ií]as? cuestionados?)\b/i.test(
+                userMessageText,
+              ) ||
+              // (c) Conector de seguimiento + referencia a algo
+              //     concreto (ej: "ahora cuánto…", "y el monto…",
+              //     "también dame…")
+              /\b(ahora|y (el|la|los|las|cu[aá]nto|cu[aá]l)|tambi[eé]n|entonces)\b.*\?/i.test(
+                userMessageText,
+              )
+            ) &&
+            /(\$\s*\d|\b\d{2,}\b)/i.test(textToSave)
+          ) {
+            this.logger.warn(
+              `[Anthropic] round=${round} DATA_FABRICATED_SIN_TOOL (chat=${chatId}): ` +
+                `user asked for data but model responded with numbers and ` +
+                `no tool call. preview="${textToSave.slice(0, 80)}"`,
+            );
+            history.push({ role: 'assistant', content: response.content });
+            history.push({
+              role: 'user',
+              content:
+                '[SISTEMA] Tu respuesta anterior fue rechazada. El usuario ' +
+                'pidió datos concretos (monto, días, cantidad, etc.) y tú ' +
+                'respondiste con cifras SIN haber llamado a ninguna ' +
+                'herramienta de datos en este turno. Esas cifras son ' +
+                'INVENTADAS.\n\n' +
+                'Pasos OBLIGATORIOS antes de responder:\n' +
+                '  1. Identifica qué herramienta de datos responde a esta ' +
+                'pregunta (resumen financiero, montos por estado, ' +
+                'determinación más frecuente, concepto más días denegados, ' +
+                'determinación por monto).\n' +
+                '  2. Si la pregunta requiere mapear nombres a IDs ' +
+                '(hospital, plan, loc), llama primero a las herramientas ' +
+                'de catálogo (`obtener_hospitales_disponibles` o ' +
+                '`obtener_planes_disponibles`).\n' +
+                '  3. Llama a la herramienta de datos con los filtros que ' +
+                'el usuario dio (anio, meses, idHospitales, idPlanes, loc). ' +
+                'Si el usuario hace una pregunta de seguimiento (ej: "ahora ' +
+                'cuánto dinero…"), USA LOS MISMOS FILTROS que se usaron en ' +
+                'la respuesta anterior (anio, idHospitales, idPlanes).\n' +
+                '  4. RESPONDE usando SOLO los valores numéricos que la ' +
+                'herramienta devolvió. Si la herramienta no devuelve el ' +
+                'campo exacto que el usuario pidió, dilo literalmente: "La ' +
+                'herramienta no devuelve [ese campo exacto] con esos ' +
+                'filtros; los campos disponibles son [...]".\n' +
+                '  5. NUNCA inventes nombres de hospitales, IDs de plan, ni ' +
+                'montos. Si no estás seguro, llama a la herramienta — no ' +
+                'rellenes con suposiciones.',
             });
             forceToolChoice = 'any';
             continue;
