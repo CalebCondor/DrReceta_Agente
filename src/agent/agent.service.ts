@@ -72,6 +72,77 @@ function sanitizeAssistantText(text: string): string {
     /^.*\bdevuelt[oa]s? por (la herramienta|el (endpoint|sistema|backend))\b.*$/gim,
     /^.*\b(raw|rawJson|rawjson|tool[_ ]?result)\b.*$/gi,
     /^.*\b(Respuesta|HTTP) (cruda|sin procesar)\b.*$/gim,
+    // ANUNCIOS DE ACCIÓN SIN EJECUTAR (deben pasar por ANUNCIO_SIN_ACCION, pero
+    // también los bloqueamos aquí para que el cliente no vea el texto filtrado).
+    /^.*\bllamando( (a(l)?|del?))? (la |el |los |las )?(cat[áa]logo|hospitales?|planes?|herramienta|tool|endpoint|consulta|api)\b.*$/gim,
+    /^.*\bconsultando( (a(l)?|del?))? (la |el |los |las )?(cat[áa]logo|hospitales?|planes?|herramienta|tool|endpoint|consulta|api)\b.*$/gim,
+    /^.*\bejecutando( (la|el|los|las))? (consulta|tool|llamada|herramienta)\b.*$/gim,
+    /^.*\biniciando (consulta|llamada)\b.*$/gim,
+    /^.*\bobteniendo (datos|informaci[oó]n)\b.*$/gim,
+    /^.*\bno puedo ejecutar( la consulta| la herramienta)?\b.*$/gim,
+    /^.*\bcon (los|las|tus) filtros (de |de la )(consulta|pregunta|solicitud) anterior\b.*$/gim,
+    /^.*\busando (los|las) (mismos|anteriores) filtros\b.*$/gim,
+    // AFIRMAR RESULTADOS SIN HABER LLAMADO A UNA TOOL
+    /^.*\bno (tengo|hay|existen) (resultados?|datos?)\b.*$/gim,
+    /^.*\b(no se|pude) (obtener|conseguir) (datos?|resultados?)\b.*$/gim,
+    /^.*\bla consulta (no|no ha) (devolvi[oó]|retorn[oó]|tuvo)\b.*$/gim,
+    // RENDICIÓN: ofrecer "calcular" o "confirmar" en vez de mostrar el dato
+    /^.*\b¿(prefieres|quieres|deseas) (que (calcule|te calcule|calcule|usemos|yo)|calcule|que confirme)\b.*$/gim,
+    /^.*\bpara (responder|consultar) con datos v[aá]lidos[, ]+(¿(prefieres|quieres)|qu[eé])\b.*$/gim,
+    /^.*\b(no dispongo|no cuento) de (una )?herramienta(s)? que (devuelvan?|de) (directamente|el campo)\b.*$/gim,
+    /^.*\bno (dispongo|cuento) de (un|una|el|los|las)?\s*(campo|herramienta|tool|funci[oó]n) (directo|directamente|que|para|que devuelva)\b.*$/gim,
+    /^.*\b(no dispongo|no cuento) de (un|una|el|los|las)?\s*campo (directo|directamente|llamado)\b.*$/gim,
+    // FÓRMULA DENEGADO − RECUPERADO (prohibida — solo aplica a dinero, no a días)
+    /^.*\b(aplicando|usando) (la )?f[oó]rmula (DENEGADO|APROBADO)\s*[\-−]\s*(RECUPERADO|DENEGADO)\b.*$/gim,
+    /^.*\bDENEGADO\s*[\-−]\s*RECUPERADO\b.*$/gim,
+    // PEDIR IDs AL USUARIO (NUNCA — el modelo debe mapear internamente con tools de catálogo)
+    /^.*\b(ind[ií]came|indica|dame|dime|p[aá]same|m[aá]ndame|env[ií]ame|necesito|requiero|facil[ií]tame|comparte) (el |los )?(id|ID|Id|c[oó]digo|identificador)( (num[eé]rico|de (hospital|plan|hospitales|planes)))?\b.*$/gim,
+    /^.*\b(¿)?(cu[aá]l|cu[aá]les) (es|son) (el|los) (id|ID|Id|c[oó]digo|identificador)( (num[eé]rico|de (hospital|plan|hospitales|planes)))?\??/gim,
+    /^.*\b(id|ID) (del|de la) (hospital|plan|hospitales|planes)\b.*$/gim,
+    /^.*\b(el|los) (id|ID) (del|de la|de los|de las) (hospital|plan|hospitales|planes)\b.*$/gim,
+    /^.*\bpara identificar\b.*$/gim,
+    /^.*\bID o nombre\b.*$/gim,
+    /^.*\bnombre o ID\b.*$/gim,
+    /^.*\bidentificador o nombre\b.*$/gim,
+    /^.*\bnombre o identificador\b.*$/gim,
+    /^.*\bID o n[uú]mero\b.*$/gim,
+    /^.*\bn[uú]mero o ID\b.*$/gim,
+    /^.*\b(?:[a[ñn]o|mes|periodo|per[ií]odo)\b.*\bID\b.*$/gim,
+    /^.*\bID\b.*\b(?:[a[ñn]o|mes|periodo|per[ií]odo)\b.*$/gim,
+    /^.*\bind[ií]came:?\s+.*\bID\b.*$/gim,
+    /^.*\b(?:necesito|requiero|p[áa]same|comparte)[\s:]+\s*(?:el|los)?\s*(?:id|ID)\b.*$/gim,
+    // PREGUNTAR POR EL AÑO (NUNCA — siempre se infiere currentYear)
+    /^.*\b(¿)?(de qu[eé]|qu[eé]|para qu[eé]|en qu[eé]|a qu[eé]) (a[ñn]o|periodo|per[ií]odo)\b.*$/gim,
+    /^.*\b(¿)?qu[eé] (a[ñn]o|periodo|per[ií]odo)\b.*$/gim,
+    /^.*\b(ind[ií]came|indica|dame|dime) (el|el) a[ñn]o\b.*$/gim,
+    /^.*\b(¿)?(de|a|para) cu[aá]l a[ñn]o\b.*$/gim,
+    /^.*\b(¿)?(en|a) qu[eé] (a[ñn]o|periodo|per[ií]odo) (es|se|te refieres|dices|dijiste|mencionas)\b.*$/gim,
+    /^.*\bel a[ñn]o en cuesti[oó]n\b.*$/gim,
+    /^.*\b(?:ind[ií]came|indica|dame|dime)[:\s]+.*\ba[ñn]o\b.*$/gim,
+    // PEDIR TIPO DE CONCEPTO (NUNCA — "concepto" en este contexto siempre = determinación adversa)
+    /^.*\b(por|qu[eé]) (tipo de )?concepto\b.*$/gim,
+    /^.*\b(qu[eé]|cu[aá]l) (tipo |clase de )?concepto\b.*$/gim,
+    /^.*\b(¿)?(qu[eé]|cu[aá]l) (es|son) (el|los) (tipo |clase de )?concepto\b.*$/gim,
+    // PEDIR CONFIRMACIÓN DE FILTROS INNECESARIA (el modelo ya tiene lo que necesita)
+    /^.*\b(¿)?(qu[eé]|cu[aá]l) (filtros?|valores?|par[aá]metros?) (aplico|uso|utilizo|le pongo|debo usar|hay que usar)\b.*$/gim,
+    /^.*\b(¿)?(qu[eé]|cu[aá]les) (aplico|uso|utilizo)\b.*$/gim,
+    /^.*\baplicar (esos |estos |los )?filtros\b.*$/gim,
+    /^.*\b(¿)?confirmo\b.*$/gim,
+    /^.*\b(¿)?(qu[eé]) (te gustar[ií]a |quieres? |prefieres? )?aplicar\b.*$/gim,
+    // DECIR QUE LA HERRAMIENTA NO SE PUEDE USAR (incorrecto, sí se puede)
+    /^.*\bno (se puede|puede) usar (la herramienta|el endpoint|la api)\b.*$/gim,
+    /^.*\b(la herramienta|el endpoint) (no funciona|no aplica|no soporta) (sin|si no (hay|tiene))\b.*$/gim,
+    /^.*\bsin (filtro de )?(plan|mes|periodo|a[ñn]o).*no (se puede|puede)\b.*$/gim,
+    // "Necesito que indiques/me digas/dé…"
+    /^.*\bnecesito que (indiques?|me digas|me indiques?|proporciones?|me proporciones?|me (digas|des)|me confirmes)\b.*$/gim,
+    /^.*\bnecesito (el |los |que me des |que me digas |saber )?(el|los|a[ñn]o|mes|periodo|plan|hospital|indicador|filtro|par[aá]metro)\b.*$/gim,
+    /^.*\bpara (poder )?(consultar|responder|usar|llamar|ejecutar).*necesito\b.*$/gim,
+    /^.*\b(indica|dime|dame|comparte) (el |los )?(a[ñn]o|mes|periodo|plan|hospital|indicador|filtro)\b.*$/gim,
+    // RE-PEDIR FILTROS YA DISCUTIDOS EN LA CONVERSACIÓN
+    /^.*\bpara (responder|consultar|poder (responder|consultar)) correctamente\b.*$/gim,
+    /^.*\bconfirma (los |tus )?filtros\b.*$/gim,
+    /^.*\bvuelve(?: a)? (confirmar|indicar|pedir|decirme|dame|solicitar)\b.*$/gim,
+    /^.*\b(de nuevo|nuevamente) (confirma|indica|decime|dame)\b.*$/gim,
   ];
   for (const re of forbiddenFragments) {
     out = out.replace(re, '');
@@ -276,6 +347,15 @@ export class AgentService {
     const turnToolResults: string[] = [];
     const turnToolStatuses: ToolStatus[] = [];
 
+    // Buffer circular de los últimos drafts de texto del modelo. Sirve
+    // para detectar BUCLES: si el modelo produce el mismo texto (o muy
+    // parecido) varias rondas seguidas, sabemos que está "atorado" en
+    // una respuesta alucinada o de "no puedo". En ese caso, en lugar
+    // de seguir iterando (lo que al final acepta la alucinación al
+    // agotar el round limit), cortamos y devolvemos un mensaje útil.
+    const recentDrafts: string[] = [];
+    const MAX_RECENT_DRAFTS = 4;
+
     // Bandera: en el próximo round, forzar al modelo a usar una tool
     // (Anthropic soporta `tool_choice: 'any'`). Se activa cuando detectamos
     // que el modelo ANUNCIA una acción ("reintentando", "vuelvo a consultar")
@@ -360,6 +440,32 @@ export class AgentService {
         const fallback = collected.join('\n');
         let textToSave = assistantText || fallback;
 
+        // ═══ DETECCIÓN DE BUCLE ═══
+        // Si el modelo lleva N rondas produciendo textos muy parecidos
+        // (≥80% idénticos) sin llamar tools de datos, está atorado
+        // alucinando. Cortamos y devolvemos un mensaje útil en vez de
+        // seguir iterando hasta agotar el round limit (que al final
+        // termina aceptando la alucinación).
+        recentDrafts.push(textToSave);
+        if (recentDrafts.length > MAX_RECENT_DRAFTS) recentDrafts.shift();
+        if (recentDrafts.length >= 3) {
+          const last = recentDrafts[recentDrafts.length - 1];
+          const similarCount = recentDrafts.filter(
+            (d) => d.slice(0, 80) === last.slice(0, 80),
+          ).length;
+          if (similarCount >= 3) {
+            this.logger.warn(
+              `[Anthropic] BUCLE detectado (chat=${chatId}): ` +
+                `el modelo repite la misma respuesta ${similarCount} rondas. Cortando.`,
+            );
+            const loopMsg =
+              'Tuve un problema técnico al procesar tu consulta. ¿Puedes reformularla? ' +
+              'Por ejemplo: "días denegados del Hospital San Lucas en octubre 2026".';
+            await this.persistMessage(chatId, 'assistant', loopMsg);
+            return loopMsg;
+          }
+        }
+
         // ═══ VALIDACIÓN ANTI-ALUCINACIÓN ═══
         // Verifica que las cifras/IDs/nombres del draft provengan de los
         // resultados de herramientas llamadas en este turno. Si NO se
@@ -380,11 +486,11 @@ export class AgentService {
           // `tool_choice: 'any'` en el siguiente round para que el modelo
           // ESTÉ OBLIGADO a llamar a una tool antes de volver a hablar.
           const announceRe =
-            /\b(reintent(ando|o(?:r)?)?|vuelvo a (intentar|consultar|llamar|hacer|mostrar)|perm[íi]teme|dame un momento|ahora (mismo )?(lo )?(consulto|llamo|veo)|dame un segundo|espera un momento|un momento por favor|aquí (va|está|tienes)|voy a (consultar|llamar|verificar|revisar|mostrar|proceder)|procedo a|te (muestro|cuento|digo)|aquí te (muestro|cuento)|aqu[ií] va|el resultado|los resultados)\b/i;
+            /\b(reintent(ando|o(?:r)?)?|vuelvo a (intentar|consultar|llamar|hacer|mostrar)|perm[íi]teme|dame un momento|ahora (mismo )?(lo )?(consulto|llamo|veo)|dame un segundo|espera un momento|un momento por favor|aquí (va|está|tienes)|voy a (consultar|llamar|verificar|revisar|mostrar|proceder|reintentar|mapear|buscar)|procedo a|te (muestro|cuento|digo)|aquí te (muestro|cuento)|aqu[ií] va|el resultado|los resultados|llamando( (a(l)?|del?))? (la |el |los |las )?(cat[áa]logo|hospitales?|planes?|herramienta|tool|endpoint|consulta|api)|consultando( (a(l)?|del?))? (la |el |los |las )?(cat[áa]logo|hospitales?|planes?|herramienta|tool|endpoint|consulta|api)|ejecutando( (la|el|los|las))? (consulta|tool|llamada|herramienta)|iniciando (consulta|llamada)|obteniendo (datos|informaci[oó]n)|(no puedo|no puedo) ejecutar( la consulta| la herramienta)?|no tengo (en contexto|los?) (el|los?) (id|hosid|planid)|con (los|las|tus) filtros (de |de la )(consulta|pregunta|solicitud) anterior|usando (los|las) (mismos|anteriores) filtros)\b/i;
           if (
             announceRe.test(textToSave) &&
             turnToolCalls.length === 0 &&
-            round < 9
+            round < 4
           ) {
             this.logger.warn(
               `[Anthropic] round=${round} ANUNCIO_SIN_ACCION (chat=${chatId}): ` +
@@ -394,14 +500,23 @@ export class AgentService {
             history.push({
               role: 'user',
               content:
-                '[SISTEMA] Tu respuesta anterior fue RECHAZADA: anunciaste una ' +
-                'acción ("reintentando", "vuelvo a", "permíteme", etc.) sin ' +
-                'ejecutarla. ' +
-                'INSTRUCCIÓN OBLIGATORIA: en tu próxima respuesta DEBES llamar ' +
-                'directamente a una herramienta (ej. `obtener_planes_disponibles` ' +
-                'con `input = {}`) y devolver el resultado. NO escribas texto ' +
-                'previo de "espera", "dame un momento", "voy a…" — EJECUTA la ' +
-                'tool primero y luego redacta la respuesta final con los datos.',
+                '[SISTEMA — ANUNCIO SIN ACCIÓN] Tu respuesta anterior fue RECHAZADA: ' +
+                'anunciaste una acción ("reintentando", "llamando al catálogo", "voy a…", ' +
+                '"no puedo ejecutar la consulta", "no tengo en contexto los hosId", etc.) ' +
+                'sin EJECUTAR la herramienta. NO la repitas.\n\n' +
+                'FLUJO CORRECTO cuando te falta un `hosId`:\n' +
+                '1. LLAMA INMEDIATAMENTE a `obtener_hospitales_disponibles` con `{}`.\n' +
+                '2. Cuando recibas el catálogo, mapea "San Lucas" → `hosId` internamente.\n' +
+                '3. Si también falta el plan, LLAMA a `obtener_planes_disponibles` con `{}`.\n' +
+                '4. SOLO DESPUÉS de tener los IDs, llama a la herramienta de DATOS.\n\n' +
+                'PROHIBIDO en tu próxima respuesta:\n' +
+                '❌ Decir "llamando al catálogo", "consultando el catálogo", "ejecutando la consulta", ' +
+                '   "reintentando", "permíteme", "voy a…", "no puedo ejecutar la consulta", ' +
+                '   "no tengo en contexto los hosId", "obteniendo datos".\n\n' +
+                'OBLIGATORIO en tu próxima respuesta:\n' +
+                '✅ LLAMAR a `obtener_hospitales_disponibles` con `input = {}` (tool_use, no texto).\n' +
+                '✅ O, si ya tienes el hosId mapeado, llamar a la herramienta de datos correspondiente.\n' +
+                '✅ El primer elemento de tu respuesta DEBE ser un `tool_use`, no texto.',
             });
             forceToolChoice = 'any';
             continue;
@@ -417,7 +532,9 @@ export class AgentService {
             // obtuvo en turnos anteriores (p.ej. listas de catálogos).
             extractHistoricalToolResults(history),
           );
-          if (validation.suspicious && round < 9) {
+          if (validation.suspicious && round < 4) {
+            // (deja la lógica de abajo con el mensaje de alucinación)
+
             this.logger.warn(
               `[Anthropic] round=${round} RECHAZADO (chat=${chatId}): ` +
                 validation.reasons.join(' | '),
@@ -426,23 +543,78 @@ export class AgentService {
             history.push({
               role: 'user',
               content:
-                '[SISTEMA] Tu respuesta anterior fue RECHAZADA: contenía cifras ' +
-                'o datos concretos que NO provienen de una herramienta de datos ' +
-                'llamada en este turno ni de un resultado previo en el historial. ' +
-                'Motivo: ' +
-                validation.reasons.join(' ') +
-                '\n\n' +
-                'INSTRUCCIONES OBLIGATORIAS para tu próxima respuesta:\n' +
-                '1. NO inventes cifras, hospitales, planes ni determinaciones. ' +
-                '2. Si la consulta del usuario es VAGA (le falta el hospital, el ' +
-                'indicador, el mes, etc.), PREGUNTA al usuario en lugar de asumir. ' +
-                '   Ejemplo: "Para 2026, ¿de qué hospital(es) y qué indicador ' +
-                '   quieres consultar (aprobados, denegados, facturado...)?"\n' +
-                '3. Si la consulta es completa, llama a la herramienta ' +
-                'correspondiente con TODOS los filtros y usa SOLO sus valores.\n' +
-                '4. NO narres pasos internos ("aquí va", "voy a…", "permíteme…"). ' +
-                'O llamas a la tool o respondes con el resultado final.',
+                '[SISTEMA — ALUCINACIÓN RECHAZADA] Tu respuesta anterior contenía ' +
+                'cifras o datos concretos que NO provienen de una herramienta de ' +
+                'datos llamada en este turno. Esos números son INVENTADOS.\n\n' +
+                'PRÓXIMA RESPUESTA — REGLA ÚNICA Y OBLIGATORIA:\n' +
+                'TU PRIMER Y ÚNICO MOVIMIENTO debe ser un `tool_use` (no texto, no ' +
+                'muletillas, no saludos). NADA de texto antes del tool_use.\n\n' +
+                'FLUJO CORRECTO (en este orden estricto):\n' +
+                '1. Si NO tienes el `hosId` mapeado en este turno, PRIMER `tool_use` = ' +
+                '   `obtener_hospitales_disponibles` con `input = {}`.\n' +
+                '2. Con el `hosId` mapeado, SEGUNDO `tool_use` = la herramienta de ' +
+                '   datos que corresponda al indicador pedido:\n' +
+                '   - "facturado" / "perdido" / "dinero" / "$" / "monto" → `consultar_montos_por_estado`\n' +
+                '   - "días aprobados/denegados/recuperados" → `consultar_resumen_financiero_hospitales`\n' +
+                '   - "determinación más frecuente" / "más común" → `consultar_determinacion_adversa_mas_frecuente`\n' +
+                '   - "más días denegados" / "mayores pérdidas" / "conceptos con pérdidas" → `consultar_concepto_mas_dias_denegados`\n' +
+                '3. Cuando recibas el `tool_result`, redacta la respuesta final usando ' +
+                '   SOLO los datos del resultado, en formato limpio.\n\n' +
+                '❌ NUNCA produzcas texto antes del primer tool_use. NUNCA pidas filtros ' +
+                'que el usuario ya dio. NUNCA inventes cifras. NUNCA digas "no tengo ' +
+                'resultados válidos" sin haber llamado antes a una herramienta.',
             });
+            // Forzamos al modelo a llamar a una tool en el siguiente round.
+            // Sin esto, el modelo puede volver a inventar texto.
+            forceToolChoice = 'any';
+            continue;
+          }
+
+          // ═══ RECHAZO POR "RENDICIÓN" EN RONDAS POSTERIORES ═══
+          // Si el modelo ya fue rechazado al menos una vez (round >= 1) y
+          // aún así NO llamó a una herramienta de datos, y su respuesta es
+          // una "pregunta vaga al usuario" (no saludo, no respuesta
+          // concreta), RECHAZAMOS otra vez. Esto evita que el modelo se
+          // rinda con "¿de qué hospital/plan/año quieres?" cuando ya fue
+          // corregido explícitamente. El bot debe seguir intentando llamar
+          // a la tool hasta agotar el round limit.
+          if (
+            round >= 1 &&
+            turnToolCalls.length === 0 &&
+            turnToolResults.length === 0 &&
+            // No es una respuesta final de "no tengo datos" (eso se filtra
+            // por sanitización más abajo). Aquí solo capturamos "preguntas
+            // vagas" que parecen rinden al modelo.
+            /\b(para (responder|consultar|eso|ello|esto) (correctamente|necesito|te pido)|¿?(de|cu[áa]l|cu[áa]les|qu[ée])\s+(hospital(es)?|plan(es)?|a[ñn]o|mes|periodo|indicador|filtro)|d[ií]game? (el|los) (hospital|plan|a[ñn]o|mes|indicador|filtro)|qu[ée] (hospital|plan|a[ñn]o|mes|indicador|filtro) (quieres|deseas|necesitas))\b/i.test(
+              textToSave,
+            )
+          ) {
+            this.logger.warn(
+              `[Anthropic] round=${round} RENDICION (chat=${chatId}): ` +
+                `modelo no llamó tool y pidió filtros ya discutidos. preview="${textToSave.slice(0, 80)}"`,
+            );
+            history.push({ role: 'assistant', content: response.content });
+            history.push({
+              role: 'user',
+              content:
+                '[SISTEMA — NO TE RINDAS] Tu respuesta anterior fue RECHAZADA: ' +
+                'pides filtros que el usuario YA DIJO (o que ya deberían estar ' +
+                'en el contexto de esta conversación).\n\n' +
+                'PRÓXIMA RESPUESTA — REGLA ÚNICA:\n' +
+                'Tu primer y único movimiento DEBE ser un `tool_use`. NADA de ' +
+                'texto antes. NADA de "permíteme", "voy a…", "dame un momento".\n\n' +
+                'LLAMA INMEDIATAMENTE a la herramienta de datos correspondiente. ' +
+                'Si necesitas el `hosId`, PRIMER tool_use = `obtener_hospitales_disponibles` ' +
+                'con `input = {}`. Si necesitas el `id` del plan, PRIMER tool_use = ' +
+                '`obtener_planes_disponibles` con `input = {}`. Después de mapear, ' +
+                'llama a la herramienta de DATOS con los IDs.\n\n' +
+                'Indicador pedido → herramienta:\n' +
+                '- "facturado" / "perdido" / "$" / "monto" / "dinero" → `consultar_montos_por_estado`\n' +
+                '- "días aprobados/denegados/recuperados" → `consultar_resumen_financiero_hospitales`\n' +
+                '- "determinación más frecuente" / "más común" → `consultar_determinacion_adversa_mas_frecuente`\n' +
+                '- "más días denegados" / "mayores pérdidas" → `consultar_concepto_mas_dias_denegados`',
+            });
+            forceToolChoice = 'any';
             continue;
           }
 
@@ -451,6 +623,39 @@ export class AgentService {
           // o tasas no pedidas en la BD, y el cliente recibe el texto
           // ya limpio.
           textToSave = sanitizeAssistantText(textToSave);
+          if (!textToSave && round < 9) {
+            // La respuesta quedó vacía tras sanitizar: contenía SOLO
+            // frases prohibidas (p. ej. "indícame el ID del hospital"
+            // o "¿de qué año?"). Forzamos regeneración inyectando
+            // una corrección del sistema, igual que cuando el validador
+            // de cifras rechaza.
+            this.logger.warn(
+              `[Anthropic] round=${round} RECHAZADO (chat=${chatId}): ` +
+                `respuesta vacía tras sanitizar (solo contenía frases prohibidas).`,
+            );
+            history.push({ role: 'assistant', content: response.content });
+            history.push({
+              role: 'user',
+              content:
+                '[SISTEMA — RECHAZO] Tu respuesta anterior contenía SOLO frases prohibidas ' +
+                '("indícame el ID", "ID o nombre", "para identificar", "¿de qué año?", etc.) y ' +
+                'tras limpiarla quedó VACÍA. NO la repitas.\n\n' +
+                'FORMATO DE PREGUNTA OBLIGATORIO cuando faltan filtros:\n' +
+                '✅ "Para 2026, ¿de qué hospital y qué plan?"\n' +
+                '✅ "¿Hospital San Lucas y MMM Advantage, correcto?"\n' +
+                '❌ "indícame: año, ID o nombre del hospital"  ← ESTO ESTÁ PROHIBIDO\n' +
+                '❌ "indícame el año y el ID del hospital"     ← ESTO ESTÁ PROHIBIDO\n' +
+                '❌ "para identificar… indícame el ID"         ← ESTO ESTÁ PROHIBIDO\n' +
+                '❌ "¿de qué año?"                              ← ESTO ESTÁ PROHIBIDO\n\n' +
+                'RECUERDA:\n' +
+                '1. NUNCA pidas IDs. Pide SIEMPRE por nombre (hospital y/o plan).\n' +
+                '2. NUNCA preguntes por el año: usa 2026 (currentYear) por defecto.\n' +
+                '3. Si faltan filtros, pregunta TODOS a la vez en UNA sola frase corta.\n' +
+                '4. Si la consulta es completa (hospital + plan), llama YA a la herramienta correspondiente.',
+            });
+            forceToolChoice = 'any';
+            continue;
+          }
           if (textToSave) {
             // Si `collected` ya tiene entries (de un tool_use previo),
             // sobreescribimos la última con el texto final del assistant.
