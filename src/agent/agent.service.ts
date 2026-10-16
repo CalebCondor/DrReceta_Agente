@@ -20,10 +20,6 @@ import { buildSystem } from './system';
 import { DbService } from './db.service';
 import { ChatGateway } from '../chat/chat.gateway';
 
-@Injectable()
-export class AgentService {
-  private readonly logger = new Logger(AgentService.name);
-
 /**
  * Limpia texto generado por el assistant eliminando:
  *   • Bloques `<pre>...</pre>` completos (multilínea).
@@ -84,7 +80,9 @@ function sanitizeAssistantText(text: string): string {
   return out;
 }
 
-  constructor(
+@Injectable()
+export class AgentService {
+  private readonly logger = new Logger(AgentService.name);
 
   constructor(
     private readonly db: DbService,
