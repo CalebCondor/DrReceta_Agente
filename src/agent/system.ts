@@ -217,9 +217,10 @@ export function containsUnverifiedClaims(
     // POTENCIAL). NUNCA se permite DENEGADO − RECUPERADO ni
     // APROBADO − DENEGADO (esos son campos de DÍAS que la API devuelve
     // directamente).
-    const mentionsMoneyIndicator = /\b(perdido|recuperado|facturado|potencial|por recuperar|porRecuperar|recuperable)\b/i.test(
-      draftText,
-    );
+    const mentionsMoneyIndicator =
+      /\b(perdido|recuperado|facturado|potencial|por recuperar|porRecuperar|recuperable)\b/i.test(
+        draftText,
+      );
     const mentionsDayIndicator = /\b(denegado|aprobado|d[ií]as?)\b/i.test(
       draftText,
     );
@@ -229,15 +230,13 @@ export function containsUnverifiedClaims(
       // ningún cálculo derivado.
       !mentionsDayIndicator &&
       mentionsMoneyIndicator &&
-      (
-        /\b(f[oó]rmula|aplicando|calculando|diferencia|restando|sumando|c[áa]lculo|operaci[oó]n)\b/i.test(
-          draftText,
-        ) ||
+      (/\b(f[oó]rmula|aplicando|calculando|diferencia|restando|sumando|c[áa]lculo|operaci[oó]n)\b/i.test(
+        draftText,
+      ) ||
         // Patrones aritméticos: "56,744 - 2,080 = 54,664" (solo para dinero)
         /\d[\d,.\s]*\s*[\-−]\s*\d[\d,.\s]*\s*=\s*\d/i.test(draftText) ||
         /\d[\d,.\s]*\s*menos\s+\d/i.test(draftText) ||
-        /\d[\d,.\s]*\s*menos\s+\d[\d,.\s]*\s*=\s*\d/i.test(draftText)
-      );
+        /\d[\d,.\s]*\s*menos\s+\d[\d,.\s]*\s*=\s*\d/i.test(draftText));
 
     const isExactValueInPool = (
       n: number,
@@ -292,7 +291,9 @@ export function containsUnverifiedClaims(
       const allCovered =
         historicalValues.length > 0 &&
         draftNumbers.every((cands) =>
-          cands.some((d) => isValueCovered(d.value, d.decimals, historicalValues)),
+          cands.some((d) =>
+            isValueCovered(d.value, d.decimals, historicalValues),
+          ),
         );
       if (!allCovered) {
         reasons.push(
@@ -750,8 +751,16 @@ const REGLAS_DE_INTERPRETACION = [
   '',
   '🚫 FÓRMULA DENEGADO − RECUPERADO: PROHIBIDA PARA DÍAS. La fórmula del glosario `perdido − totalRecuperado` aplica SOLO a indicadores de DINERO (Facturado / Perdido / Recuperado / Potencial). NUNCA la adaptes a días como "DENEGADO − RECUPERADO" ni "APROBADO − DENEGADO". Para responder sobre días denegados/aprobados/recuperados, USA EXCLUSIVAMENTE los campos directos `diasDenegados`, `diasAprobados`, `diasRecuperados` que devuelve la API.',
   '',
+  '🔄 REGLA DE RE-CONSULTA OBLIGATORIA (CRÍTICO):',
+  '  - Si el usuario cambia CUALQUIER filtro (periodo/mes/año, hospital, plan, indicador), DEBES re-llamar a la herramienta con los filtros ACTUALIZADOS.',
+  '  - NUNCA reutilices los resultados de turnos anteriores si los filtros cambiaron. Los datos de Octubre NO sirven para responder sobre "marzo a octubre" o "el año pasado".',
+  '  - La reutilización de un resultado anterior SOLO es válida cuando el usuario pide EXACTAMENTE lo mismo (mismo periodo, mismas entidades, mismo indicador).',
+  '  - Si el usuario dice "quiero saber entre marzo y octubre" y antes preguntaste por octubre, DEBES llamar a la herramienta con `meses: [3,4,5,6,7,8,9,10]`. NO muestres los datos antiguos de octubre.',
+  '  - Si el usuario agrega o cambia un hospital, DEBES llamar a la herramienta con el nuevo `idHospitales`.',
+  '  - Si el usuario cambia el indicador (de "días denegados" a "días recuperados"), DEBES llamar a la herramienta y mostrar el campo correspondiente.',
+  '',
   'CONTINUIDAD DE FILTROS:',
-  '- Cambia solo el periodo ("¿y en 2025?", "¿y el mes pasado?") → conserva indicador, entidades y agrupación.',
+  '- Cambia solo el periodo ("¿y en 2025?", "¿y el mes pasado?", "quiero saber entre marzo y octubre") → conserva indicador, entidades y agrupación. **RE-LLAMA la herramienta con el nuevo periodo. NO reutilices el resultado anterior.**',
   '- Cambia solo la entidad ("¿y en el otro hospital?", "¿y ese plan?") → conserva indicador y periodo. Si hay varias entidades posibles, pregunta cuál.',
   '- Cambia el indicador ("¿cuántos se recuperaron?", "¿y el monto?") → cambia la medida; conserva solo filtros compatibles. Nunca respondas con el indicador anterior.',
   '- Cambia la agrupación ("¿y por plan?") → agrupa por la nueva entidad y conserva periodo y filtros compatibles.',

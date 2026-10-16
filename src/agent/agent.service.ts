@@ -363,6 +363,26 @@ export class AgentService {
     // "digo que voy a llamar a la tool" sin llamarla nunca.
     let forceToolChoice: 'any' | undefined;
 
+    // Extraemos el último mensaje del usuario para usarlo en
+    // detectFilterMismatch (re-llamada obligatoria cuando cambian filtros).
+    const lastUserMsg = [...history]
+      .reverse()
+      .find((m) => m.role === 'user');
+    let userMessageText = '';
+    if (lastUserMsg) {
+      const c = lastUserMsg.content;
+      if (typeof c === 'string') userMessageText = c;
+      else if (Array.isArray(c)) {
+        for (const b of c) {
+          const bb = b as { type?: string; text?: string };
+          if (bb.type === 'text' && typeof bb.text === 'string') {
+            userMessageText = bb.text;
+            break;
+          }
+        }
+      }
+    }
+
     for (let round = 0; round < 10; round++) {
       const systemPrompt = await buildSystem(chatId, this.db);
 
@@ -616,6 +636,49 @@ export class AgentService {
             });
             forceToolChoice = 'any';
             continue;
+          }
+
+          // ═══ RECHAZO POR FILTROS DESACTUALIZADOS ═══
+          // Si el modelo no llamó a una tool en este turno, podría estar
+          // reusando datos del historial que ya NO aplican porque el
+          // usuario cambió un filtro (periodo, hospital, plan). Detectamos
+          // este caso comparando los filtros del último tool_call con el
+          // mensaje actual del usuario. Si no coinciden, RECHAZAMOS y
+          // forzamos una re-llamada a la tool.
+          if (round >= 1 && turnToolCalls.length === 0) {
+            const lastDataToolInput = [
+              'consultar_resumen_financiero_hospitales',
+              'consultar_montos_por_estado',
+              'consultar_determinacion_adversa_mas_frecuente',
+              'consultar_concepto_mas_dias_denegados',
+            ]
+              .map((tn) => extractLastToolInput(history, tn))
+              .find((x) => x !== null && x !== undefined) ?? null;
+            const mismatch = detectFilterMismatch(
+              userMessageText,
+              lastDataToolInput,
+            );
+            if (mismatch && round < 4) {
+              this.logger.warn(
+                `[Anthropic] round=${round} FILTROS_DESACTUALIZADOS (chat=${chatId}): ${mismatch}`,
+              );
+              history.push({ role: 'assistant', content: response.content });
+              history.push({
+                role: 'user',
+                content:
+                  '[SISTEMA — FILTROS DESACTUALIZADOS] Tu respuesta anterior reutilizó ' +
+                  'datos de una consulta anterior con filtros DIFERENTES a los que el ' +
+                  'usuario pide ahora.\n\n' +
+                  'PROBLEMA: ' +
+                  mismatch +
+                  '\n\n' +
+                  'ACCIÓN OBLIGATORIA: re-llama a la herramienta de datos con los ' +
+                  'filtros actualizados que corresponden al mensaje actual del usuario. ' +
+                  'NO reuses el resultado anterior.',
+              });
+              forceToolChoice = 'any';
+              continue;
+            }
           }
 
           // Sanitizamos ANTES de persistir y de devolver al usuario, así
@@ -943,4 +1006,148 @@ export function extractHistoricalToolResults(
     }
   }
   return out;
+}
+
+/**
+ * Extrae el ÚLTIMO tool_use con input de un tool_name específico del
+ * historial. Devuelve el `input` parseado o `null` si no hay.
+ *
+ * Sirve para detectar si el bot está reusando datos viejos cuando el
+ * usuario cambió filtros. Comparamos el último tool_call con los filtros
+ * que el usuario pide en su mensaje actual.
+ */
+export function extractLastToolInput(
+  history: Anthropic.Messages.MessageParam[],
+  toolName: string,
+): Record<string, unknown> | null {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msg = history[i];
+    if (msg.role !== 'assistant') continue;
+    const content = msg.content;
+    if (!Array.isArray(content)) continue;
+    for (const block of content) {
+      const b = block as {
+        type?: string;
+        name?: string;
+        input?: unknown;
+      };
+      if (b.type === 'tool_use' && b.name === toolName) {
+        return (b.input as Record<string, unknown>) ?? null;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Compara los filtros del último tool_call con el mensaje actual del
+ * usuario. Si detecta que el usuario pidió un rango/periodo/hospital
+ * diferente al que usó la tool, devuelve un mensaje de validación.
+ * Devuelve `null` si los filtros son consistentes o no se puede
+ * determinar.
+ *
+ * Heurística:
+ *   - Si el último tool_call tiene `meses: [10]` (solo octubre) y el
+ *     usuario menciona un rango "marzo a octubre" / "entre X y Y" /
+ *     varios meses → INCONSISTENTE.
+ *   - Si el último tool_call tiene `idHospitales: [6]` y el usuario
+ *     dice "todos los hospitales" o un nombre diferente → INCONSISTENTE.
+ *   - Si el último tool_call tiene `anio: 2025` y el usuario dice
+ *     "2026" → INCONSISTENTE.
+ */
+export function detectFilterMismatch(
+  userMessage: string,
+  lastInput: Record<string, unknown> | null,
+): string | null {
+  if (!lastInput) return null;
+  const lastMeses: number[] = Array.isArray(lastInput.meses)
+    ? (lastInput.meses as number[])
+    : [];
+  const lastAnio = typeof lastInput.anio === 'number' ? lastInput.anio : null;
+  const lastHospitals: number[] = Array.isArray(lastInput.idHospitales)
+    ? (lastInput.idHospitales as number[])
+    : [];
+
+  const msg = userMessage.toLowerCase();
+
+  // Detectar mención de rango de meses en el mensaje del usuario.
+  // Patrones: "entre marzo y octubre", "de marzo a octubre",
+  // "marzo a octubre", "desde marzo", "hasta octubre".
+  const monthNames = [
+    'enero',
+    'febrero',
+    'marzo',
+    'abril',
+    'mayo',
+    'junio',
+    'julio',
+    'agosto',
+    'septiembre',
+    'octubre',
+    'noviembre',
+    'diciembre',
+  ];
+  const monthToNum: Record<string, number> = {
+    enero: 1,
+    febrero: 2,
+    marzo: 3,
+    abril: 4,
+    mayo: 5,
+    junio: 6,
+    julio: 7,
+    agosto: 8,
+    septiembre: 9,
+    octubre: 10,
+    noviembre: 11,
+    diciembre: 12,
+  };
+  const mentionedMonths: number[] = [];
+  for (const m of monthNames) {
+    if (msg.includes(m)) {
+      mentionedMonths.push(monthToNum[m]);
+    }
+  }
+  // Detectar rangos "entre X y Y", "de X a Y", "X a Y", "desde X hasta Y".
+  if (
+    /\b(entre|de|desde)\s+\w+\s+(y|a|hasta)\s+\w+/.test(msg) &&
+    mentionedMonths.length >= 2
+  ) {
+    const sorted = [...mentionedMonths].sort((a, b) => a - b);
+    const minMonth = sorted[0];
+    const maxMonth = sorted[sorted.length - 1];
+    const expected = Array.from(
+      { length: maxMonth - minMonth + 1 },
+      (_, i) => minMonth + i,
+    );
+    if (
+      lastMeses.length !== expected.length ||
+      !expected.every((m) => lastMeses.includes(m))
+    ) {
+      return `El usuario pidió un rango de meses (${minMonth}–${maxMonth}) pero la última consulta usó meses: [${lastMeses.join(', ')}]. DEBES re-llamar la herramienta con meses: [${expected.join(', ')}].`;
+    }
+  } else if (mentionedMonths.length > 0 && lastMeses.length > 0) {
+    // El usuario mencionó un mes específico, ¿coincide con el último?
+    const mentioned = mentionedMonths[0];
+    if (lastMeses.length === 1 && lastMeses[0] !== mentioned) {
+      return `El usuario pidió el mes ${mentioned} pero la última consulta usó meses: [${lastMeses.join(', ')}]. DEBES re-llamar la herramienta con meses: [${mentioned}].`;
+    }
+  }
+
+  // Detectar mención de año.
+  const yearMatch = msg.match(/\b(20\d{2})\b/);
+  if (yearMatch && lastAnio && parseInt(yearMatch[1]) !== lastAnio) {
+    return `El usuario pidió el año ${yearMatch[1]} pero la última consulta usó anio: ${lastAnio}. DEBES re-llamar la herramienta con anio: ${parseInt(yearMatch[1])}.`;
+  }
+
+  // Detectar "todos los hospitales" cuando la última consulta tenía uno.
+  if (
+    /\b(todos los hospitales|los dem[aá]s hospitales|los otros hospitales)\b/.test(
+      msg,
+    ) &&
+    lastHospitals.length === 1
+  ) {
+    return `El usuario pidió "todos los hospitales" pero la última consulta usó idHospitales: [${lastHospitals.join(', ')}]. DEBES re-llamar la herramienta sin filtro de idHospitales (o con todos los del catálogo).`;
+  }
+
+  return null;
 }
