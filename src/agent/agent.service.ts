@@ -95,6 +95,15 @@ function sanitizeAssistantText(text: string): string {
     // FÓRMULA DENEGADO − RECUPERADO (prohibida — solo aplica a dinero, no a días)
     /^.*\b(aplicando|usando) (la )?f[oó]rmula (DENEGADO|APROBADO)\s*[\-−]\s*(RECUPERADO|DENEGADO)\b.*$/gim,
     /^.*\bDENEGADO\s*[\-−]\s*RECUPERADO\b.*$/gim,
+    // EL BOT NO DEBE CALCULAR SU PROPIO PORCENTAJE CUANDO LA API LO DEVUELVE
+    /^.*\b(yo )?calcul[eé] (el|la|los|las)?\s*(%|porcentaje|tasa)/i,
+    /^.*\bcalcul[eé] (el|la)?\s*(%|porcentaje) (de (la )?distribuci[oó]n|de (los|las) (datos|porcentajes)|sobre el total)\b/i,
+    /^.*\b(la|el) % (de la distribuci[oó]n|sobre el total|de (los|las) datos)\b/i,
+    // PEDIR AÑO / MES / HOSPITAL / PLAN CUANDO YA SE DISCUTIÓ EN ESTA CONVERSACIÓN
+    /^.*\b¿(para|en|a|de) (qué|cu[áa]l|cu[áa]les) (a[ñn]o|mes|periodo|período|hospital(es)?|plan(es)?|indicador(es)?)\??\s*$/i,
+    /^.*\b¿(para|en|a|de) (20\d{2}|20\d{2} o 20\d{2})\??\s*$/i,
+    /^.*\b(20\d{2})\s+o\s+(20\d{2})\??\s*$/i,
+    /^.*\b(a[ñn]o|mes|periodo|hospital|plan)s?\s+(anterior(es)?|previo(s)?|pasado(s)?)\??\s*$/i,
     // PEDIR IDs AL USUARIO (NUNCA — el modelo debe mapear internamente con tools de catálogo)
     /^.*\b(ind[ií]came|indica|dame|dime|p[aá]same|m[aá]ndame|env[ií]ame|necesito|requiero|facil[ií]tame|comparte) (el |los )?(id|ID|Id|c[oó]digo|identificador)( (num[eé]rico|de (hospital|plan|hospitales|planes)))?\b.*$/gim,
     /^.*\b(¿)?(cu[aá]l|cu[aá]les) (es|son) (el|los) (id|ID|Id|c[oó]digo|identificador)( (num[eé]rico|de (hospital|plan|hospitales|planes)))?\??/gim,
@@ -755,6 +764,96 @@ export class AgentService {
           `[DEBUG] >>> TOOL_CALL name=${tu.name} id=${tu.id} input=${JSON.stringify(args)}`,
         );
 
+        // ═══ RECHAZO POR FILTROS INVENTADOS ═══
+        // Si el bot llama a una tool de DATOS con filtros DIFERENTES al
+        // último tool_call del mismo tipo, y el usuario NO mencionó ningún
+        // cambio en su mensaje actual, RECHAZAMOS la llamada y forzamos
+        // una re-llamada con los filtros de la conversación previa.
+        // Esto evita que el bot "inente" idHospitales o idPlanes sin que
+        // el usuario lo pida.
+        const DATA_TOOLS = new Set([
+          'consultar_resumen_financiero_hospitales',
+          'consultar_montos_por_estado',
+          'consultar_determinacion_adversa_mas_frecuente',
+          'consultar_concepto_mas_dias_denegados',
+        ]);
+        if (DATA_TOOLS.has(tu.name) && round < 4) {
+          const lastInput = extractLastToolInput(history, tu.name);
+          if (lastInput) {
+            const newHospitals: number[] = Array.isArray(args.idHospitales)
+              ? (args.idHospitales as number[])
+              : [];
+            const lastHospitals: number[] = Array.isArray(lastInput.idHospitales)
+              ? (lastInput.idHospitales as number[])
+              : [];
+            const newPlanes: number[] = Array.isArray(args.idPlanes)
+              ? (args.idPlanes as number[])
+              : [];
+            const lastPlanes: number[] = Array.isArray(lastInput.idPlanes)
+              ? (lastInput.idPlanes as number[])
+              : [];
+
+            const hospitalChanged =
+              newHospitals.length !== lastHospitals.length ||
+              !newHospitals.every((h) => lastHospitals.includes(h));
+            const planChanged =
+              newPlanes.length !== lastPlanes.length ||
+              !newPlanes.every((p) => lastPlanes.includes(p));
+
+            // Verificamos si el usuario mencionó el cambio en su mensaje.
+            // Si no, rechazamos.
+            const userMsgLower = userMessageText.toLowerCase();
+            const userMentionsHospitalChange =
+              /\b(todos los hospitales|cada hospital|los dem[aá]s|los otros)\b/.test(
+                userMsgLower,
+              ) ||
+              /\b(solo|solamente|[\u00fanicamente])\b.*\b(hospital|hospitales)\b/.test(
+                userMsgLower,
+              );
+            const userMentionsPlanChange =
+              /\b(ese|el mismo|este|el plan|mismo plan|distinto plan|otro plan|cambiar plan)\b/.test(
+                userMsgLower,
+              );
+
+            if (hospitalChanged && !userMentionsHospitalChange) {
+              this.logger.warn(
+                `[Anthropic] round=${round} FILTROS_INVENTADOS_HOSPITAL (chat=${chatId}): tool=${tu.name} last=[${lastHospitals.join(',')}] new=[${newHospitals.join(',')}]`,
+              );
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: tu.id,
+                is_error: true,
+                content: JSON.stringify({
+                  _sistema: 'FILTROS_INVENTADOS',
+                  error:
+                    'INVENTASTE idHospitales. El usuario NO pidió cambiar el filtro de hospitales en este turno. La última consulta de esta misma herramienta usó idHospitales: [' +
+                    lastHospitals.join(', ') +
+                    ']. DEBES re-llamar esta herramienta con ESE MISMO idHospitales. NO inventes otros IDs.',
+                }),
+              });
+              continue;
+            }
+            if (planChanged && !userMentionsPlanChange) {
+              this.logger.warn(
+                `[Anthropic] round=${round} FILTROS_INVENTADOS_PLAN (chat=${chatId}): tool=${tu.name} last=[${lastPlanes.join(',')}] new=[${newPlanes.join(',')}]`,
+              );
+              toolResults.push({
+                type: 'tool_result',
+                tool_use_id: tu.id,
+                is_error: true,
+                content: JSON.stringify({
+                  _sistema: 'FILTROS_INVENTADOS',
+                  error:
+                    'INVENTASTE idPlanes. El usuario NO pidió cambiar el filtro de planes en este turno. La última consulta de esta misma herramienta usó idPlanes: [' +
+                    lastPlanes.join(', ') +
+                    ']. DEBES re-llamar esta herramienta con ESE MISMO idPlanes. NO inventes otros IDs.',
+                }),
+              });
+              continue;
+            }
+          }
+        }
+
         const resultStr = await executeTool(tu.name, args, chatId, this.db);
         const toolElapsed = Date.now() - toolStart;
 
@@ -1147,6 +1246,18 @@ export function detectFilterMismatch(
     lastHospitals.length === 1
   ) {
     return `El usuario pidió "todos los hospitales" pero la última consulta usó idHospitales: [${lastHospitals.join(', ')}]. DEBES re-llamar la herramienta sin filtro de idHospitales (o con todos los del catálogo).`;
+  }
+
+  // Detectar mención de plan por nombre o "el mismo plan" / "ese plan" cuando
+  // el último tool_call tenía un plan diferente. Esto evita que el bot cambie
+  // el plan sin que el usuario lo pida explícitamente.
+  const lastPlanes: number[] = Array.isArray(lastInput.idPlanes)
+    ? (lastInput.idPlanes as number[])
+    : [];
+  const planRefPattern =
+    /\b(ese|el mismo|este|el plan|el mismo plan|mismo plan)\b/i;
+  if (planRefPattern.test(msg) && lastPlanes.length > 0) {
+    return `El usuario hizo referencia al MISMO plan (${lastPlanes.join(', ')}) pero la última consulta usó idPlanes: [${lastPlanes.join(', ')}]. DEBES re-llamar la herramienta con el MISMO idPlanes: [${lastPlanes.join(', ')}].`;
   }
 
   return null;
