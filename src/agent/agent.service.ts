@@ -1464,8 +1464,44 @@ export class AgentService {
 
   /**
    * Punto de entrada público: procesa un mensaje y devuelve la respuesta del agente.
+   *
+   * Tiene un TIMEOUT DURO de `CHAT_TIMEOUT_MS` (60s por defecto). Si el
+   * proveedor de IA o el backend de Audita se cuelgan, en vez de dejar al
+   * frontend esperando hasta que el navegador aborte (HTTP 500/cancelación),
+   * cortamos nosotros con un mensaje claro y guardamos el contexto para que
+   * el siguiente intento tenga el historial sincronizado.
    */
   async chat(chatId: number, userText: string): Promise<string> {
+    const CHAT_TIMEOUT_MS = 60_000;
+    const timeout = new Promise<string>((_, reject) => {
+      const t = setTimeout(() => {
+        reject(
+          new Error(
+            `Timeout duro: el agente tardó más de ${CHAT_TIMEOUT_MS / 1000}s en responder. ` +
+              'Probablemente el proveedor de IA está sobrecargado o el backend de Audita no responde. ' +
+              'Intenta de nuevo en unos segundos.',
+          ),
+        );
+      }, CHAT_TIMEOUT_MS);
+      // Evitar que el proceso quede colgado por el timer
+      t.unref?.();
+    });
+
+    try {
+      return await Promise.race([this.runChatInner(chatId, userText), timeout]);
+    } catch (e) {
+      // Si el timeout ganó, devolvemos un mensaje útil en lugar de propagar
+      // el error y dejar al usuario viendo "HTTP 500".
+      const msg = (e as Error)?.message ?? String(e);
+      if (msg.startsWith('Timeout duro:')) {
+        this.logger.error(`[chat] ${msg} (chat_id=${chatId})`);
+        return msg;
+      }
+      throw e;
+    }
+  }
+
+  private async runChatInner(chatId: number, userText: string): Promise<string> {
     try {
       const { rows } = await this.db.query(
         `SELECT TOP 1 1

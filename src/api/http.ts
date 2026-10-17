@@ -28,7 +28,7 @@ export async function apiPost(
       method: 'POST',
       headers,
       body: JSON.stringify(data),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(30_000),
     });
     return parseResponse(r);
   } catch (e) {
@@ -50,7 +50,7 @@ export async function apiGet(
   try {
     const r = await fetch(fullUrl, {
       headers,
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(30_000),
     });
     return parseResponse(r);
   } catch (e) {

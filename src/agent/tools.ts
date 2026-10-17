@@ -9,11 +9,13 @@ export const TOOLS: Anthropic.Tool[] = [
     description:
       'OBLIGATORIO usar esta herramienta cuando el usuario pregunta por el catálogo / listado / ' +
       'los planes médicos disponibles (ej.: "¿qué planes hay?", "¿cuáles son los planes?", ' +
-      '"dame el listado de planes", "qué planes médicos existen"). NO digas que no existe esa ' +
+      '"dame el listado de planes", "qué planes médicos existen", "qué planes Medicare tenemos", ' +
+      '"planes de la categoría Comercial", "qué planes Vital hay"). NO digas que no existe esa ' +
       'herramienta — sí existe y debes llamarla.\n\n' +
-      'Devuelve el catálogo COMPLETO de planes médicos (id + nombre), incluyendo planes con y ' +
-      'sin actividad registrada. Es un endpoint público — NO requiere autenticación y NO ' +
-      'debes pedir correo ni código antes de llamarla.\n\n' +
+      'Devuelve el catálogo COMPLETO de planes médicos agrupados por CATEGORÍA (COMERCIAL, ' +
+      'MEDICARE, ASES / VITAL, etc.), incluyendo planes con y sin actividad registrada. Es un ' +
+      'endpoint público — NO requiere autenticación y NO debes pedir correo ni código antes de ' +
+      'llamarla.\n\n' +
       'ADEMÁS es prerrequisito de las tools de datos:\n' +
       '  • Si después vas a llamar `consultar_resumen_financiero_hospitales`, ' +
       '`consultar_determinacion_adversa_mas_frecuente`, `consultar_concepto_mas_dias_denegados`, ' +
@@ -21,15 +23,37 @@ export const TOOLS: Anthropic.Tool[] = [
       'para mapear el nombre del plan al `idPlan`.\n' +
       '  • NUNCA inventes `idPlanes` ni uses IDs memorizados de conversaciones anteriores — el ' +
       'catálogo puede cambiar entre sesiones.\n\n' +
-      'FORMATO DE RESPUESTA: el endpoint devuelve un array JSON. Cada elemento trae `id` (number) y ' +
-      '`label` (string). Ejemplo real: `[{id: 1117, label: "ACAA"}, {id: 1123, label: "MCS Comercial"}]`. ' +
-      'Al listar los planes al usuario, muestra SOLO el `label` (el nombre) un plan por línea, ' +
-      'SIN mencionar ni mostrar el `id`. Ejemplo de respuesta correcta: ' +
-      '"Los planes disponibles son:\n- ACAA\n- AUXILIO MUTUO\n- Blue Triple S Comercial". ' +
-      'El `id` es interno — no lo expongas en la respuesta al usuario a menos que él ' +
-      'explícitamente lo pida. Si el usuario pregunta por un plan específico por nombre, ' +
-      'búscalo en esta lista por el campo `label`. NO uses campos como `idPlan` o `plan` — ' +
-      'el backend usa `id` y `label`.',
+      'FORMATO DE RESPUESTA: el endpoint devuelve un array JSON AGRUPADO POR CATEGORÍA. ' +
+      'Cada elemento de primer nivel es una categoría con:\n' +
+      '  • `idCategoria` (number), `nombre` (string con el NOMBRE DE LA CATEGORÍA, p.ej. "MEDICARE", ' +
+      '"COMERCIAL", "ASES / VITAL"), `cantidadPlanes` (number con el total de planes en esa categoría).\n' +
+      '  • `planes` (array) con los planes de esa categoría. Cada plan trae `idPlan` (number), ' +
+      '`plan` (string con el NOMBRE DEL PLAN, p.ej. "Medicare", "Humana Advantage"), ' +
+      '`cantidadNiveles`, `cantidadLocs` y `locs` (array con `{idLoc, codigo: "ACUTE"|"SNF"}`).\n' +
+      'Ejemplo real de un elemento:\n' +
+      '  {\n' +
+      '    "idCategoria": 3,\n' +
+      '    "nombre": "MEDICARE",\n' +
+      '    "cantidadPlanes": 5,\n' +
+      '    "planes": [\n' +
+      '      { "idPlan": 1131, "plan": "Medicare", "cantidadNiveles": 12, "cantidadLocs": 2, "locs": [...] },\n' +
+      '      { "idPlan": 1132, "plan": "MCS Classicare", ... },\n' +
+      '      ...\n' +
+      '    ]\n' +
+      '  }\n' +
+      'CUIDADO: existe un plan llamado EXACTAMENTE "Medicare" (idPlan 1131) DENTRO de la categoría ' +
+      'MEDICARE. Si el usuario dice "planes Medicare", eso casi siempre se refiere a TODA LA ' +
+      'CATEGORÍA MEDICARE (sus 5 planes), no al plan individual "Medicare". Cuando el usuario ' +
+      'pregunta por una categoría, lista TODOS los `planes[].plan` de esa categoría.\n' +
+      '\n' +
+      'Al listar los planes al usuario, muestra SOLO el `plan` (el nombre) un plan por línea, con guion. ' +
+      'NO uses comillas invertidas para nombres de herramientas, ni menciones campos como `idCategoria`, ' +
+      '`idPlan`, `locs[]`, etc. SON INTERNOS. El usuario solo quiere ver los nombres de los planes.\n' +
+      'Ejemplo de respuesta correcta: ' +
+      '"Los planes disponibles en la categoría Medicare son:\n- Humana Advantage\n- MCS Advantage\n- MCS Classicare\n- Medicare\n- MMM Advantage\n- Triple S Advantage". ' +
+      'Si el usuario pregunta "qué planes Medicare hay", devuelve TODOS los nombres dentro de la categoría MEDICARE. ' +
+      'El `idCategoria` y `idPlan` son internos — no los expongas en la respuesta al usuario a menos que él ' +
+      'explícitamente los pida.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
 
@@ -579,6 +603,102 @@ export const TOOLS: Anthropic.Tool[] = [
         },
       },
       required: ['anio', 'idHospitales'],
+    },
+  },
+
+  {
+    name: 'obtener_planes_por_hospital_con_loc',
+    description:
+      'OBLIGATORIO usar esta herramienta cuando necesitas resolver el `idPlan` ' +
+      'filtrando por hospital Y por nivel de cuidado (LOC = "ACUTE" / "SNF").\n\n' +
+      'Devuelve el catálogo JERÁRQUICO de planes médicos activos por hospital, ' +
+      'agrupados por categoría, con los niveles de cuidado (locs) en los que cada ' +
+      'plan opera. Estructura de la respuesta:\n' +
+      '  • `hospitales[]` — un elemento por hospital consultado.\n' +
+      '    - `hospital` (string): nombre del hospital.\n' +
+      '    - `categorias[]` — agrupación por tipo de plan (ej. COMERCIAL, ASES (VITAL)).\n' +
+      '      - `planes[]` — un elemento por plan con `idPlan`, `plan` (nombre) y `locs[]` ' +
+      '        con los códigos de location en los que ese plan tiene actividad ' +
+      '        (típicamente "ACUTE" y/o "SNF").\n' +
+      '  • Solo aparecen planes con datos — los planes solicitados sin actividad NO ' +
+      'aparecen en la respuesta.\n\n' +
+      'ES UN PRERREQUISITO para las tools de datos cuando:\n' +
+      '  • El usuario filtra por un hospital específico Y por nivel de cuidado ' +
+      '("planes de Hospital San Lucas en nivel agudo", "qué planes hay en SNF en ' +
+      'Centro Médico del Caribe"). En ese caso, usa esta tool para:\n' +
+      '    1) Resolver `nombre → idHospital` (si aún no lo tienes de ' +
+      '`obtener_hospitales_disponibles`).\n' +
+      '    2) Construir `idPlanes` correcto para `consultar_*` (planes que SÍ ' +
+      'operan en la loc pedida, descartando los que solo operan en otras locs).\n' +
+      '  • NUNCA inventes `idPlanes` para `consultar_*` cuando hay filtro de loc; ' +
+      'un plan que solo opera en SNF no debe incluirse en una consulta de planes ' +
+      'en ACUTE.\n\n' +
+      'USO:\n' +
+      '  • Úsala cuando el usuario pregunte: "qué planes tiene X hospital", ' +
+      '"planes disponibles por nivel de cuidado", "planes ACUTE / SNF de Y ' +
+      'hospital", "qué planes operan como SNF", o cuando necesites el `idPlan` ' +
+      'filtrado por loc.\n' +
+      '  • Si el usuario NO filtra por loc, devuelve TODOS los planes del hospital ' +
+      '(omite el campo `loc` y la respuesta trae todos los planes activos).\n\n' +
+      'OBTENCIÓN DE PARÁMETROS:\n' +
+      '  • `idHospitales`: int[] REQUERIDO. Antes, llama a ' +
+      '`obtener_hospitales_disponibles` para mapear nombre → id.\n' +
+      '  • `loc`: array opcional de "ACUTE" y/o "SNF" (sin la "s" final — es ' +
+      'el nombre real del campo en el backend). Si se omite, no se filtra por ' +
+      'nivel de cuidado. Si el usuario menciona una loc, pásala como array ' +
+      '(ej ["ACUTE"] o ["SNF"] o ["ACUTE", "SNF"]).\n' +
+      '  • `idPlanes`: int[] opcional. Limita el catálogo a un conjunto ' +
+      'específico de planes. Útil cuando quieres ver la estructura de UNOS ' +
+      'planes concretos dentro de los hospitales. Si NO envías `idPlanes`, OMITE ' +
+      'el campo.\n\n' +
+      'FORMATO DE SALIDA: la herramienta devuelve la estructura cruda. ' +
+      'Preséntala al usuario de forma plana con listas simples con guion. NO uses ' +
+      '<pre>, tablas, columnas alineadas ni caracteres Unicode tipo tabla. Ejemplo ' +
+      'de respuesta correcta:\n' +
+      '- Hospital San Lucas — ASES (VITAL): First Medical Vital (ACUTE, SNF), Triple S ' +
+      'Vital (ACUTE), Menonita Vital (ACUTE, SNF), MMM Vital (ACUTE).\n' +
+      '- Centro Medico del Caribe — COMERCIAL: MMM Vital (ACUTE).\n\n' +
+      'PRINCIPIO DE MINIMIZACIÓN (CRÍTICO): si el usuario pidió ver los planes de ' +
+      'X hospital, NO incluyas monto, días ni auditoría de esos planes — para eso ' +
+      'están las tools `consultar_*`. Muestra SOLO la estructura del catálogo.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        idHospitales: {
+          type: 'array',
+          items: { type: 'integer' },
+          minItems: 1,
+          description:
+            'IDs de hospitales a consultar (requerido, al menos uno). ' +
+            'Antes de llamar, usa `obtener_hospitales_disponibles` para mapear ' +
+            'el nombre del hospital al `idHospital`.',
+        },
+        loc: {
+          type: 'array',
+          items: {
+            type: 'string',
+            enum: ['ACUTE', 'SNF'],
+          },
+          description:
+            'Filtro por nivel de cuidado / location (opcional, array de enum). ' +
+            'Nombre del campo en el backend: `loc` (sin la "s" final). Valores ' +
+            'válidos: "ACUTE" (hospitales de cuidado agudo) o "SNF" (Skilled ' +
+            'Nursing Facility — centro de enfermería especializada). Se envía ' +
+            'como array: ej ["ACUTE"], ["SNF"] o ["ACUTE", "SNF"]. Si el ' +
+            'usuario NO menciona nivel de cuidado, OMITE el campo.',
+        },
+        idPlanes: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'IDs de planes a incluir en el catálogo (opcional, int[]). Si se ' +
+            'envía, la respuesta se limita a los planes indicados (típicamente ' +
+            'se usa el catálogo de `obtener_planes_disponibles` para resolver ' +
+            'el nombre del plan al `idPlan`). Si NO envías `idPlanes`, OMITE el ' +
+            'campo (no envíes array vacío).',
+        },
+      },
+      required: ['idHospitales'],
     },
   },
 ];

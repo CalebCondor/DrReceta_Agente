@@ -20,6 +20,11 @@ export const client = USE_ANTHROPIC
       // `X-Api-Key` (no acepta solo `Authorization: Bearer`). Lo mandamos
       // como header adicional; si el endpoint ignora `Authorization`, listo.
       defaultHeaders: { 'X-Api-Key': ANTHROPIC_API_KEY },
+      // Timeout duro por llamada al SDK. Si el proveedor se cuelga, el SDK
+      // aborta en vez de quedarse esperando indefinidamente. Combinado con
+      // el timeout duro de `AgentService.chat()` (60s), el frontend nunca
+      // debería quedarse colgado más de eso.
+      timeout: 45_000,
     })
   : (null as unknown as Anthropic);
 

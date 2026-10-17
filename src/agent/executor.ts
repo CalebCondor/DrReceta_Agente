@@ -22,6 +22,7 @@ import {
   HOSPITALES_DISPONIBLES_URL,
   MONTOS_ESTADO,
   DETERMINACION_ADVERSA_MONTO_URL,
+  PLANES_POR_HOSPITAL_CON_LOC_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -205,6 +206,44 @@ export async function executeTool(
 
   if (toolName === 'obtener_hospitales_disponibles') {
     return JSON.stringify(await apiGet(HOSPITALES_DISPONIBLES_URL, {}, token));
+  }
+
+  if (toolName === 'obtener_planes_por_hospital_con_loc') {
+    // Catálogo jerárquico hospital → categorías → planes → locs.
+    // Acepta `idHospitales` (requerido), `loc` opcional (array de
+    // "ACUTE" / "SNF") e `idPlanes` opcional (array de ints para
+    // limitar el catálogo a un conjunto específico de planes).
+    // Devuelve la estructura cruda sin transformarla.
+    const body: Record<string, unknown> = {};
+    const idHospitales = toolInput['idHospitales'];
+    if (Array.isArray(idHospitales) && idHospitales.length > 0) {
+      body['idHospitales'] = idHospitales;
+    }
+    const loc = toolInput['loc'];
+    if (Array.isArray(loc) && loc.length > 0) {
+      const cleaned = loc
+        .filter((v) => typeof v === 'string' && v.trim().length > 0)
+        .map((v) => (v as string).trim());
+      if (cleaned.length > 0) {
+        body['loc'] = cleaned;
+      }
+    } else if (typeof loc === 'string' && loc.trim().length > 0) {
+      body['loc'] = [loc.trim()];
+    }
+    const idPlanes = toolInput['idPlanes'];
+    if (Array.isArray(idPlanes) && idPlanes.length > 0) {
+      body['idPlanes'] = idPlanes;
+    }
+    if (!Array.isArray(body['idHospitales']) || body['idHospitales'].length === 0) {
+      return JSON.stringify({
+        success: false,
+        error:
+          'Falta el parámetro requerido `idHospitales` (array de ids de hospital). Usa antes `obtener_hospitales_disponibles` para mapear nombre → id.',
+      });
+    }
+    return JSON.stringify(
+      await apiPost(PLANES_POR_HOSPITAL_CON_LOC_URL, body, token),
+    );
   }
 
   // Helper local: arma el body estándar de las herramientas de IaPreguntas
