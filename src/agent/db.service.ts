@@ -6,17 +6,45 @@ import {
 } from '@nestjs/common';
 import * as sql from 'mssql';
 
+/**
+ * Resultado neutro de `query()` cuando la BD no está disponible o falla.
+ * Mantiene la forma `{ rows: [...] }` para que todos los call-sites que
+ * hacen `const { rows } = await db.query(...)` sigan funcionando sin
+ * cambios. Cuando la BD está caída, todas las queries devuelven esto.
+ */
+const EMPTY_RESULT = Object.freeze({ rows: [] as unknown[] });
+
 @Injectable()
 export class DbService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DbService.name);
-  private pool!: sql.ConnectionPool;
+  private pool!: sql.ConnectionPool | null;
   private connected = false;
+  /**
+   * Se setea en `true` la primera vez que falla una query por un error de
+   * conexión. Sirve para no inundar los logs con el mismo error cada 30s
+   * (caso típico: AutoResumeService).
+   */
+  private warnedUnavailable = false;
 
   onModuleInit() {
-    const poolConfig = this.buildConfig();
-    this.pool = new sql.ConnectionPool(poolConfig);
+    // Si no hay configuración de BD en absoluto, salimos silenciosamente:
+    // el agente sigue funcionando con memoria en RAM (`conversations` en
+    // `state.ts`) y las tools de datos (IaPreguntas) que NO dependen de BD.
+    if (!this.hasConfig()) {
+      this.logger.warn(
+        'DB no configurada (sin DB_CONNECTION_STRING ni DB_SERVER). ' +
+          'Funcionando sin persistencia: historial, memoria a largo plazo, ' +
+          'pausa de chats y auto-resume deshabilitados.',
+      );
+      this.pool = null;
+      return;
+    }
 
-    this.pool
+    const poolConfig = this.buildConfig();
+    const pool = new sql.ConnectionPool(poolConfig);
+    this.pool = pool;
+
+    pool
       .connect()
       .then(() => {
         this.connected = true;
@@ -25,16 +53,38 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
         this.logger.log(`Conectado a SQL Server: ${server}/${database}`);
         return this.initTables();
       })
-      .catch((e) =>
-        this.logger.error(
-          `DB connection/init failed: ${e?.message ?? e}`,
-          e?.stack,
-        ),
-      );
+      .catch((e) => {
+        // La BD no está accesible (típico: servidor apagado o inaccesible
+        // por red). Logueamos UNA VEZ como warning (no error) y dejamos
+        // que el sistema siga funcionando: la app no muere, las tools de
+        // datos (HTTP) siguen operando, la memoria en RAM del agente
+        // sigue viva.
+        this.connected = false;
+        this.logger.warn(
+          `DB no disponible (${e?.message ?? e}). El agente funcionará sin ` +
+            `persistencia: sin historial guardado, sin memoria a largo ` +
+            `plazo, sin pausa de chats. Las tools HTTP siguen activas.`,
+        );
+      });
 
-    this.pool.on('error', (err) => {
-      this.logger.error(`Pool error: ${err?.message ?? err}`);
+    pool.on('error', (err) => {
+      // Errores del pool en runtime. Mantenemos `connected` sincronizado
+      // y logueamos como warning para no spammear.
+      this.connected = false;
+      if (!this.warnedUnavailable) {
+        this.logger.warn(`DB pool error: ${err?.message ?? err}`);
+        this.warnedUnavailable = true;
+      }
     });
+  }
+
+  /** Devuelve `true` si hay AL MENOS una variable de BD configurada. */
+  private hasConfig(): boolean {
+    return Boolean(
+      process.env.DB_CONNECTION_STRING?.trim() ||
+        process.env.DB_SERVER?.trim() ||
+        process.env.DB_NAME?.trim(),
+    );
   }
 
   async onModuleDestroy() {
@@ -47,6 +97,16 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
         this.logger.error(`Error cerrando pool: ${e}`);
       }
     }
+  }
+
+  /**
+   * `true` si el pool está conectado a SQL Server. Los servicios que
+   * llaman a `query()` pueden chequear esto antes de hacer operaciones
+   * costosas, pero `query()` ya devuelve `{rows: []}` si NO está
+   * conectado (tolerancia silenciosa).
+   */
+  isAvailable(): boolean {
+    return this.connected && this.pool !== null;
   }
 
   private buildConfig(): sql.config {
@@ -90,25 +150,66 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
    * Ejecuta una query y devuelve `{ rows }` para mantener compatibilidad
    * con el código previo (PostgreSQL usaba `result.rows`).
    * Traduce automáticamente `$1, $2, ...` a `@p1, @p2, ...`.
+   *
+   * TOLERANCIA A FALLOS: si la BD no está disponible (sin pool, sin
+   * conexión, o la query explota por un error de conexión), devuelve
+   * `{ rows: [] }` en lugar de lanzar. Esto permite que el resto del
+   * sistema (Agente, ChatController, AutoResumeService) sigan
+   * funcionando aunque la BD esté caída.
+   *
+   * La única excepción es `UPDATE ... OUTPUT` o `INSERT ... OUTPUT` que
+   * los call-sites pueden esperar que devuelva filas para leer IDs. En
+   * esos casos el resultado neutro es OK porque las features que
+   * dependen de BD están deshabilitadas cuando esto pasa.
    */
   async query(text: string, params?: any[]): Promise<{ rows: any[] }> {
-    if (!this.connected) {
-      throw new Error('SQL Server pool no está conectado todavía.');
+    if (!this.connected || !this.pool) {
+      // Sin BD: resultado vacío. NO lanzamos error.
+      return EMPTY_RESULT;
     }
-    const translated = text.replace(/\$\d+/g, (m) => `@p${m.slice(1)}`);
-    const request = this.pool.request();
-    if (params) {
-      params.forEach((value, i) => {
-        // mssql detecta el tipo; pero para algunos tipos (BigInt, Buffer) conviene
-        // declararlo. Para mantenerlo simple, dejamos que infiera.
-        request.input(`p${i + 1}`, value);
-      });
+    try {
+      const translated = text.replace(/\$\d+/g, (m) => `@p${m.slice(1)}`);
+      const request = this.pool.request();
+      if (params) {
+        params.forEach((value, i) => {
+          // mssql detecta el tipo; pero para algunos tipos (BigInt, Buffer) conviene
+          // declararlo. Para mantenerlo simple, dejamos que infiera.
+          request.input(`p${i + 1}`, value);
+        });
+      }
+      const result = (await request.query(translated)) as sql.IResult<any>;
+      return { rows: result.recordset ?? [] };
+    } catch (e) {
+      // Si la conexión se cayó a mitad de una query (típico: timeout,
+      // red inestable), marcamos como desconectado y devolvemos vacío.
+      const msg = (e as Error)?.message ?? String(e);
+      // Errores típicos de desconexión: "Connection is closed",
+      // "socket hang up", "Failed to connect", "ECONNREFUSED",
+      // "ETIMEDOUT", "Connection lost".
+      const isConnectionError =
+        /connection|connect|socket|econn|etimedout|reset|closed/i.test(msg);
+      if (isConnectionError) {
+        this.connected = false;
+        if (!this.warnedUnavailable) {
+          this.logger.warn(
+            `DB query falló por pérdida de conexión: ${msg}. ` +
+              `Continuando sin persistencia.`,
+          );
+          this.warnedUnavailable = true;
+        }
+      } else {
+        // Error lógico de la query (constraint, sintaxis, etc.) — sí
+        // propagamos al call-site que tenga su propio try/catch para
+        // decidir qué hacer. Si nadie lo captura, NestJS lo loguea.
+        this.logger.error(`DB query error: ${msg}`);
+        throw e;
+      }
+      return EMPTY_RESULT;
     }
-    const result = (await request.query(translated)) as sql.IResult<any>;
-    return { rows: result.recordset ?? [] };
   }
 
   private async initTables() {
+    if (!this.pool) return;
     const req = this.pool.request();
 
     // ─── conocimiento_especifico ───────────────────────────────────────────
