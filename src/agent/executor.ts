@@ -23,6 +23,10 @@ import {
   MONTOS_ESTADO,
   DETERMINACION_ADVERSA_MONTO_URL,
   PLANES_POR_HOSPITAL_CON_LOC_URL,
+  DESEMPENO_MEDICO_URL,
+  DETERMINACION_ADVERSA_MEDICO_ALTA_URL,
+  DESEMPENO_MANEJADOR_CASO_URL,
+  DETERMINACION_ADVERSA_MANEJADOR_CASO_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -278,6 +282,40 @@ export async function executeTool(
     } else if (typeof loc === 'string' && loc.trim().length > 0) {
       body['loc'] = [loc.trim()];
     }
+    // `idMedicoAlta` (opcional). Si se omite, el backend devuelve el catálogo
+    // completo de médicos (útil cuando la IA está resolviendo nombre → ID).
+    const idMedicoAlta = toolInput['idMedicoAlta'];
+    if (
+      typeof idMedicoAlta === 'number' &&
+      Number.isFinite(idMedicoAlta) &&
+      idMedicoAlta > 0
+    ) {
+      body['idMedicoAlta'] = Math.trunc(idMedicoAlta);
+    } else if (typeof idMedicoAlta === 'string' && idMedicoAlta.trim().length > 0) {
+      const parsed = Number(idMedicoAlta.trim());
+      if (Number.isFinite(parsed) && parsed > 0) {
+        body['idMedicoAlta'] = Math.trunc(parsed);
+      }
+    }
+    // `idManejadorCaso` (opcional). Misma idea que `idMedicoAlta`: si se omite,
+    // el backend devuelve el catálogo de manejadores de caso bajo los filtros
+    // aplicados. Se aplica solo a las tools que lo pidan.
+    const idManejadorCaso = toolInput['idManejadorCaso'];
+    if (
+      typeof idManejadorCaso === 'number' &&
+      Number.isFinite(idManejadorCaso) &&
+      idManejadorCaso > 0
+    ) {
+      body['idManejadorCaso'] = Math.trunc(idManejadorCaso);
+    } else if (
+      typeof idManejadorCaso === 'string' &&
+      idManejadorCaso.trim().length > 0
+    ) {
+      const parsed = Number(idManejadorCaso.trim());
+      if (Number.isFinite(parsed) && parsed > 0) {
+        body['idManejadorCaso'] = Math.trunc(parsed);
+      }
+    }
     return body;
   };
 
@@ -321,6 +359,53 @@ export async function executeTool(
         ? `${DETERMINACION_ADVERSA_MONTO_URL}?top=${encodeURIComponent(String(top))}`
         : DETERMINACION_ADVERSA_MONTO_URL;
     return JSON.stringify(await apiPost(url, body, token));
+  }
+
+  // ─── Desempeño de médicos ───────────────────────────────────────────────
+  //
+  // Devuelve KPIs por médico (días aprobados / denegados / recuperados,
+  // montos, etc.) en un período + planes + loc + médico específico.
+  // Si NO se pasa `idMedicoAlta`, el backend devuelve el catálogo completo
+  // de médicos disponible para los filtros aplicados — útil para que la IA
+  // resuelva el nombre antes de hacer una consulta concreta.
+  if (toolName === 'consultar_desempeno_medico') {
+    const body = buildIaPreguntasBody();
+    return JSON.stringify(await apiPost(DESEMPENO_MEDICO_URL, body, token));
+  }
+
+  // ─── Determinación adversa más frecuente del médico de alta ─────────────
+  //
+  // Devuelve el/los concepto(s) de determinación adversa que más se repiten
+  // en las auditorías asociadas al médico que firma el alta del paciente
+  // (`idMedicoAlta`). Mismos filtros que el resto de IaPreguntas.
+  if (toolName === 'consultar_determinacion_adversa_medico_alta') {
+    const body = buildIaPreguntasBody();
+    return JSON.stringify(
+      await apiPost(DETERMINACION_ADVERSA_MEDICO_ALTA_URL, body, token),
+    );
+  }
+
+  // ─── Desempeño de manejadores de caso ──────────────────────────────────
+  //
+  // Análogo a `consultar_desempeno_medico`, pero agrupado por manejador de
+  // caso (`idManejadorCaso`) en vez de médico de alta. Si NO se pasa
+  // `idManejadorCaso`, el backend devuelve el catálogo de manejadores.
+  if (toolName === 'consultar_desempeno_manejador_caso') {
+    const body = buildIaPreguntasBody();
+    return JSON.stringify(
+      await apiPost(DESEMPENO_MANEJADOR_CASO_URL, body, token),
+    );
+  }
+
+  // ─── Determinación adversa más frecuente del manejador de caso ─────────
+  //
+  // Análogo a `consultar_determinacion_adversa_medico_alta`, pero filtrando
+  // por `idManejadorCaso`. El endpoint NO devuelve catálogo: requiere ID.
+  if (toolName === 'consultar_determinacion_adversa_manejador_caso') {
+    const body = buildIaPreguntasBody();
+    return JSON.stringify(
+      await apiPost(DETERMINACION_ADVERSA_MANEJADOR_CASO_URL, body, token),
+    );
   }
 
   return JSON.stringify({

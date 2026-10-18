@@ -701,4 +701,385 @@ export const TOOLS: Anthropic.Tool[] = [
       required: ['idHospitales'],
     },
   },
+
+  /*──────────────────────────────────────────────────────────────────────────
+    Desempeño de médicos + Determinación adversa del médico de alta
+    (NE — agregado 2026-10-18)
+
+    Particularidad importante:
+      • No existe aún una herramienta de catálogo de médicos. Para resolver
+        nombre → `idMedicoAlta`, la IA debe llamar PRIMERO a
+        `consultar_desempeno_medico` SIN pasar `idMedicoAlta` (dejando que el
+        backend devuelva el catálogo de médicos disponible bajo los otros
+        filtros) y usar el resultado para mapear.
+      • Cuando el usuario pide datos de UN médico concreto, la IA debe
+        preguntar el nombre del médico si no lo tiene, llamar primero a
+        `consultar_desempeno_medico` sin `idMedicoAlta` para obtener el
+        catálogo, identificar el ID, y entonces volver a llamar PASANDO
+        `idMedicoAlta` ya resuelto.
+    ─────────────────────────────────────────────────────────────────────────*/
+
+  {
+    name: 'consultar_desempeno_medico',
+    description:
+      'Devuelve el desempeño de los médicos que han firmado altas en el período ' +
+      'y filtros seleccionados (días aprobados / denegados / recuperados, ' +
+      'montos facturados / perdidos / recuperados, número de auditorías, etc., ' +
+      'agrupado por médico).\n\n' +
+      'MODOS DE USO:\n' +
+      '  • MODO CATÁLOGO: si NO se envía `idMedicoAlta`, el endpoint devuelve ' +
+      'el listado de médicos disponibles para los filtros aplicados. USA este ' +
+      'modo cuando necesites mapear un nombre de médico a su `idMedicoAlta`.\n' +
+      '  • MODO CONSULTA: si SÍ se envía `idMedicoAlta`, devuelve solo los KPIs ' +
+      'de ese médico.\n\n' +
+      'PRERREQUISITOS:\n' +
+      '  • Antes de invocar esta tool, DEBES llamar antes a ' +
+      '`obtener_planes_disponibles` para tener el catálogo actualizado de ' +
+      'planes (ids + nombres). Sin ese catálogo, NO puedes construir ' +
+      '`idPlanes` de forma fiable.\n' +
+      '  • Para resolver nombre → `idMedicoAlta`: llama primero a esta misma ' +
+      'tool SIN `idMedicoAlta` (MODO CATÁLOGO) y luego vuelve a llamarla con ' +
+      'el ID ya resuelto.\n' +
+      '  • NUNCA inventes `idPlanes` ni `idMedicoAlta` — usa los IDs ' +
+      'devueltos por las herramientas de catálogo.\n\n' +
+      'OBTENCIÓN DE PARÁMETROS:\n' +
+      '  • `anio`: int requerido (1900–2999). Si el usuario no lo da, pregunta.\n' +
+      '  • `meses`: int[] opcional (1–12). Si se omite o se envía vacío, se ' +
+      'asumen los 12 meses del año.\n' +
+      '  • `idPlanes`: int[] opcional. Llama antes a `obtener_planes_disponibles` ' +
+      'para mapear nombre → ID. Si el usuario dice "todos", omite el campo.\n' +
+      '  • `loc`: array opcional de "ACUTE" / "SNF". Si el usuario menciona ' +
+      'nivel de cuidado (agudo / SNF / enfermería especializada), pásalo. Si ' +
+      'no, OMITE el campo.\n' +
+      '  • `idMedicoAlta`: int opcional. Si el usuario preguntó por un médico ' +
+      'CONCRETO (por nombre o ID), llámala primero en MODO CATÁLOGO para ' +
+      'resolver el ID y luego repítela pasándolo.\n\n' +
+      'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples con ' +
+      'guion (una línea por médico, con valores separados por comas o espacios). ' +
+      'NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas alineadas.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        idHospitales: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1 },
+          description:
+            'IDs de hospitales (int[] REQUERIDO, al menos uno). Resuélvelos ' +
+            'SIEMPRE antes con `obtener_hospitales_disponibles` (campo ' +
+            '`hosId`). Ej: si el usuario dice "San Lucas", mapea a su `hosId` ' +
+            'y pásalo como `[6]`. SIEMPRE array, NUNCA objeto.',
+        },
+        anio: {
+          type: 'integer',
+          description:
+            'Año del período (1900–2999). Si el usuario no lo da, pregunta ' +
+            'concreta y brevemente.',
+          minimum: 1900,
+          maximum: 2999,
+        },
+        meses: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 12 },
+          description:
+            'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
+            'Ej: [1, 2, 4] = enero, febrero y abril.',
+        },
+        idPlanes: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'IDs de planes a incluir (opcional, int[]). Resuélvelos con ' +
+            '`obtener_planes_disponibles`. Si NO envías `idPlanes`, OMITE el ' +
+            'campo (no envíes array vacío).',
+        },
+        loc: {
+          type: 'array',
+          items: { type: 'string', enum: ['ACUTE', 'SNF'] },
+          description:
+            'Filtro por Location / Nivel de cuidado (opcional, array de enum). ' +
+            'Se envía SIEMPRE como ARRAY: ej ["ACUTE"], ["SNF"] o ["ACUTE","SNF"]. ' +
+            'Si el usuario no menciona nivel de cuidado, OMITE el campo.',
+        },
+        idMedicoAlta: {
+          type: 'integer',
+          description:
+            'ID del médico de alta a consultar (opcional, int>0). Si se OMITE, ' +
+            'el endpoint devuelve el catálogo completo de médicos disponibles ' +
+            'bajo los otros filtros (modo catálogo). Si el usuario pidió un ' +
+            'médico CONCRETO por nombre, PRIMERO llama sin este parámetro, ' +
+            'identifica el ID en el catálogo, y VUELVE a llamar pasándolo.',
+          minimum: 1,
+        },
+      },
+      required: ['anio', 'idHospitales'],
+    },
+  },
+
+  {
+    name: 'consultar_determinacion_adversa_medico_alta',
+    description:
+      'Devuelve el/los concepto(s) de determinación adversa que MÁS se repiten ' +
+      'en las auditorías asociadas al médico de alta del paciente ' +
+      '(`idMedicoAlta`) dentro del período y filtros seleccionados.\n\n' +
+      'CASO DE USO TÍPICO: "¿cuál es la determinación adversa más frecuente ' +
+      'que deniega auditorías del Dr. X?" / "¿qué concepto sigue rechazando ' +
+      'el médico número 18?".\n\n' +
+      'PRERREQUISITOS:\n' +
+      '  • `idMedicoAlta` ES OBLIGATORIO para esta herramienta (a diferencia ' +
+      'de `consultar_desempeno_medico`). El endpoint NO devuelve el catálogo ' +
+      'de médicos — solo devuelve KPIs del médico que se le pasa.\n' +
+      '  • Para resolver nombre → `idMedicoAlta`: llama primero a ' +
+      '`consultar_desempeno_medico` en MODO CATÁLOGO (sin `idMedicoAlta`), ' +
+      'identifica el ID, y VUELVE a llamar a esta herramienta pasándolo.\n' +
+      '  • Antes de invocar esta tool, DEBES llamar antes a ' +
+      '`obtener_planes_disponibles` para tener el catálogo actualizado de ' +
+      'planes (ids + nombres). Sin ese catálogo, NO puedes construir ' +
+      '`idPlanes` de forma fiable.\n' +
+      '  • NUNCA inventes `idPlanes` ni `idMedicoAlta` — usa los IDs ' +
+      'devueltos por las herramientas de catálogo.\n\n' +
+      'OBTENCIÓN DE PARÁMETROS:\n' +
+      '  • `idMedicoAlta`: int REQUERIDO (>=1). Si no lo tienes resuelto, ' +
+      'pregunta el nombre al usuario o usa el catálogo de ' +
+      '`consultar_desempeno_medico` sin filtro.\n' +
+      '  • `anio`: int requerido (1900–2999). Si el usuario no lo da, pregunta.\n' +
+      '  • `meses`: int[] opcional (1–12). Si se omite, se asumen los 12 meses.\n' +
+      '  • `idPlanes`: int[] opcional. Llama antes a `obtener_planes_disponibles` ' +
+      'para mapear nombre → ID. Si el usuario dice "todos", omite el campo.\n' +
+      '  • `loc`: array opcional de "ACUTE" / "SNF".\n\n' +
+      'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples con ' +
+      'guion (una línea por concepto). NUNCA uses <pre>, <table>, <ul>, <li>, ' +
+      '<br>, ni columnas alineadas.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        idMedicoAlta: {
+          type: 'integer',
+          description:
+            'ID del médico de alta (REQUERIDO, int>=1). Resuélvelo con el ' +
+            'catálogo de `consultar_desempeno_medico` (llamándola sin filtro ' +
+            'previamente).',
+          minimum: 1,
+        },
+        anio: {
+          type: 'integer',
+          description: 'Año del período (1900–2999).',
+          minimum: 1900,
+          maximum: 2999,
+        },
+        meses: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 12 },
+          description:
+            'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año.',
+        },
+        idPlanes: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'IDs de planes a incluir (opcional, int[]). Resuélvelos con ' +
+            '`obtener_planes_disponibles`. Si NO envías, OMITE el campo.',
+        },
+        loc: {
+          type: 'array',
+          items: { type: 'string', enum: ['ACUTE', 'SNF'] },
+          description:
+            'Filtro por Location / Nivel de cuidado (opcional). Se envía como ' +
+            'ARRAY. Si el usuario no menciona nivel de cuidado, OMITE el campo.',
+        },
+      },
+      required: ['idMedicoAlta', 'anio'],
+    },
+  },
+
+  /*──────────────────────────────────────────────────────────────────────────
+    Desempeño de manejadores de caso + Determinación adversa del manejador
+
+    Es el espejo de las dos tools anteriores (`*_medico_*`) pero referidas al
+    MANEJADOR DE CASO, es decir, la persona que gestiona/administra el caso
+    del paciente (no quien firma el alta médica). Su identificador es
+    `idManejadorCaso`.
+
+    Misma mecánica de MODO CATÁLOGO → MODO CONSULTA: para resolver
+    nombre → `idManejadorCaso`, la IA debe llamar primero a
+    `consultar_desempeno_manejador_caso` SIN pasar `idManejadorCaso` y usar
+    la respuesta para mapear.
+    ─────────────────────────────────────────────────────────────────────────*/
+
+  {
+    name: 'consultar_desempeno_manejador_caso',
+    description:
+      'Devuelve el desempeño de los MANEJADORES DE CASO que gestionan los ' +
+      'casos en el período y filtros seleccionados (días aprobados / denegados ' +
+      '/ recuperados, montos facturados / perdidos / recuperados, número de ' +
+      'auditorías, etc., agrupado por manejador).\\n\\n' +
+      '⚠️ DISTINCIÓN IMPORTANTE: "manejador de caso" es la persona que ' +
+      'administra/coordina el caso del paciente; NO es lo mismo que el médico ' +
+      'que firma el alta. Si el usuario no aclara, pregúntale si se refiere al ' +
+      'médico o al manejador antes de elegir herramienta.\\n\\n' +
+      'MODOS DE USO:\\n' +
+      '  • MODO CATÁLOGO: si NO se envía `idManejadorCaso`, el endpoint ' +
+      'devuelve el listado de manejadores disponibles para los filtros ' +
+      'aplicados. USA este modo cuando necesites mapear un nombre a su ' +
+      '`idManejadorCaso`.\\n' +
+      '  • MODO CONSULTA: si SÍ se envía `idManejadorCaso`, devuelve solo los ' +
+      'KPIs de ese manejador.\\n\\n' +
+      'PRERREQUISITOS:\\n' +
+      '  • Antes de invocar esta tool, DEBES llamar antes a ' +
+      '`obtener_planes_disponibles` para tener el catálogo actualizado de ' +
+      'planes (ids + nombres).\\n' +
+      '  • Para resolver nombre → `idManejadorCaso`: llama primero a esta ' +
+      'misma tool SIN `idManejadorCaso` (MODO CATÁLOGO) y luego vuelve a ' +
+      'llamarla con el ID ya resuelto.\\n' +
+      '  • NUNCA inventes `idPlanes` ni `idManejadorCaso` — usa los IDs ' +
+      'devueltos por las herramientas de catálogo.\\n\\n' +
+      'OBTENCIÓN DE PARÁMETROS:\\n' +
+      '  • `anio`: int requerido (1900–2999). Si el usuario no lo da, ' +
+      'pregunta.\\n' +
+      '  • `meses`: int[] opcional (1–12). Si se omite, se asumen los 12 meses.\\n' +
+      '  • `idPlanes`: int[] opcional. Llama antes a ' +
+      '`obtener_planes_disponibles`. Si NO envías, OMITE el campo.\\n' +
+      '  • `loc`: array opcional de "ACUTE" / "SNF". Si el usuario no ' +
+      'menciona nivel de cuidado, OMITE el campo.\\n' +
+      '  • `idManejadorCaso`: int opcional. Si el usuario preguntó por un ' +
+      'manejador CONCRETO, llámala primero en MODO CATÁLOGO para resolver ' +
+      'el ID y luego repítela pasándolo.\\n\\n' +
+      'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
+      'con guion (una línea por manejador, con valores separados por comas o ' +
+      'espacios). NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas ' +
+      'alineadas.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        idHospitales: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1 },
+          description:
+            'IDs de hospitales (int[] REQUERIDO, al menos uno). Resuélvelos ' +
+            'SIEMPRE antes con `obtener_hospitales_disponibles` (campo ' +
+            '`hosId`). SIEMPRE array, NUNCA objeto.',
+        },
+        anio: {
+          type: 'integer',
+          description:
+            'Año del período (1900–2999). Si el usuario no lo da, pregunta ' +
+            'concreta y brevemente.',
+          minimum: 1900,
+          maximum: 2999,
+        },
+        meses: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 12 },
+          description:
+            'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año.',
+        },
+        idPlanes: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'IDs de planes a incluir (opcional, int[]). Resuélvelos con ' +
+            '`obtener_planes_disponibles`. Si NO envías `idPlanes`, OMITE el ' +
+            'campo.',
+        },
+        loc: {
+          type: 'array',
+          items: { type: 'string', enum: ['ACUTE', 'SNF'] },
+          description:
+            'Filtro por Location / Nivel de cuidado (opcional, array de enum). ' +
+            'Se envía SIEMPRE como ARRAY. Si el usuario no menciona nivel, OMITE.',
+        },
+        idManejadorCaso: {
+          type: 'integer',
+          description:
+            'ID del manejador de caso (opcional, int>0). Si se OMITE, el ' +
+            'endpoint devuelve el catálogo de manejadores disponibles bajo ' +
+            'los otros filtros (modo catálogo). Si el usuario pidió un ' +
+            'manejador CONCRETO por nombre, PRIMERO llama sin este parámetro, ' +
+            'identifica el ID en el catálogo, y VUELVE a llamar pasándolo.',
+          minimum: 1,
+        },
+      },
+      required: ['anio', 'idHospitales'],
+    },
+  },
+
+  {
+    name: 'consultar_determinacion_adversa_manejador_caso',
+    description:
+      'Devuelve el/los concepto(s) de determinación adversa que MÁS se ' +
+      'repiten en las auditorías asociadas al MANEJADOR DE CASO del ' +
+      'paciente (`idManejadorCaso`) dentro del período y filtros ' +
+      'seleccionados.\\n\\n' +
+      '⚠️ DISTINCIÓN IMPORTANTE: "manejador de caso" es quien ' +
+      'administra/coordina el caso, NO el médico de alta. Si el usuario ' +
+      'dijo "médico", usa `consultar_determinacion_adversa_medico_alta` en ' +
+      'lugar de esta.\\n\\n' +
+      'CASO DE USO TÍPICO: "¿cuál es la determinación adversa más ' +
+      'frecuente que deniega auditorías del manejador X?" / "¿qué concepto ' +
+      'sigue rechazando el manejador de caso 3?".\\n\\n' +
+      'PRERREQUISITOS:\\n' +
+      '  • `idManejadorCaso` ES OBLIGATORIO para esta herramienta. El ' +
+      'endpoint NO devuelve el catálogo de manejadores — solo devuelve KPIs ' +
+      'del manejador que se le pasa.\\n' +
+      '  • Para resolver nombre → `idManejadorCaso`: llama primero a ' +
+      '`consultar_desempeno_manejador_caso` en MODO CATÁLOGO (sin ' +
+      '`idManejadorCaso`), identifica el ID, y VUELVE a llamar a esta ' +
+      'herramienta pasándolo.\\n' +
+      '  • Antes de invocar esta tool, DEBES llamar antes a ' +
+      '`obtener_planes_disponibles` para tener el catálogo actualizado de ' +
+      'planes.\\n' +
+      '  • NUNCA inventes `idPlanes` ni `idManejadorCaso` — usa los IDs ' +
+      'devueltos por las herramientas de catálogo.\\n\\n' +
+      'OBTENCIÓN DE PARÁMETROS:\\n' +
+      '  • `idManejadorCaso`: int REQUERIDO (>=1). Si no lo tienes resuelto, ' +
+      'pregunta el nombre al usuario o usa el catálogo de ' +
+      '`consultar_desempeno_manejador_caso` sin filtro.\\n' +
+      '  • `anio`: int requerido (1900–2999). Si el usuario no lo da, pregunta.\\n' +
+      '  • `meses`: int[] opcional (1–12). Si se omite, se asumen los 12 meses.\\n' +
+      '  • `idPlanes`: int[] opcional. Llama antes a ' +
+      '`obtener_planes_disponibles`. Si NO envías, OMITE el campo.\\n' +
+      '  • `loc`: array opcional de "ACUTE" / "SNF".\\n\\n' +
+      'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
+      'con guion (una línea por concepto). NUNCA uses <pre>, <table>, <ul>, ' +
+      '<li>, <br>, ni columnas alineadas.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        idManejadorCaso: {
+          type: 'integer',
+          description:
+            'ID del manejador de caso (REQUERIDO, int>=1). Resuélvelo con el ' +
+            'catálogo de `consultar_desempeno_manejador_caso` (llamándola ' +
+            'sin filtro previamente).',
+          minimum: 1,
+        },
+        anio: {
+          type: 'integer',
+          description: 'Año del período (1900–2999).',
+          minimum: 1900,
+          maximum: 2999,
+        },
+        meses: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 12 },
+          description:
+            'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año.',
+        },
+        idPlanes: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'IDs de planes a incluir (opcional, int[]). Resuélvelos con ' +
+            '`obtener_planes_disponibles`. Si NO envías, OMITE el campo.',
+        },
+        loc: {
+          type: 'array',
+          items: { type: 'string', enum: ['ACUTE', 'SNF'] },
+          description:
+            'Filtro por Location / Nivel de cuidado (opcional). Se envía ' +
+            'como ARRAY. Si el usuario no menciona nivel de cuidado, OMITE.',
+        },
+      },
+      required: ['idManejadorCaso', 'anio'],
+    },
+  },
 ];

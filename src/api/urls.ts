@@ -25,3 +25,28 @@ export const HOSPITALES_DISPONIBLES_URL = `${AUDITA_API_URL}/api/hospitales/acti
 export const MONTOS_ESTADO = `${AUDITA_API_URL}/api/IaPreguntas/montos-por-estado`;
 export const DETERMINACION_ADVERSA_MONTO_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-monto`;
 export const PLANES_POR_HOSPITAL_CON_LOC_URL = `${AUDITA_API_URL}/api/IaPreguntas/planes-por-hospital-con-loc`;
+
+// --- Desempeño de médicos ---
+// Devuelve KPIs por médico (días denegados/aprobados/recuperados, montos, etc.)
+// en un período + planes + loc + médico específicos.
+// `idMedicoAlta` se pasa como filtro por ID. Si no se da, el backend devuelve el
+// catálogo de médicos (útil para mapear nombre → ID).
+export const DESEMPENO_MEDICO_URL = `${AUDITA_API_URL}/api/IaPreguntas/desempeno-medico`;
+
+// --- Determinación adversa más frecuente para un médico de alta ---
+// Devuelve el/los concepto(s) de determinación adversa que más se repiten en
+// las auditorías asociadas al médico de alta del paciente (idMedicoAlta).
+export const DETERMINACION_ADVERSA_MEDICO_ALTA_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-medico-alta`;
+
+// --- Desempeño de manejadores de caso ---
+// Mismo contrato que `desempeno-medico`, pero la métrica viene agrupada por
+// `idManejadorCaso` (la persona que gestiona el caso del paciente, no quien
+// firma el alta). Si no se pasa `idManejadorCaso`, devuelve el catálogo
+// de manejadores disponibles bajo los filtros.
+export const DESEMPENO_MANEJADOR_CASO_URL = `${AUDITA_API_URL}/api/IaPreguntas/desempeno-manejador-caso`;
+
+// --- Determinación adversa más frecuente para un manejador de caso ---
+// Equivalente a `determinacion-adversa-medico-alta` pero filtrando por el
+// `idManejadorCaso`. Este endpoint SÍ requiere el ID explícito (no es
+// catálogo).
+export const DETERMINACION_ADVERSA_MANEJADOR_CASO_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-manejador-caso`;
