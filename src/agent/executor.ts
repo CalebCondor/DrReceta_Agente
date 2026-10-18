@@ -27,6 +27,10 @@ import {
   DETERMINACION_ADVERSA_MEDICO_ALTA_URL,
   DESEMPENO_MANEJADOR_CASO_URL,
   DETERMINACION_ADVERSA_MANEJADOR_CASO_URL,
+  FACTURACION_MANEJADOR_HOSPITALES_URL,
+  FACTURACION_AUDITOR_HOSPITALES_URL,
+  DESEMPENO_AUDITOR_URL,
+  DETERMINACION_ADVERSA_AUDITOR_URL,
 } from '../api/urls';
 
 function strVal(v: unknown, fallback = ''): string {
@@ -316,6 +320,27 @@ export async function executeTool(
         body['idManejadorCaso'] = Math.trunc(parsed);
       }
     }
+    // `idAuditor` (opcional). Misma idea que `idMedicoAlta` /
+    // `idManejadorCaso`: si se omite, el backend devuelve el catálogo de
+    // auditores bajo los filtros aplicados. Se aplica solo a las tools que lo
+    // pidan (`desempeno-auditor` en modo catálogo y `determinacion-adversa-
+    // auditor` ya con ID explícito).
+    const idAuditor = toolInput['idAuditor'];
+    if (
+      typeof idAuditor === 'number' &&
+      Number.isFinite(idAuditor) &&
+      idAuditor > 0
+    ) {
+      body['idAuditor'] = Math.trunc(idAuditor);
+    } else if (
+      typeof idAuditor === 'string' &&
+      idAuditor.trim().length > 0
+    ) {
+      const parsed = Number(idAuditor.trim());
+      if (Number.isFinite(parsed) && parsed > 0) {
+        body['idAuditor'] = Math.trunc(parsed);
+      }
+    }
     return body;
   };
 
@@ -405,6 +430,54 @@ export async function executeTool(
     const body = buildIaPreguntasBody();
     return JSON.stringify(
       await apiPost(DETERMINACION_ADVERSA_MANEJADOR_CASO_URL, body, token),
+    );
+  }
+
+  // ─── Facturación por manejador de caso (montos) ─────────────────────────
+  //
+  // Devuelve cuánto dinero se facturó / perdió / recuperó POR MANEJADOR en
+  // los hospitales y filtros seleccionados. El endpoint NO toma un ID pivote
+  // (no hay "idManejadorCaso" como filtro), siempre devuelve el desglose
+  // completo de manejadores aplicables. La IA ordena / filtra localmente
+  // según la pregunta (p. ej. "el que más perdió").
+  if (toolName === 'consultar_facturacion_manejador_hospitales') {
+    const body = buildIaPreguntasBody();
+    return JSON.stringify(
+      await apiPost(FACTURACION_MANEJADOR_HOSPITALES_URL, body, token),
+    );
+  }
+
+  // ─── Facturación por auditor (montos) ───────────────────────────────────
+  //
+  // Equivalente a `consultar_facturacion_manejador_hospitales`, pero el
+  // desglose viene agrupado por AUDITOR (la persona que firma / revisa la
+  // auditoría) en lugar de por manejador de caso. El endpoint NO toma un
+  // ID pivote: siempre devuelve el agregado completo (un auditor por fila).
+  if (toolName === 'consultar_facturacion_auditor_hospitales') {
+    const body = buildIaPreguntasBody();
+    return JSON.stringify(
+      await apiPost(FACTURACION_AUDITOR_HOSPITALES_URL, body, token),
+    );
+  }
+
+  // ─── Desempeño de auditores ─────────────────────────────────────────────
+  //
+  // Análogo a `consultar_desempeno_medico` y `consultar_desempeno_manejador_caso`,
+  // pero agrupado por AUDITOR. Si NO se pasa `idAuditor`, el backend devuelve
+  // el catálogo de auditores disponibles bajo los otros filtros.
+  if (toolName === 'consultar_desempeno_auditor') {
+    const body = buildIaPreguntasBody();
+    return JSON.stringify(await apiPost(DESEMPENO_AUDITOR_URL, body, token));
+  }
+
+  // ─── Determinación adversa más frecuente de un auditor ──────────────────
+  //
+  // Análogo a `consultar_determinacion_adversa_medico_alta`, pero filtrando
+  // por `idAuditor`. El endpoint requiere el ID explícito (no es catálogo).
+  if (toolName === 'consultar_determinacion_adversa_auditor') {
+    const body = buildIaPreguntasBody();
+    return JSON.stringify(
+      await apiPost(DETERMINACION_ADVERSA_AUDITOR_URL, body, token),
     );
   }
 

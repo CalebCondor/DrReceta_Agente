@@ -1082,4 +1082,439 @@ export const TOOLS: Anthropic.Tool[] = [
       required: ['idManejadorCaso', 'anio'],
     },
   },
+
+  /*──────────────────────────────────────────────────────────────────────────
+    Facturación agregada por manejador de caso a través de hospitales
+
+    NO depende de un ID pivote (médico / manejador): siempre devuelve el
+    desglose de cuánto dinero se facturó / perdió / recuperó POR CADA
+    manejador bajo los filtros aplicados. La IA ordena / filtra el resultado
+    según la pregunta del usuario (p. ej. "¿quién perdió más?" → ordenar por
+    monto perdido desc, devolver top).
+
+    DIFERENCIA con `consultar_desempeno_manejador_caso`:
+      • `desempeno_manejador` → agrupa por MÉTRICAS OPERATIVAS (días, casos).
+      • esta → agrupa por MONTOS ($ facturado / perdido / recuperado).
+    ─────────────────────────────────────────────────────────────────────────*/
+
+  {
+    name: 'consultar_facturacion_manejador_hospitales',
+    description:
+      'Devuelve cuánto dinero se FACTURÓ / PERDIÓ / RECUPERÓ POR MANEJADOR ' +
+      'DE CASO en los hospitales / planes / período seleccionados. Es la ' +
+      'herramienta indicada para responder preguntas del estilo:\\n' +
+      '  • "¿cuánto dinero perdió cada manejador en este hospital?"\\n' +
+      '  • "¿qué manejador recuperó más plata en octubre?"\\n' +
+      '  • "facturación agregada por manejador — planes Medicare — 2026"\\n\\n' +
+      '⚠️ DIFERENCIA IMPORTANTE:\\n' +
+      '  • `consultar_desempeno_manejador_caso` agrupa por MÉTRICAS ' +
+      'OPERATIVAS (días aprobados / denegados, número de casos, etc.).\\n' +
+      '  • ESTA herramienta agrupa por MONTOS ($ facturado / perdido / ' +
+      'recuperado). Si la pregunta del usuario menciona "dinero / plata / ' +
+      'facturación / monto / $ / pérdida en $ / recuperado en $", usa ESTA ' +
+      'herramienta, no la de desempeño.\\n\\n' +
+      'CARACTERÍSTICAS:\\n' +
+      '  • NO tiene filtro por ID de manejador: el endpoint SIEMPRE devuelve ' +
+      'el desglose completo (un manejador por fila) bajo los filtros ' +
+      'aplicados. La IA ordena / filtra el resultado según la pregunta.\\n' +
+      '  • Si el usuario pregunta por "el manejador que más perdió en ' +
+      'octubre", llama con el `meses: [10]` correspondiente y devuelve el ' +
+      'ranking ordenado por monto perdido descendente.\\n\\n' +
+      'PRERREQUISITOS:\\n' +
+      '  • Antes de invocar esta tool, DEBES llamar antes a ' +
+      '`obtener_planes_disponibles` para resolver nombre → ID de planes ' +
+      '(si vas a filtrar por plan).\\n' +
+      '  • Para `idHospitales` mapea el nombre con `obtener_hospitales_disponibles` ' +
+      '(campo `hosId`).\\n' +
+      '  • NUNCA inventes `idHospitales` ni `idPlanes`.\\n\\n' +
+      'OBTENCIÓN DE PARÁMETROS:\\n' +
+      '  • `anio`: int REQUERIDO (1900–2999). Si el usuario no lo da, ' +
+      'pregunta.\\n' +
+      '  • `idHospitales`: int[] REQUERIDO (al menos un hospital). Resuélvelos ' +
+      'SIEMPRE antes con `obtener_hospitales_disponibles`. SIEMPRE array.\\n' +
+      '  • `meses`: int[] opcional (1–12). Si se omite, se asumen los 12 meses.\\n' +
+      '  • `idPlanes`: int[] opcional. Si el usuario dice "todos", OMITE el ' +
+      'campo (no envíes array vacío).\\n' +
+      '  • `loc`: array opcional de "ACUTE" / "SNF". SIEMPRE como ARRAY. Si ' +
+      'el usuario no menciona nivel de cuidado, OMITE el campo.\\n\\n' +
+      'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
+      'con guion (una línea por manejador, con valores separados por comas ' +
+      'o espacios — usa el símbolo $ antes de los montos). NUNCA uses <pre>, ' +
+      '<table>, <ul>, <li>, <br>, ni columnas alineadas.\n\n' +
+      '📦 ESTRUCTURA DEL PAYLOAD QUE DEVUELVE EL ENDPOINT (úsalo literal, ' +
+      'NO renombres NI recalcules nada):\n' +
+      '  • `totales`: { cantidadCasos, cantidadPlanes, cantidadManejadores, ' +
+      '    montoFacturado, montoPerdido, montoRecuperado, ' +
+      '    porcentajeFacturado, porcentajePerdido, porcentajeRecuperado }\n' +
+      '  • `hospitales[]`: un elemento por hospital, con sus propios montos ' +
+      '    y porcentajes.\n' +
+      '  • `manejadores[]`: un elemento por manejador, con los campos ' +
+      '    `idManejadorCaso`, `manejador` (nombre), `casos`, ' +
+      '    `montoFacturado`, `montoPerdido`, `montoRecuperado`, ' +
+      '    `porcentajeFacturado`, `porcentajePerdido`, `porcentajeRecuperado`.\n' +
+      '⚠️ NOTA: el campo de porcentaje se llama EXACTAMENTE `porcentajePerdido` ' +
+      '(NO `porcentajePerdida`, NO `porcentajePerdidoDeFacturado`, etc.). Si el ' +
+      'usuario pregunta por el "% de pérdida", lee directamente el campo ' +
+      '`porcentajePerdido` del payload — NO lo calcules dividiendo ' +
+      'montoPerdido entre montoFacturado ni sumando nada. NO existe un campo ' +
+      '"potencial" explícito: NO inventes esa cifra.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        anio: {
+          type: 'integer',
+          description:
+            'Año del período (1900–2999). Si el usuario no lo da, ' +
+            'pregunta concreta y brevemente.',
+          minimum: 1900,
+          maximum: 2999,
+        },
+        idHospitales: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1 },
+          description:
+            'IDs de hospitales (int[] REQUERIDO, al menos uno). Resuélvelos ' +
+            'SIEMPRE antes con `obtener_hospitales_disponibles` (campo ' +
+            '`hosId`). Ej: "San Lucas" → `[6]`. SIEMPRE array, NUNCA objeto.',
+        },
+        meses: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 12 },
+          description:
+            'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
+            'Ej: [10] = octubre.',
+        },
+        idPlanes: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'IDs de planes a incluir (opcional, int[]). Resuélvelos con ' +
+            '`obtener_planes_disponibles`. Si NO envías `idPlanes`, OMITE el ' +
+            'campo (no envíes array vacío).',
+        },
+        loc: {
+          type: 'array',
+          items: { type: 'string', enum: ['ACUTE', 'SNF'] },
+          description:
+            'Filtro por Location / Nivel de cuidado (opcional, array de enum). ' +
+            'Se envía SIEMPRE como ARRAY: ej ["ACUTE"], ["SNF"] o ' +
+            '["ACUTE","SNF"]. Si el usuario no menciona nivel, OMITE el campo.',
+        },
+      },
+      required: ['anio', 'idHospitales'],
+    },
+  },
+
+  /*──────────────────────────────────────────────────────────────────────────
+    Facturación agregada por AUDITOR a través de hospitales
+
+    Espejo de `consultar_facturacion_manejador_hospitales`, pero agrupada
+    por AUDITOR (la persona que firma / revisa la auditoría) en vez de por
+    manejador de caso. Mismos filtros, misma estructura de payload.
+
+    DIFERENCIAS clave con la tool de manejador:
+      • `*_facturacion_manejador_*`  → un manejador por fila.
+      • ESTA                           → un auditor por fila.
+    ─────────────────────────────────────────────────────────────────────────*/
+
+  {
+    name: 'consultar_facturacion_auditor_hospitales',
+    description:
+      'Devuelve cuánto dinero se FACTURÓ / PERDIÓ / RECUPERÓ POR AUDITOR ' +
+      'en los hospitales / planes / período seleccionados. Es la herramienta ' +
+      'indicada para responder preguntas del estilo:\\n' +
+      '  • "¿cuánto dinero perdió cada auditor en este hospital?"\\n' +
+      '  • "¿qué auditor recuperó más plata en octubre?"\\n' +
+      '  • "facturación agregada por auditor — planes Medicare — 2026"\\n\\n' +
+      '⚠️ DISTINCIÓN IMPORTANTE:\\n' +
+      '  • `consultar_facturacion_manejador_hospitales` agrupa por MANEJADOR ' +
+      'DE CASO.\\n' +
+      '  • ESTA herramienta agrupa por AUDITOR (la persona que firma / revisa ' +
+      'la auditoría). Son roles distintos: el manejador es quien ADMINISTRA ' +
+      'el caso; el auditor es quien lo FIRMA / REVISA. Si dudas cuál usar, ' +
+      'pregúntale al usuario.\\n\\n' +
+      'CARACTERÍSTICAS:\\n' +
+      '  • NO tiene filtro por ID de auditor: el endpoint SIEMPRE devuelve ' +
+      'el desglose completo (un auditor por fila) bajo los filtros aplicados. ' +
+      'La IA ordena / filtra el resultado según la pregunta.\\n' +
+      '  • Si el usuario pregunta por "el auditor que más perdió en octubre", ' +
+      'llama con el `meses: [10]` correspondiente y devuelve el ranking ' +
+      'ordenado por monto perdido descendente.\\n\\n' +
+      'PRERREQUISITOS:\\n' +
+      '  • Antes de invocar esta tool, DEBES llamar antes a ' +
+      '`obtener_planes_disponibles` para resolver nombre → ID de planes ' +
+      '(si vas a filtrar por plan).\\n' +
+      '  • Para `idHospitales` mapea el nombre con `obtener_hospitales_disponibles` ' +
+      '(campo `hosId`).\\n' +
+      '  • NUNCA inventes `idHospitales` ni `idPlanes`.\\n\\n' +
+      'OBTENCIÓN DE PARÁMETROS:\\n' +
+      '  • `anio`: int REQUERIDO (1900–2999). Si el usuario no lo da, pregunta.\\n' +
+      '  • `idHospitales`: int[] REQUERIDO (al menos un hospital). Resuélvelos ' +
+      'SIEMPRE antes con `obtener_hospitales_disponibles`. SIEMPRE array.\\n' +
+      '  • `meses`: int[] opcional (1–12). Si se omite, se asumen los 12 meses.\\n' +
+      '  • `idPlanes`: int[] opcional. Si el usuario dice "todos", OMITE el ' +
+      'campo (no envíes array vacío).\\n' +
+      '  • `loc`: array opcional de "ACUTE" / "SNF". SIEMPRE como ARRAY. Si ' +
+      'el usuario no menciona nivel de cuidado, OMITE el campo.\\n\\n' +
+      'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
+      'con guion (una línea por auditor, con valores separados por comas ' +
+      'o espacios — usa el símbolo $ antes de los montos). NUNCA uses <pre>, ' +
+      '<table>, <ul>, <li>, <br>, ni columnas alineadas.\\n\\n' +
+      '📦 ESTRUCTURA DEL PAYLOAD QUE DEVUELVE EL ENDPOINT (úsalo literal, ' +
+      'NO renombres NI recalcules nada):\\n' +
+      '  • `totales`: { cantidadCasos, cantidadPlanes, cantidadAuditores, ' +
+      '    montoFacturado, montoPerdido, montoRecuperado, ' +
+      '    porcentajeFacturado, porcentajePerdido, porcentajeRecuperado }\\n' +
+      '  • `hospitales[]`: un elemento por hospital, con sus propios montos ' +
+      'y porcentajes.\\n' +
+      '  • `auditores[]`: un elemento por auditor, con los campos ' +
+      '    `idAuditor`, `auditor` (nombre), `casos`, ' +
+      '    `montoFacturado`, `montoPerdido`, `montoRecuperado`, ' +
+      '    `porcentajeFacturado`, `porcentajePerdido`, `porcentajeRecuperado`.\\n' +
+      '⚠️ NOTA: el campo de porcentaje se llama EXACTAMENTE `porcentajePerdido` ' +
+      '(NO `porcentajePerdida`, NO `porcentajePerdidoDeFacturado`, etc.). Si el ' +
+      'usuario pregunta por el "% de pérdida", lee directamente el campo ' +
+      '`porcentajePerdido` del payload — NO lo calcules dividiendo ' +
+      'montoPerdido entre montoFacturado ni sumando nada. NO existe un campo ' +
+      '"potencial" explícito: NO inventes esa cifra.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        anio: {
+          type: 'integer',
+          description:
+            'Año del período (1900–2999). Si el usuario no lo da, pregunta ' +
+            'concreta y brevemente.',
+          minimum: 1900,
+          maximum: 2999,
+        },
+        idHospitales: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1 },
+          description:
+            'IDs de hospitales (int[] REQUERIDO, al menos uno). Resuélvelos ' +
+            'SIEMPRE antes con `obtener_hospitales_disponibles` (campo ' +
+            '`hosId`). Ej: "San Lucas" → `[6]`. SIEMPRE array, NUNCA objeto.',
+        },
+        meses: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 12 },
+          description:
+            'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
+            'Ej: [10] = octubre.',
+        },
+        idPlanes: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'IDs de planes a incluir (opcional, int[]). Resuélvelos con ' +
+            '`obtener_planes_disponibles`. Si NO envías `idPlanes`, OMITE el ' +
+            'campo (no envíes array vacío).',
+        },
+        loc: {
+          type: 'array',
+          items: { type: 'string', enum: ['ACUTE', 'SNF'] },
+          description:
+            'Filtro por Location / Nivel de cuidado (opcional, array de enum). ' +
+            'Se envía SIEMPRE como ARRAY: ej ["ACUTE"], ["SNF"] o ' +
+            '["ACUTE","SNF"]. Si el usuario no menciona nivel, OMITE el campo.',
+        },
+      },
+      required: ['anio', 'idHospitales'],
+    },
+  },
+
+  /*──────────────────────────────────────────────────────────────────────────
+    Desempeño de auditores + Determinación adversa del auditor
+
+    Espejo de las dos tools de médico / manejador, pero referidas al
+    AUDITOR (la persona que firma / revisa la auditoría). Su identificador es
+    `idAuditor`.
+
+    Misma mecánica MODO CATÁLOGO → MODO CONSULTA: para resolver
+    nombre → `idAuditor`, la IA debe llamar primero a
+    `consultar_desempeno_auditor` SIN pasar `idAuditor` y usar la respuesta
+    para mapear.
+    ─────────────────────────────────────────────────────────────────────────*/
+
+  {
+    name: 'consultar_desempeno_auditor',
+    description:
+      'Devuelve el desempeño de los AUDITORES que han firmado/revisado ' +
+      'auditorías en el período y filtros seleccionados (días aprobados / ' +
+      'denegados / recuperados, montos, número de auditorías, etc., agrupado ' +
+      'por auditor).\\n\\n' +
+      '⚠️ DISTINCIÓN IMPORTANTE: "auditor" es la persona que FIRMA/REVISA la ' +
+      'auditoría. NO es lo mismo que:\\n' +
+      '  • el MÉDICO DE ALTA (quien firma el alta médica del paciente) → usa ' +
+      '`consultar_desempeno_medico`.\\n' +
+      '  • el MANEJADOR DE CASO (quien administra/coordina el caso) → usa ' +
+      '`consultar_desempeno_manejador_caso`.\\n' +
+      'Si el usuario no aclara, pregúntale a cuál rol se refiere antes de ' +
+      'elegir herramienta.\\n\\n' +
+      'MODOS DE USO:\\n' +
+      '  • MODO CATÁLOGO: si NO se envía `idAuditor`, el endpoint devuelve ' +
+      'el listado de auditores disponibles para los filtros aplicados. USA ' +
+      'este modo cuando necesites mapear un nombre a su `idAuditor`.\\n' +
+      '  • MODO CONSULTA: si SÍ se envía `idAuditor`, devuelve solo los KPIs ' +
+      'de ese auditor.\\n\\n' +
+      'PRERREQUISITOS:\\n' +
+      '  • Antes de invocar esta tool, DEBES llamar antes a ' +
+      '`obtener_planes_disponibles` para tener el catálogo actualizado de ' +
+      'planes (ids + nombres).\\n' +
+      '  • Para resolver nombre → `idAuditor`: llama primero a esta misma ' +
+      'tool SIN `idAuditor` (MODO CATÁLOGO) y luego vuelve a llamarla con el ' +
+      'ID ya resuelto.\\n' +
+      '  • NUNCA inventes `idPlanes` ni `idAuditor` — usa los IDs devueltos ' +
+      'por las herramientas de catálogo.\\n\\n' +
+      'OBTENCIÓN DE PARÁMETROS:\\n' +
+      '  • `anio`: int requerido (1900–2999). Si el usuario no lo da, pregunta.\\n' +
+      '  • `meses`: int[] opcional (1–12). Si se omite, se asumen los 12 meses.\\n' +
+      '  • `idPlanes`: int[] opcional. Llama antes a ' +
+      '`obtener_planes_disponibles`. Si NO envías, OMITE el campo.\\n' +
+      '  • `loc`: array opcional de "ACUTE" / "SNF". Si el usuario no ' +
+      'menciona nivel de cuidado, OMITE el campo.\\n' +
+      '  • `idAuditor`: int opcional. Si el usuario preguntó por un auditor ' +
+      'CONCRETO, llámala primero en MODO CATÁLOGO para resolver el ID y ' +
+      'luego repítela pasándolo.\\n\\n' +
+      'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
+      'con guion (una línea por auditor, con valores separados por comas o ' +
+      'espacios). NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas ' +
+      'alineadas.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        idHospitales: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1 },
+          description:
+            'IDs de hospitales (int[] REQUERIDO, al menos uno). Resuélvelos ' +
+            'SIEMPRE antes con `obtener_hospitales_disponibles` (campo ' +
+            '`hosId`). SIEMPRE array, NUNCA objeto.',
+        },
+        anio: {
+          type: 'integer',
+          description:
+            'Año del período (1900–2999). Si el usuario no lo da, pregunta ' +
+            'concreta y brevemente.',
+          minimum: 1900,
+          maximum: 2999,
+        },
+        meses: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 12 },
+          description:
+            'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
+            'Ej: [1, 2, 4] = enero, febrero y abril.',
+        },
+        idPlanes: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'IDs de planes a incluir (opcional, int[]). Resuélvelos con ' +
+            '`obtener_planes_disponibles`. Si NO envías `idPlanes`, OMITE el ' +
+            'campo.',
+        },
+        loc: {
+          type: 'array',
+          items: { type: 'string', enum: ['ACUTE', 'SNF'] },
+          description:
+            'Filtro por Location / Nivel de cuidado (opcional, array de enum). ' +
+            'Se envía SIEMPRE como ARRAY. Si el usuario no menciona nivel, OMITE.',
+        },
+        idAuditor: {
+          type: 'integer',
+          description:
+            'ID del auditor (opcional, int>0). Si se OMITE, el endpoint ' +
+            'devuelve el catálogo de auditores disponibles bajo los otros ' +
+            'filtros (modo catálogo). Si el usuario pidió un auditor CONCRETO ' +
+            'por nombre, PRIMERO llama sin este parámetro, identifica el ID ' +
+            'en el catálogo, y VUELVE a llamar pasándolo.',
+          minimum: 1,
+        },
+      },
+      required: ['anio', 'idHospitales'],
+    },
+  },
+
+  {
+    name: 'consultar_determinacion_adversa_auditor',
+    description:
+      'Devuelve el/los concepto(s) de determinación adversa que MÁS se ' +
+      'repiten en las auditorías firmadas/revisadas por el AUDITOR ' +
+      '(`idAuditor`) dentro del período y filtros seleccionados.\\n\\n' +
+      '⚠️ DISTINCIÓN IMPORTANTE: "auditor" es la persona que FIRMA/REVISA ' +
+      'la auditoría. NO es lo mismo que:\\n' +
+      '  • el MÉDICO DE ALTA (firma del alta) → usa ' +
+      '`consultar_determinacion_adversa_medico_alta`.\\n' +
+      '  • el MANEJADOR DE CASO (administra/coordina el caso) → usa ' +
+      '`consultar_determinacion_adversa_manejador_caso`.\\n\\n' +
+      'CASO DE USO TÍPICO: "¿cuál es la determinación adversa más frecuente ' +
+      'que deniega las auditorías firmadas por el auditor X?" / "¿qué ' +
+      'concepto sigue rechazando el auditor 18?".\\n\\n' +
+      'PRERREQUISITOS:\\n' +
+      '  • `idAuditor` ES OBLIGATORIO para esta herramienta. El endpoint NO ' +
+      'devuelve el catálogo de auditores — solo devuelve KPIs del auditor ' +
+      'que se le pasa.\\n' +
+      '  • Para resolver nombre → `idAuditor`: llama primero a ' +
+      '`consultar_desempeno_auditor` en MODO CATÁLOGO (sin `idAuditor`), ' +
+      'identifica el ID, y VUELVE a llamar a esta herramienta pasándolo.\\n' +
+      '  • Antes de invocar esta tool, DEBES llamar antes a ' +
+      '`obtener_planes_disponibles` para tener el catálogo actualizado de ' +
+      'planes.\\n' +
+      '  • NUNCA inventes `idPlanes` ni `idAuditor` — usa los IDs devueltos ' +
+      'por las herramientas de catálogo.\\n\\n' +
+      'OBTENCIÓN DE PARÁMETROS:\\n' +
+      '  • `idAuditor`: int REQUERIDO (>=1). Si no lo tienes resuelto, ' +
+      'pregunta el nombre al usuario o usa el catálogo de ' +
+      '`consultar_desempeno_auditor` sin filtro.\\n' +
+      '  • `anio`: int requerido (1900–2999). Si el usuario no lo da, pregunta.\\n' +
+      '  • `meses`: int[] opcional (1–12). Si se omite, se asumen los 12 meses.\\n' +
+      '  • `idPlanes`: int[] opcional. Llama antes a ' +
+      '`obtener_planes_disponibles`. Si NO envías, OMITE el campo.\\n' +
+      '  • `loc`: array opcional de "ACUTE" / "SNF".\\n\\n' +
+      'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
+      'con guion (una línea por concepto). NUNCA uses <pre>, <table>, <ul>, ' +
+      '<li>, <br>, ni columnas alineadas.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        idAuditor: {
+          type: 'integer',
+          description:
+            'ID del auditor (REQUERIDO, int>=1). Resuélvelo con el catálogo ' +
+            'de `consultar_desempeno_auditor` (llamándola sin filtro ' +
+            'previamente).',
+          minimum: 1,
+        },
+        anio: {
+          type: 'integer',
+          description: 'Año del período (1900–2999).',
+          minimum: 1900,
+          maximum: 2999,
+        },
+        meses: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 12 },
+          description:
+            'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año.',
+        },
+        idPlanes: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'IDs de planes a incluir (opcional, int[]). Resuélvelos con ' +
+            '`obtener_planes_disponibles`. Si NO envías, OMITE el campo.',
+        },
+        loc: {
+          type: 'array',
+          items: { type: 'string', enum: ['ACUTE', 'SNF'] },
+          description:
+            'Filtro por Location / Nivel de cuidado (opcional). Se envía ' +
+            'como ARRAY. Si el usuario no menciona nivel de cuidado, OMITE.',
+        },
+      },
+      required: ['idAuditor', 'anio'],
+    },
+  },
 ];

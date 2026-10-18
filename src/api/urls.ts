@@ -50,3 +50,30 @@ export const DESEMPENO_MANEJADOR_CASO_URL = `${AUDITA_API_URL}/api/IaPreguntas/d
 // `idManejadorCaso`. Este endpoint SÍ requiere el ID explícito (no es
 // catálogo).
 export const DETERMINACION_ADVERSA_MANEJADOR_CASO_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-manejador-caso`;
+
+// --- Facturación agregada por manejador de caso a través de hospitales ---
+// Devuelve cuánto dinero se facturó / perdió / recuperó POR MANEJADOR en el
+// período y filtros seleccionados. NO depende de un ID pivote: siempre
+// devuelve el desglose completo (un manejador por fila). Útil para responder
+// "¿quién es el manejador que más dinero perdió?" ordenando el resultado
+// localmente.
+export const FACTURACION_MANEJADOR_HOSPITALES_URL = `${AUDITA_API_URL}/api/IaPreguntas/facturacion-manejador-hospitales-montos`;
+
+// --- Facturación agregada por auditor a través de hospitales ---
+// Equivalente a `FACTURACION_MANEJADOR_HOSPITALES_URL`, pero el desglose
+// viene agrupado por AUDITOR (la persona que firma/revisa la auditoría) en
+// lugar de por manejador de caso. Mismos filtros (anio, meses, idHospitales,
+// idPlanes, loc). NO depende de un ID pivote: devuelve el agregado completo
+// (un auditor por fila).
+export const FACTURACION_AUDITOR_HOSPITALES_URL = `${AUDITA_API_URL}/api/IaPreguntas/facturacion-auditor-hospitales-montos`;
+
+// --- Desempeño de auditores ---
+// Análogo a `desempeno-medico` / `desempeno-manejador-caso`, pero agrupado
+// por AUDITOR (la persona que firma/revisa la auditoría). Si no se pasa
+// `idAuditor`, el endpoint devuelve el catálogo de auditores bajo los filtros.
+export const DESEMPENO_AUDITOR_URL = `${AUDITA_API_URL}/api/IaPreguntas/desempeno-auditor`;
+
+// --- Determinación adversa más frecuente para un auditor ---
+// Equivalente a `determinacion-adversa-medico-alta`, pero filtrando por
+// `idAuditor`. El endpoint NO devuelve catálogo: requiere el ID explícito.
+export const DETERMINACION_ADVERSA_AUDITOR_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-auditor`;
