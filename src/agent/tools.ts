@@ -533,11 +533,29 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `idHospitales`: int[] requerido (al menos uno). Si el usuario solo ' +
       'dice "mis hospitales", usa el listado derivado de las herramientas de ' +
       'perfil/permisos.\n' +
-      '  • `idPlanes`: int[] opcional. ANTES de usarlo, llama a ' +
-      '`obtener_planes_disponibles` para obtener los IDs válidos. Si NO envías ' +
-      '`idPlanes`, OMITE el campo (no envíes array vacío).\n' +
-      '  • `top`: int opcional. Top-N por hospital. Si se omite, la API usa 10. ' +
-      'Rango recomendado: 1–20.\n\n' +
+      '  • `idPlanes`: int[]. MODO OBLIGATORIO cuando la pregunta es por PLAN.\n' +
+      '\n' +
+      '🧠 CONTRATO DE FILTRO POR PLANES (CRÍTICO):\n' +
+      '  • Cuando la pregunta del usuario pide un ranking POR PLAN ("qué plan ' +
+      'perdió más dinero", "plan con mayor monto perdido", "en qué plan se ' +
+      'concentró la mayor pérdida", "plan que más denegación económica genera", ' +
+      'etc.), DEBES llamar esta tool CON `idPlanes` poblado con TODOS los IDs del ' +
+      'catálogo de `obtener_planes_disponibles` (o el subconjunto que aplique).\n' +
+      '  • La razón: el backend devuelve el desglose por plan dentro de cada ' +
+      'hospital SOLO en el campo `itemsPorPlan[]` CUANDO se envía `idPlanes`. ' +
+      'Si omites `idPlanes`, ese campo viene `null` y NO PUEDES responder ' +
+      '"plan con mayor monto por hospital".\n' +
+      '  • `idPlanes` NO es opcional en este caso: es REQUERIDO para responder ' +
+      'preguntas de ranking por plan. Si lo omites, NO declares "el endpoint no ' +
+      'tiene esa información" — sí la tiene, solo que bajo `itemsPorPlan[]` y ' +
+      'requiere el filtro.\n' +
+      '  • Si el usuario pide ranking por CONCEPTO/DETERMINACIÓN ("qué ' +
+      'determinación genera más pérdida", "concepto que más dinero pierde") ' +
+      'SIN mencionar plan, puedes omitir `idPlanes` (en ese caso solo ' +
+      'recibirás `items[]` por concepto y está bien).\n' +
+      '  • ANTES de poblar `idPlanes`, llama a `obtener_planes_disponibles` para ' +
+      'obtener los IDs válidos. Si NO envías `idPlanes`, OMITE el campo ' +
+      'completamente (no envíes array vacío).\n\n' +
       'FORMATO DE SALIDA (OBLIGATORIO): usa SOLO <b>, <i>, <code>, <a> y listas ' +
       'simples con guion (una línea por concepto, con sus valores separados por ' +
       'comas o espacios). NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas ' +
@@ -574,11 +592,13 @@ export const TOOLS: Anthropic.Tool[] = [
           type: 'array',
           items: { type: 'integer' },
           description:
-            'IDs de planes médicos para filtrar (opcional). Ej: [1127, 1123]. ' +
-            'Si se omite, no se aplica filtro por plan. Cuando se envía, las ' +
-            'auditorías sin plan asociado quedan excluidas. ANTES de usar este ' +
-            'parámetro, llama a `obtener_planes_disponibles` para mapear el ' +
-            'nombre del plan al `idPlan`.',
+            'IDs de planes médicos. Ej: [1127, 1123]. Ver sección ' +
+            '"🧠 CONTRATO DE FILTRO POR PLANES" arriba — REQUERIDO cuando la ' +
+            'pregunta es ranking por plan (activa `itemsPorPlan[]` con el ' +
+            'desglose `hospital × plan × monto`). Si se omite, `itemsPorPlan` ' +
+            'viene `null`. ANTES de poblarlo, llama a `obtener_planes_disponibles` ' +
+            'para mapear nombre → idPlan. Si NO envías `idPlanes`, OMITE el campo ' +
+            '(no array vacío).',
         },
         top: {
           type: 'integer',
