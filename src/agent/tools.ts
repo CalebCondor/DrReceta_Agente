@@ -754,6 +754,19 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `idMedicoAlta`: int opcional. Si el usuario preguntó por un médico ' +
       'CONCRETO (por nombre o ID), llámala primero en MODO CATÁLOGO para ' +
       'resolver el ID y luego repítela pasándolo.\n\n' +
+      '🧠 CONTRATO DE FILTRO POR PLANES (CRÍTICO):\n' +
+      '  • Si envías `idPlanes` → el backend devuelve el detalle agrupado POR ' +
+      'PLAN (útil para responder "¿en qué plan X se concentran los días ' +
+      'denegados?" o "¿cuánto perdió cada plan para este médico/auditor/ ' +
+      'manejador?"). SIEMPRE lista primero el catálogo con ' +
+      '`obtener_planes_disponibles` para tener los IDs reales.\n' +
+      '  • Si OMITES `idPlanes` (o envías array vacío) → el backend devuelve ' +
+      'el resultado GLOBAL del médico/auditor/manejador, sin desglose por ' +
+      'plan (todos los planes sumados).\n' +
+      '  • Para la pregunta "¿en qué plan se le deniegan más días al médico X?" ' +
+      'PASA `idPlanes` con la lista completa del catálogo. NO omitas el campo.\n' +
+      '  • Para "días denegados totales del médico X sin importar el plan" ' +
+      'OMITE `idPlanes`.\n\n' +
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples con ' +
       'guion (una línea por médico, con valores separados por comas o espacios). ' +
       'NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas alineadas.',
@@ -846,6 +859,13 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `idPlanes`: int[] opcional. Llama antes a `obtener_planes_disponibles` ' +
       'para mapear nombre → ID. Si el usuario dice "todos", omite el campo.\n' +
       '  • `loc`: array opcional de "ACUTE" / "SNF".\n\n' +
+      '🧠 CONTRATO DE FILTRO POR PLANES (CRÍTICO):\n' +
+      '  • Si envías `idPlanes` → el backend devuelve los conceptos de ' +
+      'determinación adversa FILTRADOS solo a esos planes. Pasarlo ayuda a ' +
+      'responder "¿qué conceptos deniegan más en el plan X para este médico/ ' +
+      'manejador/auditor?".\n' +
+      '  • Si OMITES `idPlanes` → el backend devuelve los conceptos ' +
+      'considerando TODOS los planes aplicables (global sin filtro de plan).\n\n' +
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples con ' +
       'guion (una línea por concepto). NUNCA uses <pre>, <table>, <ul>, <li>, ' +
       '<br>, ni columnas alineadas.',
@@ -943,6 +963,18 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `idManejadorCaso`: int opcional. Si el usuario preguntó por un ' +
       'manejador CONCRETO, llámala primero en MODO CATÁLOGO para resolver ' +
       'el ID y luego repítela pasándolo.\\n\\n' +
+      '🧠 CONTRATO DE FILTRO POR PLANES (CRÍTICO):\\n' +
+      '  • Si envías `idPlanes` → el backend devuelve el detalle agrupado POR ' +
+      'PLAN (útil para responder "¿en qué plan X se concentran los días ' +
+      'denegados del manejador Y?" o "¿cuánto perdió cada plan para este ' +
+      'manejador?"). SIEMPRE lista primero el catálogo con ' +
+      '`obtener_planes_disponibles` para tener los IDs reales.\\n' +
+      '  • Si OMITES `idPlanes` (o envías array vacío) → el backend devuelve ' +
+      'el resultado GLOBAL del manejador, sin desglose por plan.\\n' +
+      '  • Para la pregunta "¿en qué plan se le deniegan más días al ' +
+      'manejador X?" PASA `idPlanes` con la lista completa del catálogo.\\n' +
+      '  • Para "días denegados totales del manejador X sin importar el plan" ' +
+      'OMITE `idPlanes`.\\n\\n' +
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
       'con guion (una línea por manejador, con valores separados por comas o ' +
       'espacios). NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas ' +
@@ -1038,6 +1070,13 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `idPlanes`: int[] opcional. Llama antes a ' +
       '`obtener_planes_disponibles`. Si NO envías, OMITE el campo.\\n' +
       '  • `loc`: array opcional de "ACUTE" / "SNF".\\n\\n' +
+      '🧠 CONTRATO DE FILTRO POR PLANES (CRÍTICO):\\n' +
+      '  • Si envías `idPlanes` → el backend devuelve los conceptos de ' +
+      'determinación adversa FILTRADOS solo a esos planes. Útil para ' +
+      'responder "¿qué conceptos deniegan más en el plan X para este ' +
+      'manejador/auditor?".\\n' +
+      '  • Si OMITES `idPlanes` → el backend devuelve los conceptos ' +
+      'considerando TODOS los planes aplicables (global sin filtro de plan).\\n\\n' +
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
       'con guion (una línea por concepto). NUNCA uses <pre>, <table>, <ul>, ' +
       '<li>, <br>, ni columnas alineadas.',
@@ -1377,6 +1416,18 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `idAuditor`: int opcional. Si el usuario preguntó por un auditor ' +
       'CONCRETO, llámala primero en MODO CATÁLOGO para resolver el ID y ' +
       'luego repítela pasándolo.\\n\\n' +
+      '🧠 CONTRATO DE FILTRO POR PLANES (CRÍTICO):\\n' +
+      '  • Si envías `idPlanes` → el backend devuelve el detalle agrupado POR ' +
+      'PLAN (útil para responder "¿en qué plan X se concentran los días ' +
+      'denegados del auditor Y?" o "¿cuánto perdió cada plan para este ' +
+      'auditor?"). SIEMPRE lista primero el catálogo con ' +
+      '`obtener_planes_disponibles` para tener los IDs reales.\\n' +
+      '  • Si OMITES `idPlanes` (o envías array vacío) → el backend devuelve ' +
+      'el resultado GLOBAL del auditor, sin desglose por plan.\\n' +
+      '  • Para la pregunta "¿en qué plan se le deniegan más días al ' +
+      'auditor X?" PASA `idPlanes` con la lista completa del catálogo.\\n' +
+      '  • Para "días denegados totales del auditor X sin importar el plan" ' +
+      'OMITE `idPlanes`.\\n\\n' +
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
       'con guion (una línea por auditor, con valores separados por comas o ' +
       'espacios). NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas ' +
@@ -1473,6 +1524,13 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `idPlanes`: int[] opcional. Llama antes a ' +
       '`obtener_planes_disponibles`. Si NO envías, OMITE el campo.\\n' +
       '  • `loc`: array opcional de "ACUTE" / "SNF".\\n\\n' +
+      '🧠 CONTRATO DE FILTRO POR PLANES (CRÍTICO):\\n' +
+      '  • Si envías `idPlanes` → el backend devuelve los conceptos de ' +
+      'determinación adversa FILTRADOS solo a esos planes. Útil para ' +
+      'responder "¿qué conceptos deniegan más en el plan X para este ' +
+      'manejador/auditor?".\\n' +
+      '  • Si OMITES `idPlanes` → el backend devuelve los conceptos ' +
+      'considerando TODOS los planes aplicables (global sin filtro de plan).\\n\\n' +
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
       'con guion (una línea por concepto). NUNCA uses <pre>, <table>, <ul>, ' +
       '<li>, <br>, ni columnas alineadas.',
