@@ -104,7 +104,9 @@ function sanitizeAssistantText(text: string): string {
     /[^\n]*\$\s*[\d,.]+\s*[\u00f7\u002f\\\/÷]\s*\$?\s*[\d,.]+\s*=\s*[\d,.]+\s*%[^\n]*/gi,
     /[^\n]*=\s*[\d,.]+\s*%\s*de\s+(p[eé]rdida|recuperaci[oó]n|aprobaci[oó]n|denegaci[oó]n)\b[^\n]*/gi,
     // "X% de pérdida" / "X% de recuperación" sin mostrar la fórmula
-    /[^\n]*[\d,.]+\s*%\s*de\s+(p[eé]rdida|recuperaci[oó]n|aprobaci[oó]n|denegaci[oó]n|rechazo)\b[^\n]*/gi,
+    // EXCEPCIÓN: si el porcentaje está entre paréntesis precedido de "(..., X%" o
+    // "% denegado X" o "X%)" es DATO DE PAYLOAD, no invención. NO borrar.
+    /[^\n]*[\d,.]+\s*%\s*de\s+(p[eé]rdida|recuperaci[oó]n|aprobaci[oó]n|denegaci[oó]n|rechazo)\b(?!\s*\))[^\n]*/gi,
     // "aplicando la fórmula % pérdida = perdido ÷ facturado"
     /[^\n]*\baplicando (la )?f[oó]rmula\b[^\n]*%[^\n]*/gi,
     /[^\n]*\bf[oó]rmula\s+%\s+(p[eé]rdida|recuperaci[oó]n|aprobaci[oó]n|denegaci[oó]n)\s*=[^\n]*/gi,
