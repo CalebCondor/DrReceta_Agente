@@ -17,7 +17,6 @@ import { DbService } from './db.service';
 import {
   RESUMEN_FINANCIERO_HOSPITALES_URL,
   DETERMINACION_ADVERSA_MAS_FRECUENTE_URL,
-  CONCEPTO_MAS_DIAS_DENEGADOS_URL,
   PLANES_DISPONIBLES_URL,
   HOSPITALES_DISPONIBLES_URL,
   MONTOS_ESTADO,
@@ -242,13 +241,6 @@ export async function executeTool(
     if (Array.isArray(idPlanes) && idPlanes.length > 0) {
       body['idPlanes'] = idPlanes;
     }
-    if (!Array.isArray(body['idHospitales']) || body['idHospitales'].length === 0) {
-      return JSON.stringify({
-        success: false,
-        error:
-          'Falta el parámetro requerido `idHospitales` (array de ids de hospital). Usa antes `obtener_hospitales_disponibles` para mapear nombre → id.',
-      });
-    }
     return JSON.stringify(
       await apiPost(PLANES_POR_HOSPITAL_CON_LOC_URL, body, token),
     );
@@ -358,16 +350,6 @@ export async function executeTool(
       typeof top === 'number'
         ? `${DETERMINACION_ADVERSA_MAS_FRECUENTE_URL}?top=${encodeURIComponent(String(top))}`
         : DETERMINACION_ADVERSA_MAS_FRECUENTE_URL;
-    return JSON.stringify(await apiPost(url, body, token));
-  }
-
-  if (toolName === 'consultar_concepto_mas_dias_denegados') {
-    const body = buildIaPreguntasBody();
-    const top = toolInput['top'];
-    const url =
-      typeof top === 'number'
-        ? `${CONCEPTO_MAS_DIAS_DENEGADOS_URL}?top=${encodeURIComponent(String(top))}`
-        : CONCEPTO_MAS_DIAS_DENEGADOS_URL;
     return JSON.stringify(await apiPost(url, body, token));
   }
 

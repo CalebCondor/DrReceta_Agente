@@ -17,7 +17,6 @@
 const AUDITA_API_URL: string =
   process.env.AUDITA_API_URL?.replace(/\/$/, '') ?? 'http://localhost:5146';
 
-export const CONCEPTO_MAS_DIAS_DENEGADOS_URL = `${AUDITA_API_URL}/api/IaPreguntas/concepto-mas-dias-denegados`;
 export const RESUMEN_FINANCIERO_HOSPITALES_URL = `${AUDITA_API_URL}/api/IaPreguntas/resumen-financiero-hospitales`;
 export const DETERMINACION_ADVERSA_MAS_FRECUENTE_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-mas-frecuente`;
 export const PLANES_DISPONIBLES_URL = `${AUDITA_API_URL}/api/planes/dropdown`;
