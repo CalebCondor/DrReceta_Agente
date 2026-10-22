@@ -247,9 +247,9 @@ export async function executeTool(
   }
 
   // Helper local: arma el body estándar de las herramientas de IaPreguntas
-  // (anio + meses? + idHospitales + idPlanes? + loc?), omitiendo los campos
-  // vacíos para no enviar arrays vacíos que el backend descarta o interpreta
-  // mal.
+  // (anio + meses? + dia? + idHospitales + idPlanes? + loc?), omitiendo los
+  // campos vacíos para no enviar arrays vacíos que el backend descarta o
+  // interpreta mal.
   const buildIaPreguntasBody = (): Record<string, unknown> => {
     const body: Record<string, unknown> = {};
     if (typeof toolInput['anio'] === 'number') {
@@ -258,6 +258,22 @@ export async function executeTool(
     const meses = toolInput['meses'];
     if (Array.isArray(meses) && meses.length > 0) {
       body['meses'] = meses;
+    }
+    // `dia` (opcional, 1–31): filtro de granularidad DÍA dentro de los meses
+    // enviados en `meses`. El backend solo lo interpreta cuando viene `meses`,
+    // así que el schema de las tools prohíbe mandarlo sin mes; acá solo se
+    // normaliza el tipo y se descarta cualquier valor fuera de rango (0, 32,
+    // "abc", null, arrays). Aceptamos string numérico porque el modelo a
+    // veces manda "5" en vez de 5.
+    const diaRaw = toolInput['dia'];
+    let diaNum = NaN;
+    if (typeof diaRaw === 'number') {
+      diaNum = diaRaw;
+    } else if (typeof diaRaw === 'string' && diaRaw.trim().length > 0) {
+      diaNum = Number(diaRaw.trim());
+    }
+    if (Number.isInteger(diaNum) && diaNum >= 1 && diaNum <= 31) {
+      body['dia'] = diaNum;
     }
     const idHospitales = toolInput['idHospitales'];
     if (Array.isArray(idHospitales) && idHospitales.length > 0) {

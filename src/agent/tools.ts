@@ -3,6 +3,33 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
+/*──────────────────────────────────────────────────────────────────────────
+  FILTRO POR DÍA (`dia`) — compartido por TODAS las tools de datos.
+
+  El body de los endpoints de `IaPreguntas` acepta `dia` (int 1–31) como
+  filtro de granularidad DÍA, y el backend SOLO lo interpreta cuando el
+  request trae `meses` poblado. Por eso vive aquí como una constante
+  reutilizada en vez de repetirse 13 veces dentro de los `input_schema`.
+
+  NO se aplica a las tools de CATÁLOGO (`obtener_planes_disponibles`,
+  `obtener_hospitales_disponibles`, `obtener_planes_por_hospital_con_loc`):
+  esos endpoints son key/value y no aceptan período.
+  ─────────────────────────────────────────────────────────────────────────*/
+const DIA_SCHEMA = {
+  type: 'integer',
+  minimum: 1,
+  maximum: 31,
+  description:
+    'Día específico (1–31) DENTRO de los meses indicados en `meses`. Úsalo ' +
+    'cuando el usuario pida un día concreto: "el 5 de octubre" → ' +
+    '`meses: [10], dia: 5`; "del 15 de marzo de 2026" → `anio: 2026, ' +
+    'meses: [3], dia: 15`. REGLAS: (1) SOLO envíalo si `meses` viene ' +
+    'poblado — `dia` sin `meses` no aplica y el backend lo ignora; ' +
+    '(2) NO se puede filtrar un RANGO de días ("del 5 al 9"): en ese caso ' +
+    'usa `meses` y OMITE `dia`; (3) si el usuario no menciona un día ' +
+    'concreto, OMITE el campo (no mandes 0, null ni un array).',
+};
+
 export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'obtener_planes_disponibles',
@@ -159,6 +186,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'Meses a incluir (1–12). Si se omite o se envía vacío, se asumen los 12 meses del año. ' +
             'Ej: [1, 2, 4] = enero, febrero y abril.',
         },
+        dia: DIA_SCHEMA,
         idHospitales: {
           type: 'array',
           items: { type: 'integer' },
@@ -261,6 +289,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'Meses a incluir (1–12). Si se omite o se envía vacío, se asumen los 12 meses del año. ' +
             'Ej: [1, 2, 4] = enero, febrero y abril.',
         },
+        dia: DIA_SCHEMA,
         idHospitales: {
           type: 'array',
           items: { type: 'integer' },
@@ -364,6 +393,7 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año.',
         },
+        dia: DIA_SCHEMA,
         idHospitales: {
           type: 'array',
           items: { type: 'integer' },
@@ -460,6 +490,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
             'Ej: [1, 2, 4] = enero, febrero y abril.',
         },
+        dia: DIA_SCHEMA,
         idHospitales: {
           type: 'array',
           items: { type: 'integer' },
@@ -581,6 +612,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
             'Ej: [1, 2, 4] = enero, febrero y abril.',
         },
+        dia: DIA_SCHEMA,
         idHospitales: {
           type: 'array',
           items: { type: 'integer' },
@@ -817,6 +849,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
             'Ej: [1, 2, 4] = enero, febrero y abril.',
         },
+        dia: DIA_SCHEMA,
         idPlanes: {
           type: 'array',
           items: { type: 'integer' },
@@ -912,6 +945,7 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año.',
         },
+        dia: DIA_SCHEMA,
         idPlanes: {
           type: 'array',
           items: { type: 'integer' },
@@ -1024,6 +1058,7 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año.',
         },
+        dia: DIA_SCHEMA,
         idPlanes: {
           type: 'array',
           items: { type: 'integer' },
@@ -1123,6 +1158,7 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año.',
         },
+        dia: DIA_SCHEMA,
         idPlanes: {
           type: 'array',
           items: { type: 'integer' },
@@ -1243,6 +1279,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
             'Ej: [10] = octubre.',
         },
+        dia: DIA_SCHEMA,
         idPlanes: {
           type: 'array',
           items: { type: 'integer' },
@@ -1362,6 +1399,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
             'Ej: [10] = octubre.',
         },
+        dia: DIA_SCHEMA,
         idPlanes: {
           type: 'array',
           items: { type: 'integer' },
@@ -1478,6 +1516,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
             'Ej: [1, 2, 4] = enero, febrero y abril.',
         },
+        dia: DIA_SCHEMA,
         idPlanes: {
           type: 'array',
           items: { type: 'integer' },
@@ -1577,6 +1616,7 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año.',
         },
+        dia: DIA_SCHEMA,
         idPlanes: {
           type: 'array',
           items: { type: 'integer' },
