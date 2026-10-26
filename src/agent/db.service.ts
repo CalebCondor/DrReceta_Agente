@@ -22,6 +22,17 @@ export class DbService implements OnModuleInit {
   }
 
   private async initTables() {
+    // `unaccent` permite que la búsqueda de conocimiento insensitive a
+    // acentos (ej: "laser" -> "láser"). Es opcional: si el servidor no
+    // permite crearla, la búsqueda sigue funcionando con LIKE normal.
+    try {
+      await this.pool.query('CREATE EXTENSION IF NOT EXISTS unaccent');
+    } catch (e) {
+      this.logger.warn(
+        `No se pudo habilitar la extensión unaccent (la búsqueda seguirá funcionando sin normalizar acentos): ${e}`,
+      );
+    }
+
     await this.pool.query(`
       CREATE TABLE IF NOT EXISTS conocimiento_especifico (
         id SERIAL PRIMARY KEY, pregunta TEXT NOT NULL, respuesta TEXT NOT NULL,

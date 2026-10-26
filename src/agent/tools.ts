@@ -27,14 +27,18 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'buscar_conocimiento',
     description:
-      'Busca información específica en mi base de datos de aprendizaje previo. ' +
-      'Úsalo antes de responder si no estás seguro de un dato interno o si el usuario pregunta algo que podrías haber aprendido antes.',
+      'Busca la respuesta OFICIAL y APROBADA de la clínica en la base de conocimiento. ' +
+      'OBLIGATORIO antes de responder cualquier consulta de salud o síntomas (qué es una enfermedad, qué significa un síntoma, un tratamiento, etc.). ' +
+      'Usa como "busqueda" una palabra clave o frase corta del tema (ej: "puntos negros", "miodesopsias", "desprendimiento de retina", "catarata", "glaucoma", "OCT", "planes médicos", "diabetes"). ' +
+      'Usa palabras simples y del tema; el buscador ignora acentos y tolera singular/plural. ' +
+      'Si devuelve resultados, responde al paciente con esa información. Si NO devuelve resultados, deriva al personal humano en vez de inventar.',
     input_schema: {
       type: 'object',
       properties: {
         busqueda: {
           type: 'string',
-          description: 'Palabra clave o frase a buscar.',
+          description:
+            'Palabra clave o frase corta a buscar (ej: "puntos negros flotantes", "catarata").',
         },
       },
       required: ['busqueda'],

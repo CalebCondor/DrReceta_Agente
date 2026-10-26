@@ -72,36 +72,61 @@ export async function executeTool(
 
   if (toolName === 'buscar_conocimiento') {
     const raw = strVal(toolInput['busqueda']);
-    const tokens = raw
-      .toLowerCase()
-      .split(/[^a-záéíóúüñ0-9]+/)
-      .filter((t) => t.length >= 3);
+    const tokens = Array.from(
+      new Set(
+        raw
+          .toLowerCase()
+          .split(/[^a-záéíóúüñ0-9]+/)
+          .filter((t) => t.length >= 3),
+      ),
+    );
 
     try {
       if (tokens.length === 0) {
         return JSON.stringify({ success: true, resultados: [] });
       }
-      const conds = tokens
-        .map(
-          (_, i) =>
-            `(LOWER(pregunta) LIKE $${i + 1} OR LOWER(respuesta) LIKE $${i + 1})`,
-        )
-        .join(' OR ');
-      const scoreParts = tokens
-        .map(
-          (_, i) =>
-            `(CASE WHEN LOWER(pregunta) LIKE $${i + 1} OR LOWER(respuesta) LIKE $${i + 1} THEN 1 ELSE 0 END)`,
-        )
-        .join(' + ');
-      const params = tokens.map((t) => `%${t}%`);
 
-      const { rows } = await db.query(
-        `SELECT TOP 5 pregunta, respuesta, (${scoreParts}) AS score
-         FROM conocimiento_especifico
-         WHERE ${conds}
-         ORDER BY score DESC, id DESC`,
-        params,
-      );
+      // `unaccent` normaliza acentos ("laser" -> "láser"), pero la extensión
+      // puede no existir en el servidor. Se intenta con normalización y, si
+      // falla, se reintenta con LIKE simple.
+      const intentar = async (usarUnaccent: boolean) => {
+        const norm = (col: string) =>
+          usarUnaccent ? `unaccent(LOWER(${col}))` : `LOWER(${col})`;
+        // Prefijo: "diabet" casa con "diabética" y "diabetes". Sin esto, una
+        // búsqueda con singular/plural distinto no encuentra nada.
+        const conds = tokens
+          .map(
+            (_, i) =>
+              `(${norm('pregunta')} LIKE $${i + 1} OR ${norm('respuesta')} LIKE $${i + 1} ` +
+              `OR ${norm('pregunta')} LIKE $${i + 1} || '%' OR ${norm('respuesta')} LIKE $${i + 1} || '%')`,
+          )
+          .join(' OR ');
+        // La pregunta es el TEMA de la entrada: pesa el doble que la respuesta.
+        const scoreParts = tokens
+          .map(
+            (_, i) =>
+              `(CASE WHEN ${norm('pregunta')} LIKE $${i + 1} THEN 2 ` +
+              `WHEN ${norm('respuesta')} LIKE $${i + 1} THEN 1 ELSE 0 END)`,
+          )
+          .join(' + ');
+
+        const { rows } = await db.query(
+          `SELECT id, pregunta, respuesta, (${scoreParts}) AS score
+           FROM conocimiento_especifico
+           WHERE ${conds}
+           ORDER BY score DESC, id DESC
+           LIMIT 5`,
+          tokens.map((t) => `%${t}%`),
+        );
+        return rows;
+      };
+
+      let rows;
+      try {
+        rows = await intentar(true);
+      } catch {
+        rows = await intentar(false);
+      }
       return JSON.stringify({ success: true, resultados: rows });
     } catch (e: unknown) {
       return JSON.stringify({ success: false, error: errMsg(e) });
@@ -113,13 +138,10 @@ export async function executeTool(
     const v = strVal(toolInput['valor']).trim();
     try {
       await db.query(
-        `MERGE INTO memoria_largo_plazo AS target
-         USING (SELECT $1 AS chat_id, $2 AS clave, $3 AS valor) AS source
-         ON target.chat_id = source.chat_id AND target.clave = source.clave
-         WHEN MATCHED THEN
-           UPDATE SET valor = source.valor, updated_at = SYSUTCDATETIME()
-         WHEN NOT MATCHED THEN
-           INSERT (chat_id, clave, valor) VALUES (source.chat_id, source.clave, source.valor);`,
+        `INSERT INTO memoria_largo_plazo (chat_id, clave, valor)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (chat_id, clave) DO UPDATE
+           SET valor = EXCLUDED.valor, updated_at = now()`,
         [chatId, k, v],
       );
       return JSON.stringify({ success: true, message: `Memorizado: ${k}` });

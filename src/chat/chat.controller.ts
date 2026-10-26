@@ -133,6 +133,17 @@ export class ChatController {
     @Param('us_id', ParseIntPipe) usId: number,
     @Param('fecha') fecha: string,
   ) {
+    // Validación de entrada: una fecha mal formada no debe llegar a Postgres,
+    // que respondería "date/time field value out of range".
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      throw new HttpException(
+        {
+          success: false,
+          error: `Fecha inválida: "${fecha}". Se espera el formato YYYY-MM-DD`,
+        },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     try {
       const deleted = await this.chatService.deleteByUserIdAndDate(usId, fecha);
       return {
