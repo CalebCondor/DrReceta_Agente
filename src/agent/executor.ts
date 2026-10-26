@@ -89,12 +89,15 @@ export async function executeTool(
       // `unaccent` normaliza acentos ("laser" -> "láser"), pero la extensión
       // puede no existir en el servidor. Se intenta con normalización y, si
       // falla, se reintenta con LIKE simple.
-      const intentar = async (usarUnaccent: boolean) => {
+      //
+      // El token de búsqueda también se normaliza en JS: si no, "%retinopatía%"
+      // nunca casa con la columna ya normalizada "retinopatia".
+      const buscar = async (usarUnaccent: boolean, patrones: string[]) => {
         const norm = (col: string) =>
           usarUnaccent ? `unaccent(LOWER(${col}))` : `LOWER(${col})`;
         // Prefijo: "diabet" casa con "diabética" y "diabetes". Sin esto, una
         // búsqueda con singular/plural distinto no encuentra nada.
-        const conds = tokens
+        const conds = patrones
           .map(
             (_, i) =>
               `(${norm('pregunta')} LIKE $${i + 1} OR ${norm('respuesta')} LIKE $${i + 1} ` +
@@ -102,7 +105,7 @@ export async function executeTool(
           )
           .join(' OR ');
         // La pregunta es el TEMA de la entrada: pesa el doble que la respuesta.
-        const scoreParts = tokens
+        const scoreParts = patrones
           .map(
             (_, i) =>
               `(CASE WHEN ${norm('pregunta')} LIKE $${i + 1} THEN 2 ` +
@@ -116,16 +119,23 @@ export async function executeTool(
            WHERE ${conds}
            ORDER BY score DESC, id DESC
            LIMIT 5`,
-          tokens.map((t) => `%${t}%`),
+          patrones.map((t) => `%${t}%`),
         );
         return rows;
       };
 
+      // Los acentos se quitan en JS para que el token coincida con la columna
+      // normalizada por `unaccent`.
+      const sinAcento = (s: string) =>
+        s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const patronesNorm = tokens.map(sinAcento);
+
       let rows;
       try {
-        rows = await intentar(true);
+        rows = await buscar(true, patronesNorm);
       } catch {
-        rows = await intentar(false);
+        // Sin la extensión `unaccent`: se prueban los tokens con y sin acentos.
+        rows = await buscar(false, [...tokens, ...patronesNorm]);
       }
       return JSON.stringify({ success: true, resultados: rows });
     } catch (e: unknown) {

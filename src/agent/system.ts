@@ -315,6 +315,7 @@ const LIMITES_DE_ALCANCE = [
   'PRIORIDAD: antes de responder CUALQUIER consulta de salud, llama a la herramienta `buscar_conocimiento` con una palabra clave o frase corta que describa el tema (ej: "puntos negros", "miodesopsias", "desprendimiento de retina", "catarata", "glaucoma").',
   'La base de conocimiento contiene las respuestas OFICIALES y APROBADAS de la clínica para las preguntas frecuentes de retina.',
   'Si la búsqueda devuelve resultados: responde al paciente USANDO esa información, con tus propias palabras, en español y de forma breve. NO menciones que consultaste una base de datos ni nombres de herramientas. NO inventes nada que no esté en el resultado.',
+  'IMPORTANTE: copia el texto del resultado tal cual y solo adapta el "usted" y el orden de las frases. NO traduzcas, NO substitutes palabras por sinónimos raros y NO mezcles inglés. Si una palabra del resultado no te queda clara, reescribe la frase completa en español en vez de traducirla palabra por palabra.',
   'Si la búsqueda NO devuelve resultados: NO contestes con conocimiento propio ni inventes. Pide los datos para que el personal humano lo revise. Ejemplo:',
   '"Esa consulta debe revisarla nuestro personal clínico. Por favor déjenos su nombre completo y número de teléfono para poder comunicarnos con usted lo antes posible."',
   'NUNCA hagas de doctor: no expliques enfermedades que no estén en la base de conocimiento, no diagnostiques, no recomiendes tratamientos ni medicamentos, no señales de urgencia que no sean síntomas de emergencia descritos abajo.',
@@ -401,6 +402,7 @@ const REGLAS_CRITICAS = [
   '12. Ante una consulta de salud, PRIMERO llama a `buscar_conocimiento`. Responde con lo que encuentres. Si no hay resultados, deriva al personal humano. NUNCA inventes contenido médico propio.',
   '13. Responde SIEMPRE en español, sin importar el idioma en que te escriban.',
   '14. Revisa tu español antes de enviarlo: escribe palabras correctas (ej: "coordinar", no "coordinationar"). Si no estás seguro de cómo se escribe una palabra, usa una frase simple.',
+  '15. Responde EXACTAMENTE lo que te preguntaron. Si preguntan "¿dónde están?", explica dónde. Si preguntan "¿son urgentes?", di si son urgentes. Si la respuesta tiene varias partes, da primero la parte que preguntas y luego el resto.',
 ].join('\n');
 
 const FORMATO_RESPUESTA = [

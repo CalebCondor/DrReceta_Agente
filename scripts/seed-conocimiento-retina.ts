@@ -27,12 +27,22 @@ const ENTRADAS: Entrada[] = [
   {
     pregunta: '¿Qué significa ver puntos negros flotantes en la visión?',
     respuesta:
-      'Los puntos negros flotantes, conocidos como miodesopsias, son pequeñas manchas, hilos o sombras que parecen desplazarse al mover los ojos. Pueden deberse a cambios en el humor vítreo, la sustancia gelatinosa que se encuentra dentro del ojo. Sin embargo, si aparecen repentinamente o aumentan en cantidad, pueden indicar un desgarro o desprendimiento de retina y requieren evaluación urgente.',
+      'Los puntos negros flotantes, conocidos como miodesopsias, son pequeñas manchas, hilos o sombras que parecen desplazarse al mover los ojos. Suelen deberse a cambios en el humor vítreo. Si aparecen de repente, aumentan en cantidad o vienen con destellos de luz o una sombra en la visión, pueden indicar un desgarro o desprendimiento de retina y requieren evaluación urgente el mismo día.',
+  },
+  {
+    pregunta: '¿Dónde se encuentran ubicados los puntos negros flotantes?',
+    respuesta:
+      'Los puntos negros flotantes (miodesopsias) se encuentran dentro del ojo, en el humor vítreo, que es la sustancia gelatinosa que llena el ojo. Por eso los ve como manchas, hilos o sombras que se mueven cuando mueve los ojos. Ubicarlos anatómicamente es normal y en sí mismo no es una emergencia. Lo importante es cómo aparecieron: si los notó de repente, si han aumentado en cantidad o si vienen con destellos de luz o una sombra o cortina en la visión, eso sí es una urgencia y debe acudir a urgencias o llamar al 9-1-1 de inmediato. Si los ha tenido desde hace tiempo y no han cambiado, se puede agendar una evaluación de retina con nuestro personal.',
+  },
+  {
+    pregunta: '¿Son una urgencia los puntos negros flotantes?',
+    respuesta:
+      'Depende de cómo aparecieron. Los puntos negros flotantes que se han mantenido iguales por mucho tiempo y sin otros síntomas suelen ser benignos y se revisan en consulta programada. En cambio, si aparecen de repente, si aumentan en cantidad o si vienen con destellos de luz o con una sombra o cortina oscura en la visión, puede tratarse de un desgarro o desprendimiento de retina: en ese caso es una urgencia y debe acudir a urgencias o llamar al 9-1-1 de inmediato, sin esperar y sin conducir. Si tiene dudas, comuníquese con nuestro personal indicando su nombre y número de teléfono y le orientamos.',
   },
   {
     pregunta: '¿Qué son los destellos o flashes de luz en la visión?',
     respuesta:
-      'Los destellos o flashes de luz son：黄uzas breves y súbitas, similar a un relámpago, que aparecen al mover los ojos o en la oscuridad. Suelen deberse a tracciones del vítreo sobre la retina. Si aparecen de forma repentina, especialmente junto con puntos negros flotantes o una sombra en la visión, pueden indicar un desgarro de retina y requieren evaluación urgente el mismo día.',
+      'Los destellos o flashes de luz son: luzzas breves y súbitas, similar a un relámpago, que aparecen al mover los ojos o en la oscuridad. Suelen deberse a tracciones del vítreo sobre la retina. Si aparecen de forma repentina, especialmente junto con puntos negros flotantes o una sombra en la visión, pueden indicar un desgarro de retina y requieren evaluación urgente el mismo día: acuda a urgencias o llame al 9-1-1 de inmediato.',
   },
   {
     pregunta: '¿Qué significa ver una sombra o cortina oscura en la visión?',
@@ -182,8 +192,14 @@ async function main(): Promise<void> {
 
   try {
     for (const e of ENTRADAS) {
+      // Compara normalizando acentos, signos y espacios, para que un leve
+      // cambio en el texto de la pregunta ACTUALICE la fila en vez de crear
+      // una duplicada.
       const { rows } = await pool.query(
-        `SELECT id, respuesta FROM conocimiento_especifico WHERE LOWER(pregunta) = LOWER($1) LIMIT 1`,
+        `SELECT id, pregunta, respuesta FROM conocimiento_especifico
+         WHERE lower(regexp_replace(unaccent(pregunta), '[^a-z0-9]+', ' ', 'g'))
+            = lower(regexp_replace(unaccent($1), '[^a-z0-9]+', ' ', 'g'))
+         LIMIT 1`,
         [e.pregunta],
       );
 
@@ -194,11 +210,15 @@ async function main(): Promise<void> {
           [e.pregunta, e.respuesta],
         );
         insertadas++;
-      } else if (rows[0].respuesta !== e.respuesta) {
+      } else if (
+        rows[0].respuesta !== e.respuesta ||
+        rows[0].pregunta !== e.pregunta
+      ) {
         await pool.query(
-          `UPDATE conocimiento_especifico SET respuesta = $2, fuente = 'clinica_oficial', updated_at = now()
+          `UPDATE conocimiento_especifico
+           SET pregunta = $2, respuesta = $3, fuente = 'clinica_oficial', updated_at = now()
            WHERE id = $1`,
-          [rows[0].id, e.respuesta],
+          [rows[0].id, e.pregunta, e.respuesta],
         );
         actualizadas++;
       } else {
