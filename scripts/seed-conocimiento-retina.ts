@@ -173,7 +173,28 @@ const ENTRADAS: Entrada[] = [
   {
     pregunta: '¿Dónde está Retina Care y cómo se coordina una cita?',
     respuesta:
-      'Retina Care está en el #452 Ave. Dr. Rivera Aulet, Arecibo, PR 00612, y atiende de Lunes a Viernes de 7:30am a 2:30pm. El horario de atención y citas es de Lunes a Viernes de 7:30am a 2:30pm. Para coordinar, confirmar o cancelar una cita, déjenos su nombre completo y número de teléfono; nuestro personal se comunicará con usted tan pronto como sea posible. También puede llamar al 787-680-7222.',
+      'Retina Care está en el #452 Ave. Dr. Rivera Aulet, Arecibo, PR 00612. Atiende de Lunes a Viernes de 8:00am a 3:00pm. Para coordinar, confirmar o cancelar una cita, déjenos su nombre completo y número de teléfono; nuestro personal se comunicará con usted tan pronto como sea posible. También puede llamar al 787-680-7222 o escribirnos por WhatsApp al mismo número.',
+  },
+  {
+    pregunta: '¿Dónde se encuentra ubicada la clínica de Retina Care?',
+    respuesta:
+      'Nuestra clínica está ubicada en el #452 Ave. Dr. Rivera Aulet, Arecibo, Puerto Rico 00612. Atendemos de Lunes a Viernes de 8:00am a 3:00pm. Puede llamarnos al 787-680-7222 o escribirnos por WhatsApp al mismo número para coordinar su cita.',
+  },
+  {
+    pregunta:
+      '¿Dónde están ubicados? ¿Dónde se encuentra la sede de Retina Care?',
+    respuesta:
+      'La sede de Retina Care está ubicada en el #452 Ave. Dr. Rivera Aulet, Arecibo, Puerto Rico 00612. Atendemos de Lunes a Viernes de 8:00am a 3:00pm. Puede llamarnos al 787-680-7222 o escribirnos por WhatsApp al mismo número para coordinar su cita.',
+  },
+  {
+    pregunta: '¿En qué dirección está Retina Care?',
+    respuesta:
+      'La dirección de Retina Care es #452 Ave. Dr. Rivera Aulet, Arecibo, PR 00612. Puede llamarnos al 787-680-7222 o por WhatsApp al mismo número. Atendemos de Lunes a Viernes de 8:00am a 3:00pm.',
+  },
+  {
+    pregunta: '¿Cuál es el horario de atención de Retina Care?',
+    respuesta:
+      'Atendemos de Lunes a Viernes de 8:00am a 3:00pm. Puede visitarnos en el #452 Ave. Dr. Rivera Aulet, Arecibo, PR 00612, o coordinar por teléfono al 787-680-7222.',
   },
 ];
 

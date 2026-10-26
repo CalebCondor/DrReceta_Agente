@@ -125,10 +125,10 @@ function cleanDraftForNumbers(draft: string): string {
   return (
     draft
       .replace(/<[^>]*>/g, ' ') // tags HTML (href, etc.)
-      // Horario de la clínica (literal del guion): "7:30am", "2:30pm".
+      // Horario de la clínica (literal del guion): "8:00am", "3:00pm".
       // SOLO estas dos: cualquier otra hora sí es una cita inventada y debe
       // seguir siendo detectada por el validador.
-      .replace(/\b(?:7:30\s*am|2:30\s*pm|7:30|2:30)\b/gi, ' ')
+      .replace(/\b(?:8:00\s*am|3:00\s*pm|8:00|3:00)\b/gi, ' ')
       // "911-911-9111", "9-1-1", "911"
       .replace(/\b9(?:[-\s]?1){1,3}[-\s]?1(?:[-\s]?1){0,3}\b/g, ' ')
       // Opciones del menú con emoji de número (keycap): "1️⃣", "2️⃣", ...
@@ -279,7 +279,7 @@ const CONTEXTO_RETINA_CARE = [
   'CONTEXTO DE LA CLÍNICA:',
   '- Eres el asistente virtual de Retina Care, una clínica oftalmológica especializada en retina ubicada en Puerto Rico.',
   '- La clínica opera bajo el sistema de salud de Puerto Rico, incluyendo planes como Triple-S, MCS, MMM, Humana, Medicare Advantage y Medicaid (Vital).',
-  '- Horario de atención y citas: Lunes a Viernes de 7:30am a 2:30pm (AST).',
+  '- Horario de atención y citas: Lunes a Viernes de 8:00am a 3:00pm (AST).',
   '- Si el paciente menciona síntomas de emergencia (pérdida súbita de visión, destellos intensos, cortina oscura en la visión), indícale que debe ir a urgencias o llamar al 9-1-1 de inmediato. Esta indicación tiene prioridad sobre el flujo del menú.',
 ].join('\n');
 
@@ -321,6 +321,10 @@ const LIMITES_DE_ALCANCE = [
   '"Esa consulta debe revisarla nuestro personal clínico. Por favor déjenos su nombre completo y número de teléfono para poder comunicarnos con usted lo antes posible."',
   'NUNCA hagas de doctor: no expliques enfermedades que no estén en la base de conocimiento, no diagnostiques, no recomiendes tratamientos ni medicamentos, no señales de urgencia que no sean síntomas de emergencia descritos abajo.',
   '',
+  'B2) PREGUNTAS SOBRE LA CLÍNICA (ubicación, dirección, horario, teléfono, planes):',
+  'Estas NO son preguntas de salud. Si el paciente pregunta dónde está la clínica, su dirección, el horario, el teléfono o los planes médicos, busca con esos términos: "dirección clínica", "ubicación Retina Care", "horario de atención", "teléfono Retina Care", "planes médicos".',
+  'IMPORTANTE: "donde está/están ubicados" SIN mencionar un síntoma o una enfermedad significa la SEDE DE LA CLÍNICA, no el ojo. En ese caso da la dirección de Retina Care en Arecibo. Solo si el paciente menciona un síntoma (puntos negros, destellos, cortina) es una pregunta sobre el ojo.',
+  '',
   'C) SÍNTOMAS DE EMERGENCIA (pérdida súbita de visión, destellos intensos, cortina oscura en la visión):',
   'Esto tiene prioridad sobre todo lo demás. Indica urgencias / 9-1-1 de inmediato. No hagas preguntas administrativas antes.',
   '',
@@ -350,7 +354,7 @@ const FLUJO_CONVERSACIONAL = [
   '',
   'PASO 1 — SALUDO INICIAL:',
   'Al iniciar siempre envía este mensaje de bienvenida:',
-  '"Saludos, gracias por comunicarse con Retina Care. Nuestro horario de atención y citas es de Lunes a Viernes de 7:30am a 2:30pm.',
+  '"Saludos, gracias por comunicarse con Retina Care. Nuestro horario de atención y citas es de Lunes a Viernes de 8:00am a 3:00pm.',
   '¿Es usted paciente nuevo o existente? Por favor seleccione una opción:',
   '1️⃣Nuevo paciente',
   '2️⃣Paciente existente',
@@ -405,6 +409,7 @@ const REGLAS_CRITICAS = [
   '14. Revisa tu español antes de enviarlo: escribe palabras correctas (ej: "coordinar", no "coordinationar"). Si no estás seguro de cómo se escribe una palabra, usa una frase simple.',
   '15. Responde EXACTAMENTE lo que te preguntaron. Si preguntan "¿dónde están?", explica dónde. Si preguntan "¿son urgentes?", di si son urgentes. Si la respuesta tiene varias partes, da primero la parte que preguntas y luego el resto.',
   '16. Nunca pidas datos de contacto (nombre, teléfono) al final de una respuesta informativa. El paciente solo los da si elige pedir cita. Pedirlos sin que se lo pidan es un error.',
+  '17. "Ubicados/ubicada/ubicación" SIN un síntoma de la vista al lado significa DÓNDE ESTÁ LA SEDE DE LA CLÍNICA (Arecibo), no dónde está algo dentro del ojo. Con un síntoma al lado (puntos negros, destellos, cortina) sí es el ojo.',
 ].join('\n');
 
 const FORMATO_RESPUESTA = [
@@ -438,7 +443,7 @@ export async function buildSystem(
   const d = getDateContext(new Date());
   const fecha = [
     `FECHA ACTUAL (${TIMEZONE}): ${d.human} (${d.iso}).`,
-    `Horario de atención y citas: Lunes a Viernes de 7:30am a 2:30pm (AST).`,
+    `Horario de atención y citas: Lunes a Viernes de 8:00am a 3:00pm (AST).`,
   ].join('\n');
 
   // --- Dinámico: memoria ---

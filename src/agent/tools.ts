@@ -29,8 +29,10 @@ export const TOOLS: Anthropic.Tool[] = [
     description:
       'Busca la respuesta OFICIAL y APROBADA de la clínica en la base de conocimiento. ' +
       'OBLIGATORIO antes de responder cualquier consulta de salud o síntomas (qué es una enfermedad, qué significa un síntoma, un tratamiento, etc.). ' +
-      'Usa como "busqueda" una palabra clave o frase corta del tema (ej: "puntos negros", "miodesopsias", "desprendimiento de retina", "catarata", "glaucoma", "OCT", "planes médicos", "diabetes"). ' +
+      'También úsala para preguntas de la clínica: dirección, ubicación de la sede, horario, teléfono y planes médicos. ' +
+      'Usa como "busqueda" una palabra clave o frase corta del tema (ej: "puntos negros", "miodesopsias", "desprendimiento de retina", "catarata", "glaucoma", "OCT", "planes médicos", "diabetes", "dirección clínica", "horario de atención"). ' +
       'Usa palabras simples y del tema; el buscador ignora acentos y tolera singular/plural. ' +
+      'Si la pregunta es sobre la clínica (dónde está la sede, dirección, horario), busca con esos términos y NO con síntomas del ojo. ' +
       'Si devuelve resultados, responde al paciente con esa información. Si NO devuelve resultados, deriva al personal humano en vez de inventar.',
     input_schema: {
       type: 'object',
@@ -38,7 +40,7 @@ export const TOOLS: Anthropic.Tool[] = [
         busqueda: {
           type: 'string',
           description:
-            'Palabra clave o frase corta a buscar (ej: "puntos negros flotantes", "catarata").',
+            'Palabra clave o frase corta a buscar (ej: "puntos negros flotantes", "catarata", "dirección clínica").',
         },
       },
       required: ['busqueda'],
