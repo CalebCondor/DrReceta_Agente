@@ -44,49 +44,33 @@ export class AutoResumeService implements OnModuleInit, OnModuleDestroy {
    * Auto-reanuda chats en los que el humano tomó el control pero no respondió
    * en el tiempo configurado. Usa como referencia el ÚLTIMO mensaje del chat
    * (si existe) o la marca de pausa, lo que sea más reciente.
-   *
-   * Tolerancia: si la BD no está disponible, sale silenciosamente (no hay
-   * nada que auto-reanudar sin la tabla `chats_pausados`). El `db.query()`
-   * devuelve `{rows: []}` en ese escenario, por lo que esta función nunca
-   * tira excepciones.
    */
   private async checkInactiveChats(): Promise<void> {
-    if (!this.db.isAvailable()) {
-      // BD caída o sin configurar: no hay chats pausados que revisar.
-      return;
-    }
-    try {
-      const { rows } = await this.db.query(
-        `UPDATE cp
-         SET reanudado_en = SYSUTCDATETIME()
-         OUTPUT INSERTED.chat_id, INSERTED.pausado_en
-         FROM chats_pausados cp
-         WHERE cp.reanudado_en IS NULL
-           AND COALESCE(
-             (SELECT MAX(hm.created_at)
-              FROM historial_mensajes hm
-              WHERE hm.chat_id = cp.chat_id),
-             cp.pausado_en
-           ) < DATEADD(MINUTE, -$1, SYSUTCDATETIME())`,
-        [this.timeoutMinutes],
+    const { rows } = await this.db.query(
+      `UPDATE chats_pausados cp
+       SET reanudado_en = NOW()
+       WHERE cp.reanudado_en IS NULL
+         AND COALESCE(
+           (SELECT MAX(hm.created_at)
+            FROM historial_mensajes hm
+            WHERE hm.chat_id = cp.chat_id),
+           cp.pausado_en
+         ) < NOW() - ($1 || ' minutes')::interval
+       RETURNING cp.chat_id, cp.pausado_en`,
+      [String(this.timeoutMinutes)],
+    );
+
+    const resumed = rows as Array<{
+      chat_id: number | string;
+      pausado_en: Date;
+    }>;
+    if (resumed.length === 0) return;
+
+    for (const r of resumed) {
+      this.logger.log(
+        `Auto-resume chat ${r.chat_id} por inactividad (${this.timeoutMinutes} min sin mensajes)`,
       );
-
-      const resumed = rows as Array<{
-        chat_id: number | string;
-        pausado_en: Date;
-      }>;
-      if (resumed.length === 0) return;
-
-      for (const r of resumed) {
-        this.logger.log(
-          `Auto-resume chat ${r.chat_id} por inactividad (${this.timeoutMinutes} min sin mensajes)`,
-        );
-        this.chatGateway.emitPauseStatus(r.chat_id, false);
-      }
-    } catch (e) {
-      // Cualquier error inesperado (no de conexión, porque `query()` ya
-      // los maneja): logueamos una sola vez y seguimos.
-      this.logger.warn(`checkInactiveChats: ${(e as Error)?.message ?? e}`);
+      this.chatGateway.emitPauseStatus(r.chat_id, false);
     }
   }
 }
