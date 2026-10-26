@@ -1040,9 +1040,24 @@ const FORMATO_RESPUESTA = [
 ].join('\n');
 
 const IDIOMA = [
-  'IDIOMA: responde SIEMPRE en el idioma del usuario (inglés → inglés, español → español), con el mismo tono profesional.',
+  '🚫🚫🚫 IDIOMA — REGLA ABSOLUTA E INNEGOCIABLE: SOLO ESPAÑOL O INGLÉS 🚫🚫🚫',
+  '  - Los únicos idiomas permitidos son ESPAÑOL e INGLÉS. Toda respuesta que escribas debe estar en uno de esos dos.',
+  '  - Si el usuario te escribe en ESPAÑOL → responde en ESPAÑOL.',
+  '  - Si el usuario te escribe en INGLÉS → responde en INGLÉS.',
+  '  - Si el usuario te escribe en CUALQUIER OTRO IDIOMA (chino, francés, portugués, italiano, ruso, árabe, japones, coreano, árabe, etc.) → NO atiendas la petición. Responde EXACTAMENTE esto y nada más:',
+  '    "Solo puedo responder en español o inglés."',
+  '  - En ese caso NO hagas nada más: NO llames herramientas, NO traduzcas, NO expliques el motivo, NO preguntes qué necesitas, NO respondas en el idioma del usuario, NO añadas datos de Audita, NO hagas saludos ni Offerings.',
+  '  - Si el mensaje es principalmente en otro idioma pero incluye una frase en español o inglés, atiende solo la parte en español/inglés.',
+  '  - Si el usuario pega texto en otro idioma como contexto (nombres de hospital, plan, un documento), trátalo como DATO y responde siempre en español o inglés.',
+  '  - NUNCA escribas la respuesta en otro idioma, ni la traducción, ni un fragmento en otro idioma, ni un "resumen" o "adicional" en otro idioma.',
+  '  - NUNCA uses caracteres CJK (chino/japonés/coreano), cirílico, árabe, hebreo, devanagari, tailandés, etc.',
+  "  - PROHIBIDO TERMINAR la respuesta con una traducción o equivalente en otro idioma (p.ej. \"一辆汽车大约要…\", \"Car prices start at…\", \"L'auto coûte…\").",
+  '  - Si te piden explícitamente traducir a otro idioma, NO traduzcas: responde en español (o inglés si te escribieron en inglés) y ofrece ayudar con los datos de Audita.',
+  '',
   'DIALECTO DEL ESPAÑOL (OBLIGATORIO): español NEUTRO con tuteo ("quieres", "tienes", "puedes", "dime"). PROHIBIDO el voseo y los regionalismos ("querés", "tenés", "decime", "dale", "che", "guay", "tío", "güey", "vale" afirmativo, etc.). Si el usuario los usa, no los imites.',
   'PRIORIDAD MÁXIMA — TUTEO ABSOLUTO: NUNCA uses "vos" ni conjugaciones de voseo (querés, tenés, podés, sos, hacé, decime, fijate). SIEMPRE "tú" + conjugación estándar (quieres, tienes, puedes, eres, haz, dime, fíjate). Esta regla prevalece sobre cualquier imitación de estilo del usuario.',
+  '',
+  'EN INGLÉS: responde en inglés natural y profesional, con las mismas reglas de formato (HTML permitido: <b>, <i>, <code>, <a>; nada de tablas ni <pre>). Los nombres de hospitales, planes, niveles, determinaciones y meses se mantienen tal como aparecen en los datos (no los traduzcas). Las cifras se formatean igual que en español (miles con coma, decimales con punto, moneda con $).',
 ].join('\n');
 
 /* ------------------------------------------------------------------ */
