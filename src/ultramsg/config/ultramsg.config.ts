@@ -10,6 +10,9 @@
 //                         real por WhatsApp. Lo normal es apuntar al número de
 //                         la propia instancia (el del QR) — se obtiene en
 //                         GET /{instance_id}/instance/me → { id: "<num>@c.us" }.
+//   ULTRAMSG_ALLOW_GROUPS "true" permite enviar/responder a grupos de
+//                         WhatsApp. Por defecto es "false": solo usuarios
+//                         individuales (los grupos y canales se descartan).
 //
 // Las URLs de la API son `/{instance_id}/messages/chat`, así que el id de la
 // instancia va en la ruta y el token en el body.
@@ -31,12 +34,23 @@ export interface UltramsgConfig {
   apiUrl: string;
   /** Destinatario por defecto cuando el request no trae "to". */
   testTo: string;
+  /**
+   * ¿Se permite enviar/responder a grupos de WhatsApp?
+   * Por defecto NO: la regla es "solo usuarios individuales".
+   */
+  allowGroups: boolean;
   /** ¿Hay credenciales utilizables (no placeholders, no vacías)? */
   configured: boolean;
 }
 
 function clean(value: string | undefined): string {
   return (value ?? '').trim();
+}
+
+/** Bandera booleana del entorno: "true"/"1"/"yes" (por defecto false). */
+function flag(value: string | undefined): boolean {
+  const v = clean(value).toLowerCase();
+  return v === 'true' || v === '1' || v === 'yes' || v === 'si';
 }
 
 function isUsable(value: string): boolean {
@@ -73,6 +87,7 @@ export function loadUltramsgConfig(
     token,
     apiUrl: buildSendUrl(baseUrl, instanceId),
     testTo: clean(env.ULTRAMSG_TEST_TO),
+    allowGroups: flag(env.ULTRAMSG_ALLOW_GROUPS),
     configured: isUsable(instanceId) && isUsable(token),
   };
 }

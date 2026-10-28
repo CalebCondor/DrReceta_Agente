@@ -44,3 +44,17 @@ export function chatIdFromWhatsappId(whatsappId: string): number {
   }
   return HASH_OFFSET + hash32(id);
 }
+
+/**
+ * true si el id NO es de un usuario individual sino de un grupo o de un
+ * canal/lista de difusión de WhatsApp.
+ *
+ *   @g.us        grupo
+ *   @newsletter  canal / boletín
+ *   @broadcast   lista de difusión
+ *
+ * Los usuarios llegan como "@c.us" (o "@lid") o como número suelto.
+ */
+export function isGroupChatId(whatsappId: string): boolean {
+  return /@(g\.us|newsletter|broadcast)$/i.test((whatsappId ?? '').trim());
+}

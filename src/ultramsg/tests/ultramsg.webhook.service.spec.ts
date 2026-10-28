@@ -123,6 +123,33 @@ describe('UltramsgWebhookService', () => {
     expect(agentChat).not.toHaveBeenCalled();
   });
 
+  it('descarta los mensajes que llegan de un grupo de WhatsApp', async () => {
+    const result = await service.handle(
+      evento({ from: '120363228356317247-441234567890@g.us' }),
+    );
+
+    expect(result.handled).toBe(false);
+    expect(result.reason).toContain('grupo');
+    expect(agentChat).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('responde en un grupo si ULTRAMSG_ALLOW_GROUPS=true', async () => {
+    process.env.ULTRAMSG_ALLOW_GROUPS = 'true';
+    service = new UltramsgWebhookService(
+      { chat: agentChat } as unknown as AgentService,
+      { sendMessage } as unknown as UltramsgService,
+      { query: dbQuery } as unknown as DbService,
+    );
+
+    const result = await service.handle(
+      evento({ from: '120363228356317247-441234567890@g.us' }),
+    );
+
+    expect(result.handled).toBe(true);
+    expect(agentChat).toHaveBeenCalled();
+  });
+
   it('ignora los mensajes marcados con self=true', async () => {
     const result = await service.handle(evento({ self: true }));
 

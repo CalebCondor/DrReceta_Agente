@@ -2,7 +2,7 @@
 // El chat_id derivado del id de WhatsApp debe ser estable y no chocar con
 // los us_id secuenciales de DrReceta.
 
-import { chatIdFromWhatsappId } from '../webhook/chat-id';
+import { chatIdFromWhatsappId, isGroupChatId } from '../chat-id';
 
 describe('chatIdFromWhatsappId', () => {
   it('usa el número del contacto como chat_id', () => {
@@ -35,5 +35,23 @@ describe('chatIdFromWhatsappId', () => {
     expect(id).toBeGreaterThan(1e12);
     expect(Number.isSafeInteger(id)).toBe(true);
     expect(id).toBe(chatIdFromWhatsappId('abc-xyz@g.us'));
+  });
+});
+
+describe('isGroupChatId', () => {
+  it('detecta grupos de WhatsApp', () => {
+    expect(isGroupChatId('120363228356317247-441234567890@g.us')).toBe(true);
+    expect(isGroupChatId('120363312946634090@g.us')).toBe(true);
+  });
+
+  it('detecta canales y listas de difusión', () => {
+    expect(isGroupChatId('120363160347659112@newsletter')).toBe(true);
+    expect(isGroupChatId('51993314858@broadcast')).toBe(true);
+  });
+
+  it('deja pasar a los usuarios', () => {
+    expect(isGroupChatId('51993314858@c.us')).toBe(false);
+    expect(isGroupChatId('+17876807222')).toBe(false);
+    expect(isGroupChatId('51993314858')).toBe(false);
   });
 });

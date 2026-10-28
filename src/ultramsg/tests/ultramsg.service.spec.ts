@@ -104,6 +104,13 @@ describe('Ultramsg', () => {
       });
       expect(cfg.testTo).toBe('51993314858@c.us');
     });
+
+    it('solo permite usuarios por defecto (los grupos se descartan)', () => {
+      expect(loadUltramsgConfig({}).allowGroups).toBe(false);
+      expect(
+        loadUltramsgConfig({ ULTRAMSG_ALLOW_GROUPS: 'true' }).allowGroups,
+      ).toBe(true);
+    });
   });
 
   describe('UltramsgService.sendMessage', () => {
@@ -193,6 +200,34 @@ describe('Ultramsg', () => {
       const [, init] = fetchMock.mock.calls[0];
       const sent = JSON.parse(init.body) as { to: string };
       expect(sent.to).toBe('51993314858@c.us');
+    });
+
+    it('no envía a un grupo de WhatsApp', async () => {
+      const service = new UltramsgService();
+      const result = await service.sendMessage(
+        '120363228356317247-441234567890@g.us',
+        'Hola grupo',
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('grupo');
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('envía a un grupo si ULTRAMSG_ALLOW_GROUPS=true', async () => {
+      process.env.ULTRAMSG_ALLOW_GROUPS = 'true';
+      fetchMock.mockResolvedValue(
+        mockResponse({ sent: 'true', message: 'ok', id: 1 }),
+      );
+
+      const service = new UltramsgService();
+      const result = await service.sendMessage(
+        '120363228356317247-441234567890@g.us',
+        'Hola grupo',
+      );
+
+      expect(result.success).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 });

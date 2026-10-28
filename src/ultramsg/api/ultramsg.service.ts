@@ -9,6 +9,7 @@
 //   err:  {"Error":"..."} | {"error":{...}} | HTTP != 2xx
 
 import { Injectable, Logger } from '@nestjs/common';
+import { isGroupChatId } from '../chat-id';
 import {
   loadUltramsgConfig,
   type UltramsgConfig,
@@ -68,6 +69,12 @@ export class UltramsgService {
     if (!destinatario) {
       return this.fail(
         'Falta el destinatario "to" y no hay ULTRAMSG_TEST_TO configurado.',
+      );
+    }
+    // Regla: solo usuarios. Los grupos de WhatsApp se descartan.
+    if (!this.config.allowGroups && isGroupChatId(destinatario)) {
+      return this.fail(
+        `"${destinatario}" es un grupo/canal de WhatsApp y solo se permite enviar a usuarios (ULTRAMSG_ALLOW_GROUPS=false).`,
       );
     }
     if (!texto) {

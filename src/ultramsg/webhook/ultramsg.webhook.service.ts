@@ -10,7 +10,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AgentService } from '../../agent/agent.service';
 import { DbService } from '../../agent/db.service';
 import { UltramsgService } from '../api/ultramsg.service';
-import { chatIdFromWhatsappId } from './chat-id';
+import { chatIdFromWhatsappId, isGroupChatId } from '../chat-id';
+import {
+  loadUltramsgConfig,
+  type UltramsgConfig,
+} from '../config/ultramsg.config';
 
 export interface WebhookResult {
   handled: boolean;
@@ -36,14 +40,14 @@ function normalizeInstance(value: string): string {
 @Injectable()
 export class UltramsgWebhookService {
   private readonly logger = new Logger(UltramsgWebhookService.name);
-  private readonly instanceId: string;
+  private readonly config: UltramsgConfig;
 
   constructor(
     private readonly agent: AgentService,
     private readonly ultramsg: UltramsgService,
     private readonly db: DbService,
   ) {
-    this.instanceId = (process.env.ULTRAMSG_INSTANCE_ID ?? '').trim();
+    this.config = loadUltramsgConfig();
   }
 
   /**
@@ -73,12 +77,13 @@ export class UltramsgWebhookService {
     // el .env lo tengan con prefijo ("instance170610"). Se comparan normalizados.
     const eventInstance = str(payload['instanceId']).trim();
     if (
-      this.instanceId &&
+      this.config.instanceId &&
       eventInstance &&
-      normalizeInstance(eventInstance) !== normalizeInstance(this.instanceId)
+      normalizeInstance(eventInstance) !==
+        normalizeInstance(this.config.instanceId)
     ) {
       return this.skip(
-        `instancia "${eventInstance}" distinta de la configurada ("${this.instanceId}")`,
+        `instancia "${eventInstance}" distinta de la configurada ("${this.config.instanceId}")`,
       );
     }
 
@@ -109,10 +114,12 @@ export class UltramsgWebhookService {
       return this.skip('payload incompleto (from o body vacío)');
     }
 
-    // Los boletines/canales de WhatsApp llegan como un chat más, pero no son
-    // pacientes: no se les contesta.
-    if (from.endsWith('@newsletter') || from.endsWith('@broadcast')) {
-      return this.skip('boletín/canal de WhatsApp, no es un paciente');
+    // Regla: solo usuarios. Lo que llega de un grupo de WhatsApp (o de un
+    // canal/boletín) se descarta: no se responde ni se guarda nada.
+    if (!this.config.allowGroups && isGroupChatId(from)) {
+      return this.skip(
+        `"${from}" es un grupo/canal de WhatsApp: solo se atienden usuarios`,
+      );
     }
 
     const chatId = chatIdFromWhatsappId(from);
