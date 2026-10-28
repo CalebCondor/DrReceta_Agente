@@ -17,6 +17,6 @@ import { ChatGateway } from './chat.gateway';
     ChatGateway,
     AutoResumeService,
   ],
-  exports: [ChatGateway],
+  exports: [ChatGateway, AgentService, DbService],
 })
 export class ChatModule {}
