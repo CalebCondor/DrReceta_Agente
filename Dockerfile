@@ -5,7 +5,7 @@ FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
 # Instalar dependencias con Bun (mucho más rápido que npm)
-COPY package.json bun.lockb* ./
+COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile
 
 # Copiar el resto de los archivos y construir

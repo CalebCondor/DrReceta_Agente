@@ -10,6 +10,21 @@ services:
       - NODE_ENV=production
     restart: always
 
+  # Registra en UltraMsg el webhook publico de la API (ULTRAMSG_WEBHOOK_URL).
+  # Corre una vez al desplegar: si el webhook queda apuntando a una URL vieja,
+  # los mensajes del paciente se pierden en silencio.
+  webhook-sync:
+    image: curlimages/curl:latest
+    container_name: dr_receta_webhook_sync
+    entrypoint: ["/bin/sh", "/sync-ultramsg-webhook.sh"]
+    volumes:
+      - ./scripts/sync-ultramsg-webhook.sh:/sync-ultramsg-webhook.sh:ro
+    env_file:
+      - .env
+    depends_on:
+      - api
+    restart: "no"
+
 # Descomenta las líneas de abajo si quieres que Docker Compose también gestione PostgreSQL
 #  db:
 #    image: postgres:15-alpine
