@@ -9,7 +9,10 @@
 //   err:  {"Error":"..."} | {"error":{...}} | HTTP != 2xx
 
 import { Injectable, Logger } from '@nestjs/common';
-import { loadUltramsgConfig, type UltramsgConfig } from './ultramsg.config';
+import {
+  loadUltramsgConfig,
+  type UltramsgConfig,
+} from '../config/ultramsg.config';
 
 /** Máximo que acepta la API de UltraMsg. */
 const MAX_BODY_LENGTH = 4096;

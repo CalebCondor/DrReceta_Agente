@@ -7,9 +7,9 @@
 // así que el控制器 responde 200 de inmediato y el trabajo se hace aparte.
 
 import { Injectable, Logger } from '@nestjs/common';
-import { AgentService } from '../agent/agent.service';
-import { DbService } from '../agent/db.service';
-import { UltramsgService } from './ultramsg.service';
+import { AgentService } from '../../agent/agent.service';
+import { DbService } from '../../agent/db.service';
+import { UltramsgService } from '../api/ultramsg.service';
 import { chatIdFromWhatsappId } from './chat-id';
 
 export interface WebhookResult {

@@ -2,8 +2,8 @@
 // Cubre la config leída del entorno y el envío contra la API de UltraMsg
 // (con fetch mockeado: nunca sale a internet).
 
-import { loadUltramsgConfig } from './ultramsg.config';
-import { UltramsgService } from './ultramsg.service';
+import { loadUltramsgConfig } from '../config/ultramsg.config';
+import { UltramsgService } from '../api/ultramsg.service';
 
 type FetchResponse = {
   ok: boolean;

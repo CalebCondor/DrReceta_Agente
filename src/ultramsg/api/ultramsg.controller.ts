@@ -1,5 +1,5 @@
-// src/ultramsg/ultramsg.controller.ts
-// Envío de WhatsApp vía UltraMsg.
+// src/ultramsg/api/ultramsg.controller.ts
+// API de envío de WhatsApp (UltraMsg).
 
 import {
   Body,
@@ -12,7 +12,6 @@ import {
 } from '@nestjs/common';
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { UltramsgService } from './ultramsg.service';
-import { UltramsgWebhookService } from './ultramsg.webhook.service';
 
 class EnviarMensajeDto {
   /** Opcional: si se omite, se usa ULTRAMSG_TEST_TO. */
@@ -29,39 +28,7 @@ class EnviarMensajeDto {
 export class UltramsgController {
   private readonly logger = new Logger(UltramsgController.name);
 
-  constructor(
-    private readonly ultramsgService: UltramsgService,
-    private readonly webhookService: UltramsgWebhookService,
-  ) {}
-
-  /**
-   * Webhook de UltraMsg. Configurar en el panel de la instancia:
-   *   webhook_url = https://<host>/api/ultramsg/webhook
-   *   webhook_message_received = true
-   *
-   * Responde 200 de inmediato: si se tarda, UltraMsg reintenta y el paciente
-   * recibe el mensaje duplicado. El procesamiento va por fuera.
-   */
-  @Post('webhook')
-  @HttpCode(200)
-  webhook(@Body() body: Record<string, unknown>) {
-    // Traza cruda: es lo primero que hay que mirar cuando "no llega nada",
-    // para ver si el evento llegó, de qué tipo es y qué trae.
-    this.logger.log(
-      `Webhook recibido: ${JSON.stringify(body ?? {}).slice(0, 1000)}`,
-    );
-
-    void this.webhookService
-      .handle(body ?? {})
-      .then((r) =>
-        this.logger.log(
-          `Webhook procesado: ${JSON.stringify(r).slice(0, 300)}`,
-        ),
-      )
-      .catch((e) => this.logger.error(`Error inesperado en el webhook: ${e}`));
-
-    return { received: true };
-  }
+  constructor(private readonly ultramsgService: UltramsgService) {}
 
   /** POST /api/ultramsg/send-message { to: "+1787...", body: "texto" } */
   @Post('send-message')

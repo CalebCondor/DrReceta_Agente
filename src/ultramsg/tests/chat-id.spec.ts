@@ -2,7 +2,7 @@
 // El chat_id derivado del id de WhatsApp debe ser estable y no chocar con
 // los us_id secuenciales de DrReceta.
 
-import { chatIdFromWhatsappId } from './chat-id';
+import { chatIdFromWhatsappId } from '../webhook/chat-id';
 
 describe('chatIdFromWhatsappId', () => {
   it('usa el número del contacto como chat_id', () => {

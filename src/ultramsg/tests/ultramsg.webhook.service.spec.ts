@@ -2,10 +2,10 @@
 // Pipeline de WhatsApp entrante: webhook → agente → respuesta por WhatsApp.
 // Con el agente, el cliente HTTP y la BD mockeados (no sale nada a internet).
 
-import { AgentService } from '../agent/agent.service';
-import { DbService } from '../agent/db.service';
-import { UltramsgService } from './ultramsg.service';
-import { UltramsgWebhookService } from './ultramsg.webhook.service';
+import { AgentService } from '../../agent/agent.service';
+import { DbService } from '../../agent/db.service';
+import { UltramsgService } from '../api/ultramsg.service';
+import { UltramsgWebhookService } from '../webhook/ultramsg.webhook.service';
 
 const OLD_ENV = process.env;
 
