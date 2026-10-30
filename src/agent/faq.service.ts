@@ -28,18 +28,23 @@ const PESO_RESPUESTA = 1;
 /**
  * Puntaje temático mínimo para responder. Una palabra que solo aparece en
  * una pregunta vale 3; una que aparece en varias vale menos (se pesa por
- * IDF), así que 2.5 descarta palabras genéricas como "ojo" o "consulta".
+ * IDF), así que el umbral descarta palabras genéricas como "consulta".
  */
-export const UMBRAL = 2.5;
+export const UMBRAL = 2.4;
 
-/** Palabras vacías que no aportan a la búsqueda. */
+/**
+ * Palabras vacías que no aportan a la búsqueda. `ojo`, `consulta` y
+ * `persona` no son stopwords naturales: son el vocabulario genérico de la
+ * clínica, así que no identifican ningún tema.
+ */
 const STOPWORDS = new Set(
   (
     'del los las por para que con sin una unos unas su sus este esta ' +
     'esto esos esas ese esa hay han fue ser estan mas muy pero sino ' +
     'cada cual cuales cuando cuanto cuantos cuantas porque ' +
     'tambien sobre entre hasta desde tengo tiene tienen hacer hace ' +
-    'puede pueden debe deben sigue era serian'
+    'puede pueden debe deben sigue era serian ' +
+    'ojo ojos consulta consultas persona personas'
   ).split(' '),
 );
 
@@ -57,11 +62,10 @@ const CORTESIA = new Set(
  * base tenga una entrada parecida.
  */
 const EMERGENCIA: RegExp[] = [
-  /(perdi|pierdo|perdida|perdi[a])\b[\s\S]{0,40}\b(vision|vista|ver)/,
+  /(perdi|pierdo|perdida)\b[\s\S]{0,40}\b(vision|vista|ver)/,
   /\b(vision|vista|ver)\b[\s\S]{0,40}\b(perdi|pierdo|perdida)/,
   /\bno (puedo )?ver\b/,
   /\bno veo\b/,
-  /cortina (oscura )?en la (vision|vista)/,
   /sangr(e|ado) en el ojo/,
   /golpe en el ojo/,
   /quemadura/i,
@@ -99,8 +103,8 @@ function clave(palabra: string): string {
 
 /** ¿Son la misma palabra (con variantes de plural/género)? */
 export function coincide(a: string, b: string): boolean {
-  const ka = clave(a);
-  const kb = clave(b);
+  const ka = clave(normalizar(a));
+  const kb = clave(normalizar(b));
   if (ka === kb) return true;
   if (ka.length < 5 || kb.length < 5) return false;
   // Prefijo corto: "diabet" ~ "diabetica", pero NO "retina" ~ "retinopatia".
