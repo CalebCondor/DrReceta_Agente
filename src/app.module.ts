@@ -3,14 +3,12 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ChatModule } from './chat/chat.module';
-import { OllamaModule } from './ollama/ollama.module';
 import { UltramsgModule } from './ultramsg/ultramsg.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ChatModule,
-    OllamaModule,
     UltramsgModule,
   ],
   controllers: [AppController],
