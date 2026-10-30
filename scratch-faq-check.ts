@@ -3,11 +3,10 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 import {
-  normalizar,
   tokenizar,
   coincide,
-  puntuar,
   esCortesia,
+  esEmergencia,
   UMBRAL,
   type KnowledgeEntry,
 } from './src/agent/faq.service';
@@ -44,12 +43,15 @@ const QUERIES = [
   'me duele el ojo desde hace dos días',
   'cuánto cuesta una consulta',
   'de repente perdí la visión de un ojo',
-  'hace cuánto están王国',
   'qué es la degeneración macular',
   'síntoma',
   'quiero información sobre la retina',
   'las inyecciones intravítreas duelen?',
   'qué pruebas hacen en una consulta de retina',
+  'qué es la degeneración en lattice',
+  'aceptan medicaid?',
+  'hola, tengo una duda',
+  'la retina está bien?',
 ];
 
 async function main() {
@@ -58,21 +60,52 @@ async function main() {
   );
   const entradas = rows as KnowledgeEntry[];
 
+  const perfiles = entradas.map((e) => ({
+    e,
+    q: tokenizar(e.pregunta),
+    r: tokenizar(e.respuesta),
+  }));
+  const n = perfiles.length;
+  const idfMax = Math.log(1 + n);
+
   for (const q of QUERIES) {
     const tokens = tokenizar(q);
-    let mejor: { entry: KnowledgeEntry; score: number } | null = null;
-    let ranking: string[] = [];
-    for (const e of entradas) {
-      const score = puntuar(q, tokens, e);
-      if (score > 0) ranking.push(`${e.id}:${score}`);
-      if (score > 0 && (!mejor || score > mejor.score)) mejor = { entry: e, score };
+    const info = new Map<string, { wq: number; enQ: Set<number> }>();
+    for (const t of tokens) {
+      const enQ = new Set<number>();
+      perfiles.forEach((p, i) => {
+        if (p.q.some((x) => coincide(t, x))) enQ.add(i);
+      });
+      info.set(t, {
+        wq: enQ.size ? Math.log(1 + n / enQ.size) / idfMax : 0,
+        enQ,
+      });
     }
-    ranking.sort((a, b) => Number(b.split(':')[1]) - Number(a.split(':')[1]));
-    const hit = mejor && mejor.score >= UMBRAL;
+    const ranking: Array<{ id: number; topico: number; pregunta: string }> = [];
+    perfiles.forEach((p, i) => {
+      let topico = 0;
+      for (const t of tokens) {
+        const w = info.get(t)!;
+        if (w.enQ.has(i)) topico += 3 * w.wq;
+      }
+      if (topico > 0)
+        ranking.push({ id: p.e.id, topico, pregunta: p.e.pregunta });
+    });
+    ranking.sort((a, b) => b.topico - a.topico);
+    const top = ranking[0];
+    const hit = top && top.topico >= UMBRAL;
+    const corte = esCortesia(q)
+      ? 'CORTESIA'
+      : esEmergencia(q)
+        ? 'EMERGENCIA'
+        : '';
     console.log(
-      `\nQ: "${q}"\n  tokens=[${tokens.join(',')}]${esCortesia(q) ? ' CORTESIA' : ''}` +
-        `\n  -> ${hit ? `#${mejor!.entry.id} (${mejor!.score}) ${mejor!.entry.pregunta}` : 'SIN MATCH'}` +
-        `\n  top: ${ranking.slice(0, 5).join(' ')}`,
+      `\nQ: "${q}"  ${corte}\n  tokens=[${tokens.join(',')}]\n  -> ${
+        hit ? `#${top.id} (${top.topico.toFixed(2)}) ${top.pregunta}` : 'SIN MATCH'
+      }\n  top: ${ranking
+        .slice(0, 4)
+        .map((r) => `${r.id}:${r.topico.toFixed(2)}`)
+        .join(' ')}`,
     );
   }
   await pool.end();

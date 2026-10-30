@@ -17,45 +17,55 @@ export interface KnowledgeEntry {
 
 export interface FaqMatch {
   entry: KnowledgeEntry;
+  /** Puntaje temático: cuánto coincide el mensaje con el tema de la entrada. */
   score: number;
 }
 
-/** Token que aparece en el TEMA (columna `pregunta`): pesa más. */
+/** Peso de una palabra que aparece en el TEMA (columna `pregunta`). */
 const PESO_PREGUNTA = 3;
-/** Token que solo aparece dentro del texto de la respuesta. */
+/** Peso de una palabra que solo aparece dentro del texto de la respuesta. */
 const PESO_RESPUESTA = 1;
-/** Bonus si el paciente repite la pregunta casi tal cual. */
-const BONUS_FRASE = 5;
-/** Score mínimo para responder con la base de conocimiento. */
-export const UMBRAL = 3;
+/**
+ * Puntaje temático mínimo para responder. Una palabra que solo aparece en
+ * una pregunta vale 3; una que aparece en varias vale menos (se pesa por
+ * IDF), así que 2.5 descarta palabras genéricas como "ojo" o "consulta".
+ */
+export const UMBRAL = 2.5;
 
 /** Palabras vacías que no aportan a la búsqueda. */
 const STOPWORDS = new Set(
   (
-    'del los las por para que con sin una uno unos unas su sus este esta ' +
-    'esto esos esas ese esa hay han fue ser esta estan mas muy pero sino ' +
-    'cada como cual cuales cuando donde cuanto cuantos cuantas porque ' +
+    'del los las por para que con sin una unos unas su sus este esta ' +
+    'esto esos esas ese esa hay han fue ser estan mas muy pero sino ' +
+    'cada cual cuales cuando cuanto cuantos cuantas porque ' +
     'tambien sobre entre hasta desde tengo tiene tienen hacer hace ' +
-    'puede pueden debe deben sigue sino era serian'
+    'puede pueden debe deben sigue era serian'
   ).split(' '),
-);
-
-/** Palabras que abren una pregunta: no son parte del tema. */
-const INTERROGATIVOS = new Set(
-  'que como donde cuando cuanto cuantos cuantas cual cuales quien por que para son es'.split(
-    ' ',
-  ),
 );
 
 /** Solo saludo/cortesía: el mensaje no trae una pregunta real. */
 const CORTESIA = new Set(
-  'hola buenos buenas dias tardes noches saludos hey hola hey hola gracias ' +
-    'adios adios hasta luego bendiga bendito bendita chao'.split(' '),
+  (
+    'hola hey buenos buenas dias tardes noches saludos gracias ' +
+    'adios adios hasta luego ok'
+  ).split(' '),
 );
 
-/** Síntomas que exigen atención inmediata si no encontramos respuesta. */
-const EMERGENCIA =
-  /\b(emergencia|urgente|urgencia|perdida de vision|perdi la vision|no veo|no puedo ver|sangrado|sangre en el ojo|golpe en el ojo|quemadura)\b/;
+/**
+ * Síntomas que exigen atención inmediata. Se comprueban ANTES de buscar en
+ * la base: una pérdida visual repentina siempre es una urgencia, aunque la
+ * base tenga una entrada parecida.
+ */
+const EMERGENCIA: RegExp[] = [
+  /(perdi|pierdo|perdida|perdi[a])\b[\s\S]{0,40}\b(vision|vista|ver)/,
+  /\b(vision|vista|ver)\b[\s\S]{0,40}\b(perdi|pierdo|perdida)/,
+  /\bno (puedo )?ver\b/,
+  /\bno veo\b/,
+  /cortina (oscura )?en la (vision|vista)/,
+  /sangr(e|ado) en el ojo/,
+  /golpe en el ojo/,
+  /quemadura/i,
+];
 
 /** Quita acentos y deja solo `[a-z0-9]` separado por espacios. */
 export function normalizar(texto: string): string {
@@ -92,14 +102,10 @@ export function coincide(a: string, b: string): boolean {
   const ka = clave(a);
   const kb = clave(b);
   if (ka === kb) return true;
-  return ka.length >= 5 && kb.length >= 5 && ka.slice(0, 5) === kb.slice(0, 5);
-}
-
-/** El tema de la entrada, sin la palabra que abre la pregunta. */
-function tema(pregunta: string): string {
-  const palabras = normalizar(pregunta).split(' ').filter(Boolean);
-  while (palabras.length && INTERROGATIVOS.has(palabras[0])) palabras.shift();
-  return palabras.join(' ');
+  if (ka.length < 5 || kb.length < 5) return false;
+  // Prefijo corto: "diabet" ~ "diabetica", pero NO "retina" ~ "retinopatia".
+  const dif = Math.abs(ka.length - kb.length);
+  return dif <= 3 && (ka.startsWith(kb) || kb.startsWith(ka));
 }
 
 /** ¿El mensaje es solo un saludo o un agradecimiento? */
@@ -108,31 +114,16 @@ export function esCortesia(mensaje: string): boolean {
   return tokens.length > 0 && tokens.every((t) => CORTESIA.has(t));
 }
 
-/**
- * Score de una entrada para un mensaje:
- * 3 por cada palabra clave del tema, 1 por cada palabra que solo sale en
- * la respuesta y 5 si el paciente repite el tema casi literal.
- */
-export function puntuar(
-  mensaje: string,
-  tokens: string[],
-  entrada: KnowledgeEntry,
-): number {
-  if (tokens.length === 0) return 0;
+/** ¿El mensaje describe una urgencia? */
+export function esEmergencia(mensaje: string): boolean {
+  const t = normalizar(mensaje);
+  return EMERGENCIA.some((re) => re.test(t));
+}
 
-  const tokensPregunta = tokenizar(entrada.pregunta);
-  const tokensRespuesta = tokenizar(entrada.respuesta);
-
-  let score = 0;
-  for (const t of tokens) {
-    if (tokensPregunta.some((p) => coincide(t, p))) score += PESO_PREGUNTA;
-    else if (tokensRespuesta.some((r) => coincide(t, r))) score += PESO_RESPUESTA;
-  }
-
-  const t = tema(entrada.pregunta);
-  if (t.length >= 10 && normalizar(mensaje).includes(t)) score += BONUS_FRASE;
-
-  return score;
+interface Perfil {
+  entry: KnowledgeEntry;
+  q: string[];
+  r: string[];
 }
 
 @Injectable()
@@ -149,19 +140,63 @@ export class FaqService {
     return rows as KnowledgeEntry[];
   }
 
-  /** Mejor coincidencia por palabra clave, o `null` si no hay. */
+  /**
+   * Mejor coincidencia por palabra clave, o `null` si no hay.
+   *
+   * Cada palabra del paciente se pesa por IDF: una palabra que aparece en
+   * muchas respuestas pesa menos que una que define un tema. Solo cuenta
+   * como evidencia las palabras que aparecen en el TEMA de la entrada
+   * (columna `pregunta`); las que solo salen en el texto de la respuesta
+   * sirven para desempatar, no para decidir.
+   */
   async buscar(mensaje: string): Promise<FaqMatch | null> {
     const tokens = tokenizar(mensaje);
     if (tokens.length === 0) return null;
 
     const entradas = await this.entradas();
+    if (entradas.length === 0) return null;
+
+    const perfiles: Perfil[] = entradas.map((entry) => ({
+      entry,
+      q: tokenizar(entry.pregunta),
+      r: tokenizar(entry.respuesta),
+    }));
+
+    const n = perfiles.length;
+    const idfMax = Math.log(1 + n);
+
+    // En qué entradas aparece cada palabra del paciente.
+    const info = new Map<
+      string,
+      { wq: number; wr: number; enQ: Set<number>; enR: Set<number> }
+    >();
+    for (const t of tokens) {
+      const enQ = new Set<number>();
+      const enR = new Set<number>();
+      perfiles.forEach((p, i) => {
+        if (p.q.some((x) => coincide(t, x))) enQ.add(i);
+        else if (p.r.some((x) => coincide(t, x))) enR.add(i);
+      });
+      info.set(t, {
+        wq: enQ.size ? Math.log(1 + n / enQ.size) / idfMax : 0,
+        wr: enR.size ? Math.log(1 + n / enR.size) / idfMax : 0,
+        enQ,
+        enR,
+      });
+    }
+
     let mejor: FaqMatch | null = null;
-    for (const entrada of entradas) {
-      const score = puntuar(mensaje, tokens, entrada);
+    for (let i = 0; i < perfiles.length; i++) {
+      let topico = 0;
+      for (const t of tokens) {
+        const w = info.get(t)!;
+        if (w.enQ.has(i)) topico += PESO_PREGUNTA * w.wq;
+        else if (w.enR.has(i)) topico += PESO_RESPUESTA * w.wr;
+      }
       // Empate: se queda la entrada más antigua (id menor), que es la
       // versión canónica del tema.
-      if (score > 0 && (!mejor || score > mejor.score)) {
-        mejor = { entry: entrada, score };
+      if (topico > 0 && (!mejor || topico > mejor.score)) {
+        mejor = { entry: perfiles[i].entry, score: topico };
       }
     }
 
@@ -175,9 +210,9 @@ export class FaqService {
 
     if (!texto) {
       return (
-        'Saludos, gracias por comunicarse con Retina Care. ' +
-        'Puede escribirnos su pregunta sobre síntomas y enfermedades de retina, ' +
-        'los planes médicos que aceptamos, la dirección o el horario de atención.'
+        'Saludos, gracias por comunicarse con Retina Care. Puede escribirnos ' +
+        'su pregunta sobre síntomas y enfermedades de retina, los planes médicos ' +
+        'que aceptamos, la dirección o el horario de atención.'
       );
     }
 
@@ -191,22 +226,22 @@ export class FaqService {
       );
     }
 
-    const match = await this.buscar(texto);
-    if (match) {
-      this.logger.log(
-        `FAQ match chat: entrada #${match.entry.id} score=${match.score} ` +
-          `"${match.entry.pregunta}"`,
-      );
-      return match.entry.respuesta;
-    }
-
-    if (EMERGENCIA.test(normalizar(texto))) {
+    if (esEmergencia(texto)) {
       return (
         'Si está perdiendo la visión de forma repentina, ve con destellos ' +
         'intensos o con una sombra o cortina en la vista, acuda de inmediato a ' +
         'urgencias o llame al 9-1-1. No conduzca. Si no se trata de una ' +
         'urgencia, nuestro personal clínico puede atenderle.'
       );
+    }
+
+    const match = await this.buscar(texto);
+    if (match) {
+      this.logger.log(
+        `FAQ match: entrada #${match.entry.id} score=${match.score.toFixed(2)} ` +
+          `"${match.entry.pregunta}"`,
+      );
+      return match.entry.respuesta;
     }
 
     return (
