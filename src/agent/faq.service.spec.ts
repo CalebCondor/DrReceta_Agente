@@ -79,9 +79,10 @@ describe('FaqService', () => {
     expect(respuesta).toBe(ENTRADAS[0].respuesta);
   });
 
-  it('deriva al personal humano cuando no hay coincidencia', async () => {
+  it('deriva al teléfono de la clínica cuando no hay coincidencia', async () => {
     const respuesta = await service.responder('quiero saber sobre el precio');
-    expect(respuesta).toContain('No encontramos la respuesta');
+    expect(respuesta).toContain('No podemos responder ese tipo de pregunta');
+    expect(respuesta).toContain('787-680-7222');
   });
 
   it('responde con urgencias ante pérdida visual repentina', async () => {

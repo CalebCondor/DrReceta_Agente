@@ -249,9 +249,9 @@ export class FaqService {
     }
 
     return (
-      'No encontramos la respuesta a su consulta en nuestra base de conocimiento. ' +
-      'Por favor comuníquese con nuestro equipo de Retina Care y con gusto le ' +
-      'ayudaremos.'
+      'No podemos responder ese tipo de pregunta porque no está en nuestra base ' +
+      'de conocimiento. Puede comunicarse con nuestro equipo de Retina Care al ' +
+      '787-680-7222 y con gusto le ayudaremos.'
     );
   }
 }
