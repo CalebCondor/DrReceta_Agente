@@ -48,14 +48,6 @@ const STOPWORDS = new Set(
   ).split(' '),
 );
 
-/** Solo saludo/cortesía: el mensaje no trae una pregunta real. */
-const CORTESIA = new Set(
-  (
-    'hola hey buenos buenas dias tardes noches saludos gracias ' +
-    'adios adios hasta luego ok'
-  ).split(' '),
-);
-
 /** Se responde con el teléfono de la clínica cuando no hay respuesta. */
 const SIN_RESPUESTA =
   'No podemos responder ese tipo de pregunta porque no está en nuestra base ' +
@@ -125,12 +117,6 @@ export function coincide(a: string, b: string): boolean {
   // Prefijo corto: "diabet" ~ "diabetica", pero NO "retina" ~ "retinopatia".
   const dif = Math.abs(ka.length - kb.length);
   return dif <= 3 && (ka.startsWith(kb) || kb.startsWith(ka));
-}
-
-/** ¿El mensaje es solo un saludo o un agradecimiento? */
-export function esCortesia(mensaje: string): boolean {
-  const tokens = normalizar(mensaje).split(' ').filter(Boolean);
-  return tokens.length > 0 && tokens.every((t) => CORTESIA.has(t));
 }
 
 /** ¿El mensaje describe una urgencia? */
@@ -232,27 +218,15 @@ export class FaqService {
     return mejor;
   }
 
-  /** Respuesta completa para el paciente. */
+  /**
+   * Respuesta completa para el paciente.
+   *
+   * El agente SOLO responde preguntas frecuentes: no hay saludo, ni menú,
+   * ni guion de conversación. Todo mensaje va directo a la base de
+   * conocimiento y, si no hay coincidencia, se deriva al teléfono.
+   */
   async responder(mensaje: string): Promise<string> {
     const texto = (mensaje ?? '').trim();
-
-    if (!texto) {
-      return (
-        'Saludos, gracias por comunicarse con Retina Care. Puede escribirnos ' +
-        'su pregunta sobre síntomas y enfermedades de retina, los planes médicos ' +
-        'que aceptamos, la dirección o el horario de atención.'
-      );
-    }
-
-    if (esCortesia(texto)) {
-      return (
-        '¡Hola! Gracias por comunicarse con Retina Care. Puede preguntarnos sobre ' +
-        'síntomas y enfermedades de retina (puntos negros, destellos, glaucoma, ' +
-        'catarata, degeneración macular), sobre el OCT, los planes médicos que ' +
-        'aceptamos, la dirección de la clínica o el horario de atención. ' +
-        '¿Cuál es su pregunta?'
-      );
-    }
 
     if (esEmergencia(texto)) {
       return (

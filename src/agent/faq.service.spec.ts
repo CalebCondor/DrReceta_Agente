@@ -5,7 +5,6 @@
 import {
   FaqService,
   coincide,
-  esCortesia,
   esEmergencia,
   preguntaPorDoctor,
   tokenizar,
@@ -57,9 +56,7 @@ describe('FaqService', () => {
     expect(coincide('retina', 'retinopatía')).toBe(false);
   });
 
-  it('detecta saludos y urgencias', () => {
-    expect(esCortesia('Hola')).toBe(true);
-    expect(esCortesia('Hola, tengo una duda')).toBe(false);
+  it('detecta urgencias', () => {
     expect(esEmergencia('de repente perdí la visión')).toBe(true);
     expect(esEmergencia('qué es el glaucoma')).toBe(false);
   });
@@ -72,9 +69,9 @@ describe('FaqService', () => {
       true,
     );
     // Mencionar al doctor sin preguntar por su agenda no bloquea la FAQ.
-    expect(
-      preguntaPorDoctor('el doctor me dijo que tengo glaucoma'),
-    ).toBe(false);
+    expect(preguntaPorDoctor('el doctor me dijo que tengo glaucoma')).toBe(
+      false,
+    );
   });
 
   it('encuentra la entrada por palabra clave', async () => {
@@ -114,8 +111,10 @@ describe('FaqService', () => {
     expect(respuesta).toContain('9-1-1');
   });
 
-  it('saluda cuando el mensaje es solo cortesía', async () => {
+  it('no saluda: responde igual que ante cualquier pregunta sin FAQ', async () => {
     const respuesta = await service.responder('hola');
-    expect(respuesta).toContain('Retina Care');
+    expect(respuesta).toContain('No podemos responder ese tipo de pregunta');
+    expect(respuesta).toContain('787-680-7222');
+    expect(respuesta).not.toContain('Gracias por comunicarse');
   });
 });
