@@ -7,6 +7,7 @@ import {
   coincide,
   esCortesia,
   esEmergencia,
+  preguntaPorDoctor,
   tokenizar,
 } from './faq.service';
 import { DbService } from './db.service';
@@ -63,6 +64,19 @@ describe('FaqService', () => {
     expect(esEmergencia('qué es el glaucoma')).toBe(false);
   });
 
+  it('detecta preguntas por la agenda de un doctor', () => {
+    expect(preguntaPorDoctor('quiero saber el horario del doctor mario')).toBe(
+      true,
+    );
+    expect(preguntaPorDoctor('quiero una cita con la doctora Rivera')).toBe(
+      true,
+    );
+    // Mencionar al doctor sin preguntar por su agenda no bloquea la FAQ.
+    expect(
+      preguntaPorDoctor('el doctor me dijo que tengo glaucoma'),
+    ).toBe(false);
+  });
+
   it('encuentra la entrada por palabra clave', async () => {
     const match = await service.buscar('tengo glaucoma');
     expect(match?.entry.id).toBe(2);
@@ -83,6 +97,14 @@ describe('FaqService', () => {
     const respuesta = await service.responder('quiero saber sobre el precio');
     expect(respuesta).toContain('No podemos responder ese tipo de pregunta');
     expect(respuesta).toContain('787-680-7222');
+  });
+
+  it('no responde el horario general cuando preguntan por un doctor', async () => {
+    const respuesta = await service.responder(
+      'quiero saber el horario del doctor mario',
+    );
+    expect(respuesta).toContain('787-680-7222');
+    expect(respuesta).not.toContain('Atendemos de Lunes a Viernes');
   });
 
   it('responde con urgencias ante pérdida visual repentina', async () => {

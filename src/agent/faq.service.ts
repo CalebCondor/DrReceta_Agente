@@ -56,6 +56,21 @@ const CORTESIA = new Set(
   ).split(' '),
 );
 
+/** Se responde con el teléfono de la clínica cuando no hay respuesta. */
+const SIN_RESPUESTA =
+  'No podemos responder ese tipo de pregunta porque no está en nuestra base ' +
+  'de conocimiento. Puede comunicarse con nuestro equipo de Retina Care al ' +
+  '787-680-7222 y con gusto le ayudaremos.';
+
+/**
+ * Pregunta por un doctor concreto (su horario, su cita, dónde atiende).
+ * La base de conocimiento solo tiene FAQs generales de la clínica: la
+ * agenda de cada doctor no está ahí, así que se deriva al teléfono.
+ */
+const PREGUNTA_DOCTOR = /\b(doctor|doctora|dr)\b/;
+const CONTEXTO_DOCTOR =
+  /\b(horario|horarios|cuando|cita|citas|atiende|atender|disponible|disponibilidad|consultorio|oficina|turno|ubicado|donde)\b/;
+
 /**
  * Síntomas que exigen atención inmediata. Se comprueban ANTES de buscar en
  * la base: una pérdida visual repentina siempre es una urgencia, aunque la
@@ -122,6 +137,15 @@ export function esCortesia(mensaje: string): boolean {
 export function esEmergencia(mensaje: string): boolean {
   const t = normalizar(mensaje);
   return EMERGENCIA.some((re) => re.test(t));
+}
+
+/**
+ * ¿El paciente pregunta por la agenda de un doctor concreto? Esa
+ * información no está en la base de conocimiento.
+ */
+export function preguntaPorDoctor(mensaje: string): boolean {
+  const t = normalizar(mensaje);
+  return PREGUNTA_DOCTOR.test(t) && CONTEXTO_DOCTOR.test(t);
 }
 
 interface Perfil {
@@ -239,6 +263,11 @@ export class FaqService {
       );
     }
 
+    if (preguntaPorDoctor(texto)) {
+      this.logger.log(`Pregunta por la agenda de un doctor: "${texto}"`);
+      return SIN_RESPUESTA;
+    }
+
     const match = await this.buscar(texto);
     if (match) {
       this.logger.log(
@@ -248,10 +277,6 @@ export class FaqService {
       return match.entry.respuesta;
     }
 
-    return (
-      'No podemos responder ese tipo de pregunta porque no está en nuestra base ' +
-      'de conocimiento. Puede comunicarse con nuestro equipo de Retina Care al ' +
-      '787-680-7222 y con gusto le ayudaremos.'
-    );
+    return SIN_RESPUESTA;
   }
 }
