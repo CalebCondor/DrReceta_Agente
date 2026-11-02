@@ -1566,6 +1566,9 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `idAuditor` ES OBLIGATORIO para esta herramienta. El endpoint NO ' +
       'devuelve el catálogo de auditores — solo devuelve KPIs del auditor ' +
       'que se le pasa.\\n' +
+      '  • `idHospitales` ES OBLIGATORIO (int[], ≥1). El backend devuelve ' +
+      'HTTP 400 si falta. Resuélvelos antes con ' +
+      '`obtener_hospitales_disponibles` (campo `hosId`).\\n' +
       '  • Para resolver nombre → `idAuditor`: llama primero a ' +
       '`consultar_desempeno_auditor` en MODO CATÁLOGO (sin `idAuditor`), ' +
       'identifica el ID, y VUELVE a llamar a esta herramienta pasándolo.\\n' +
@@ -1596,6 +1599,14 @@ export const TOOLS: Anthropic.Tool[] = [
     input_schema: {
       type: 'object',
       properties: {
+        idHospitales: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1 },
+          description:
+            'IDs de hospitales (int[] REQUERIDO, al menos uno). Resuélvelos ' +
+            'SIEMPRE antes con `obtener_hospitales_disponibles` (campo ' +
+            '`hosId`). SIEMPRE array, NUNCA objeto.',
+        },
         idAuditor: {
           type: 'integer',
           description:
@@ -1632,7 +1643,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'como ARRAY. Si el usuario no menciona nivel de cuidado, OMITE.',
         },
       },
-      required: ['idAuditor', 'anio'],
+      required: ['idAuditor', 'anio', 'idHospitales'],
     },
   },
 ];

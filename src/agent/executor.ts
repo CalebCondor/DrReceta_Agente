@@ -474,6 +474,19 @@ export async function executeTool(
   // por `idAuditor`. El endpoint requiere el ID explícito (no es catálogo).
   if (toolName === 'consultar_determinacion_adversa_auditor') {
     const body = buildIaPreguntasBody();
+    // Este endpoint exige `idHospitales` (≥1). Sin él el backend responde
+    // HTTP 400 y el modelo solo ve un error opaco; se valida aquí para
+    // devolverle una instrucción accionable y que pueda reintentar.
+    if (
+      !Array.isArray(body['idHospitales']) ||
+      body['idHospitales'].length === 0
+    ) {
+      return JSON.stringify({
+        success: false,
+        error:
+          'Falta el parámetro requerido `idHospitales` (int[], ≥1). Llama antes a `obtener_hospitales_disponibles` (campo `hosId`) y reintenta con esos IDs.',
+      });
+    }
     return JSON.stringify(
       await apiPost(DETERMINACION_ADVERSA_AUDITOR_URL, body, token),
     );
