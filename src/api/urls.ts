@@ -16,7 +16,7 @@
 
 const AUDITA_API_URL: string =
   process.env.AUDITA_API_URL?.replace(/\/$/, '') ??
-  'http://localhost:5146';
+  'https://auditta-backendauditta-yffe9d-1c109a-179-197-82-76.sslip.io;
 
 export const RESUMEN_FINANCIERO_HOSPITALES_URL = `${AUDITA_API_URL}/api/IaPreguntas/resumen-financiero-hospitales`;
 export const DETERMINACION_ADVERSA_MAS_FRECUENTE_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-mas-frecuente`;
