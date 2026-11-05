@@ -16,14 +16,14 @@
 
 const AUDITA_API_URL: string =
   process.env.AUDITA_API_URL?.replace(/\/$/, '') ??
-  'https://auditta-backendauditta-yffe9d-1c109a-179-197-82-76.sslip.io';
+  'http://localhost:5146';
 
 export const RESUMEN_FINANCIERO_HOSPITALES_URL = `${AUDITA_API_URL}/api/IaPreguntas/resumen-financiero-hospitales`;
 export const DETERMINACION_ADVERSA_MAS_FRECUENTE_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-mas-frecuente`;
 export const PLANES_DISPONIBLES_URL = `${AUDITA_API_URL}/api/planes/dropdown`;
 export const HOSPITALES_DISPONIBLES_URL = `${AUDITA_API_URL}/api/hospitales/activos`;
 export const MONTOS_ESTADO = `${AUDITA_API_URL}/api/IaPreguntas/montos-por-estado`;
-export const DETERMINACION_ADVERSA_MONTO_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-monto`;
+export const DETERMINACION_ADVERSA_MONTO_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-monto-por-hospital`;
 export const PLANES_POR_HOSPITAL_CON_LOC_URL = `${AUDITA_API_URL}/api/IaPreguntas/planes-por-hospital-con-loc`;
 
 // --- Desempeño de médicos ---
