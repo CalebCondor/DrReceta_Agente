@@ -169,7 +169,18 @@ export const TOOLS: Anthropic.Tool[] = [
       'Si pidió "días denegados y %", devuelve "- Días denegados: 133\\n- % denegado: 41.6%" — NUNCA ' +
       'incluyas "Días aprobados: 187", "Días recuperados: 3", ni el desglose "(133 ÷ 320)" a menos que ' +
       'el usuario los pida explícitamente. Ignora los campos extra que devuelva la tool. Si la tool ' +
-      'trae aprobados/denegados/recuperados y el usuario solo pidió denegados, devuelve SOLO denegados.',
+      'trae aprobados/denegados/recuperados y el usuario solo pidió denegados, devuelve SOLO denegados.\n\n' +
+      'CÓMO ELEGIR EL "MENOR" / "MAYOR" (ranking por hospital):\n' +
+      '  • `porHospital[]` NO viene ordenado por la métrica (viene por días de estancia). Para "qué ' +
+      'hospital tiene la MENOR cantidad / el MENOR % denegado" RECORRÉ TODOS los elementos y compará: ' +
+      'el ganador es el de cifra MÁS BAJA, NO el primero del array. Lo mismo para el MÁXIMO.\n' +
+      '  • Un hospital que aparece en `filtrosAplicados.hospitales` pero NO en `porHospital[]` NO ' +
+      'tiene datos en el período: no es "el que menos denegó" (no registró nada) y no lo presentes ' +
+      'como si tuviera un valor.\n' +
+      '  • Si la pregunta pide un extremo con DOS métricas ("menor cantidad Y % denegado"), la ' +
+      'respuesta es UN SOLO hospital: el que cumple el criterio PRINCIPAL (la métrica nombrada ' +
+      'primero: la cantidad) y mostrale SUS dos valores, los del MISMO hospital. NUNCA mezcles los ' +
+      'días de un hospital con el % de otro.',
     input_schema: {
       type: 'object',
       properties: {
@@ -459,6 +470,19 @@ export const TOOLS: Anthropic.Tool[] = [
       '"cuánto se denegó ($)", "montos aprobados / denegados / recuperados", "facturación por ' +
       'estado", o similares donde se habla de PLATA/MONTOS (no días).\n' +
       '  • Si el usuario pregunta por DÍAS, usa `consultar_resumen_financiero_hospitales`.\n\n' +
+      'CÓMO ELEGIR EL "MENOR" / "MAYOR" (ranking por hospital):\n' +
+      '  • `porHospital[]` NO viene ordenado por la métrica (viene por `idHospital`). Para "qué ' +
+      'hospital tiene la MENOR cantidad / el MENOR % perdido" RECORRÉ TODOS los elementos y compará: ' +
+      'el ganador es el de cifra MÁS BAJA, NO el primero del array. Lo mismo para el MÁXIMO.\n' +
+      '  • Cada hospital trae `perdido` ($), `potencial`, `porcentajePerdidaSobrePotencialHospital` ' +
+      '(% de pérdida sobre SU propio potencial) y `porcentajeFacturadoSobrePotencialHospital`.\n' +
+      '  • Un hospital que aparece en `filtrosAplicados.hospitales` pero NO en `porHospital[]` NO ' +
+      'tiene datos en el período: no es "el que menos perdió" (no registró nada) y no lo presentes ' +
+      'como si tuviera un valor.\n' +
+      '  • Si la pregunta pide un extremo con DOS métricas ("menor cantidad Y % perdido de dinero"), ' +
+      'la respuesta es UN SOLO hospital: el que cumple el criterio PRINCIPAL (la métrica nombrada ' +
+      'primero: el monto/cantidad) y mostrale SUS dos valores, los del MISMO hospital. NUNCA mezcles ' +
+      'el $ de un hospital con el % de otro ni presentes dos hospitales distintos como si fueran uno.\n\n' +
       'OBTENCIÓN DE PARÁMETROS:\n' +
       '  • `anio`: int requerido (1900–2999). Si el usuario no lo da, pregunta.\n' +
       '  • `meses`: int[] opcional (1–12). Si se omite, se asumen los 12 meses del año. ' +
