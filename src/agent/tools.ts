@@ -659,6 +659,142 @@ export const TOOLS: Anthropic.Tool[] = [
   },
 
   {
+    name: 'consultar_determinacion_adversa_monto_consolidado',
+    description:
+      'Devuelve el RANKING CONSOLIDADO de determinaciones adversas (los motivos/conceptos por los ' +
+      'que un auditor negó días) con el DINERO PERDIDO y los DÍAS DENEGADOS que produjo cada una, ' +
+      'AGREGADOS sobre TODOS los hospitales seleccionados. NO viene partido por hospital: es una ' +
+      'sola lista, una fila por determinación adversa.\n\n' +
+      'ÚSALA cuando el usuario pregunta qué motivo de determinación adversa costó más (en días o en ' +
+      'dinero) para un conjunto de hospitales, un período o un plan. Ejemplos: "qué determinación ' +
+      'adversa costó más", "cuál fue el motivo más caro de las denegaciones", "en qué se perdió más ' +
+      'dinero", "qué razón de denegación pesa más", "cuántos días se negaron por cada causa", ' +
+      '"cómo se reparten las denegaciones", "qué % de la estancia se perdió por denegaciones".\n\n' +
+      'CÓMO ELEGIR ENTRE LAS VARIANTES (mismo dato, distinta forma):\n' +
+      '  • `consultar_determinacion_adversa_monto_consolidado` (esta): UNA fila por determinación ' +
+      'adversa con los datos SUMADOS de todos los hospitales. Para el RANKING GLOBAL.\n' +
+      '  • `consultar_determinacion_adversa_monto` (ruta `determinacion-adversa-monto-por-hospital`): ' +
+      'los MISMOS datos pero PARTIDOS por hospital (y por plan si mandás `idPlanes`). Usala cuando el ' +
+      'usuario pregunta por un hospital puntual ("cuánto perdió el hospital X", "comparame estos dos ' +
+      'hospitales").\n' +
+      '  • `consultar_determinacion_adversa_mas_frecuente`: ranking por CANTIDAD de veces que se ' +
+      'aplicó cada determinación (no por días ni por dinero).\n\n' +
+      'PARÁMETROS:\n' +
+      '  • `anio` (number, OBLIGATORIO): año de la consulta (1900-2999).\n' +
+      '  • `idHospitales` (array of numbers, OBLIGATORIO salvo que mandes `global: true`): los ' +
+      'hospitales a considerar. Si el usuario no dijo cuáles, usá `global: true` o preguntale.\n' +
+      '  • `global` (boolean, opcional): con `true` se consideran TODOS los hospitales del catálogo y ' +
+      '`idHospitales` se ignora.\n' +
+      '  • `meses` (array of numbers 1-12, opcional): meses a incluir. Vacío o ausente = todo el año. ' +
+      'Un mes: [10]. Rango: [1,2,3].\n' +
+      '  • `dia` (number 1-31, opcional): sólo tiene sentido con EXACTAMENTE un mes en `meses`; con dos ' +
+      'o más meses el endpoint responde 400.\n' +
+      '  • `idPlanes` (array of numbers, opcional): filtra por plan médico. NUNCA inventes ids ni uses ' +
+      'ids memorizados de conversaciones anteriores: llamá antes a la tool de CATÁLOGO DE PLANES para ' +
+      'mapear el nombre del plan al `idPlan` (el catálogo puede cambiar entre sesiones).\n' +
+      '  • `loc` (array of strings, opcional): filtra por nivel de cuidado — "ACUTE" y/o "SNF" ' +
+      '(case-insensitive). Vacío o ausente = todos.\n\n' +
+      'FORMATO DE RESPUESTA: devuelve un objeto JSON con:\n' +
+      '  • `filtrosAplicados` (object) — los filtros YA resueltos y en texto legible: `anio`, `periodo` ' +
+      '(p.ej. "Enero - Diciembre 2026"), `hospitales` (array con los nombres cortos), `planes` ("Todos" ' +
+      'o "2 planes solicitados: A, B") y `loc` ("Todos" o "ACUTE"). Usalo para confirmarle al usuario ' +
+      'qué período y qué hospitales se aplicaron.\n' +
+      '  • `totalDiasDenegados` (number) — Σ de días denegados del filtro.\n' +
+      '  • `totalMontoPerdido` (number) — Σ del dinero perdido del filtro (días denegados × precio del ' +
+      'plan del nivel).\n' +
+      '  • `totalLos` (number) — Σ de los DÍAS DE ESTANCIA del filtro (las mismas auditorías, el mismo ' +
+      'período, los mismos filtros). Es el denominador de la tasa de denegación.\n' +
+      '  • `porcentajeDiasDenegadosVsTotalLos` (number) — TASA GLOBAL de denegación: qué % de los días ' +
+      'de estancia del filtro quedaron denegados. La API lo devuelve con 4 decimales (ej. 41.5902) pero ' +
+      'AL MOSTRARLO poné 2 decimales (41.59%).\n' +
+      '  • `items` (array) — una entrada por determinación adversa, ordenada por `diasDenegados` DESC. ' +
+      'Cada item trae `determinacionAdversa` (nombre del motivo), `diasDenegados`, `montoPerdido`, ' +
+      '`porcentajeDiasDenegadosVsTotalDiasDenegados`, `porcentajeDiasDenegadosVsTotalLos`, ' +
+      '`porcentajeMontoPerdido` y NADA más. Los campos `idConcepto`, `idGrupo` y `tipoCategoria` son ' +
+      'INTERNOS.\n' +
+      '  ⚠️ EL ORDEN DEL ARRAY ES POR DÍAS, NO POR DINERO: para "qué determinación costó más EN ' +
+      'DINERO" el ganador es el item con el `montoPerdido` MÁS ALTO, que puede NO ser el primero del ' +
+      'array (con algunos filtros de loc hay diferencias). Recorre los items y COMPARA los montos; no ' +
+      'te quedes con el primero. Para "qué denegó más días" el primero SÍ es el ganador.\n' +
+      'Ejemplo real de un item:\n' +
+      '  { "idConcepto": 5, "determinacionAdversa": "Tardanza En Realizar Estudio Imagen/Med Nuclear",\n' +
+      '    "idGrupo": 1, "tipoCategoria": "Administracion", "diasDenegados": 32.0, "montoPerdido": 13522.0,\n' +
+      '    "porcentajeDiasDenegadosVsTotalDiasDenegados": 23.53,\n' +
+      '    "porcentajeDiasDenegadosVsTotalLos": 9.7859,\n' +
+      '    "porcentajeMontoPerdido": 23.62 }\n' +
+      '(ejemplo crudo de la API: al usuario mostralo con 2 decimales → 23.53%, 9.79%, 23.62%).\n\n' +
+      'LOS TRES PORCENTAJES NO SON LO MISMO — no los confundas:\n' +
+      '  • `porcentajeDiasDenegadosVsTotalDiasDenegados` — CUOTA: qué % de todos los DÍAS DENEGADOS del ' +
+      'filtro se deben a esta determinación. La suma de todos los items ≈ 100%. Si el usuario pregunta ' +
+      '"¿qué parte de las denegaciones explica esta causa?", usá ESTE.\n' +
+      '  • `porcentajeDiasDenegadosVsTotalLos` — TASA: qué % de los DÍAS DE ESTANCIA del filtro denegó ' +
+      'esta determinación (comparar contra `totalLos`). La suma puede SUPERAR 100% (una misma auditoría ' +
+      'puede tener varias determinaciones). Si el usuario pregunta "¿qué % de la estancia se perdió por ' +
+      'esto?", usá ESTE.\n' +
+      '  • `porcentajeMontoPerdido` — qué % del DINERO perdido del filtro explica esta determinación. La ' +
+      'suma ≈ 100%.\n\n' +
+      'CÓMO RESPONDERLE AL USUARIO:\n' +
+      '  • Redondeá los porcentajes a 2 DECIMALES al mostrarlos (19.5532 → 19.55%, 41.5902 → 41.59%, ' +
+      '23.62% → 23.62%). Es SOLO formato: no recalcules el porcentaje ni lo derives de otra fórmula.\n' +
+      '  • Mostrá el nombre de la determinación (`determinacionAdversa`), los días denegados, el dinero ' +
+      'perdido y el % que corresponda según lo que preguntó. `idConcepto`, `idGrupo` y `tipoCategoria` ' +
+      'son INTERNOS: no los expongas salvo que el usuario los pida explícitamente.\n' +
+      '  • Usá `filtrosAplicados` para confirmar qué período y qué hospitales se aplicaron: no los ' +
+      'adivines.\n' +
+      '  • Si `items` viene vacío, NO inventes determinaciones: decí que en ese período no hubo días ' +
+      'denegados ni dinero perdido para los filtros indicados.\n' +
+      '  • Si el usuario pregunta por un hospital concreto, usá la tool `consultar_determinacion_adversa_monto` ' +
+      '(partida por hospital) en vez de esta.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        anio: {
+          type: 'integer',
+          description: 'Año de la consulta (1900-2999). Obligatorio.',
+          minimum: 1900,
+          maximum: 2999,
+        },
+        idHospitales: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'IDs de hospital a considerar. Obligatorio salvo que se mande global:true.',
+        },
+        global: {
+          type: 'boolean',
+          description:
+            'true = considerar TODOS los hospitales del catálogo (ignora idHospitales).',
+        },
+        meses: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1, maximum: 12 },
+          description: 'Meses 1-12 a incluir. Vacío o ausente = todo el año.',
+        },
+        dia: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 31,
+          description:
+            'Día 1-31. Sólo con EXACTAMENTE un mes en meses (si no, el endpoint responde 400).',
+        },
+        idPlanes: {
+          type: 'array',
+          items: { type: 'integer' },
+          description:
+            'IDs de plan médico. Obtenerlos del catálogo de planes; nunca inventarlos.',
+        },
+        loc: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Códigos de LOC: "ACUTE" y/o "SNF" (case-insensitive). Vacío = todos.',
+        },
+      },
+      required: ['anio'],
+    },
+  },
+
+  {
     name: 'obtener_planes_por_hospital_con_loc',
     description:
       'OBLIGATORIO usar esta herramienta cuando necesitas resolver el `idPlan` ' +

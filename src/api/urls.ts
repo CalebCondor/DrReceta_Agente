@@ -26,6 +26,14 @@ export const MONTOS_ESTADO = `${AUDITA_API_URL}/api/IaPreguntas/montos-por-estad
 export const DETERMINACION_ADVERSA_MONTO_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-monto-por-hospital`;
 export const PLANES_POR_HOSPITAL_CON_LOC_URL = `${AUDITA_API_URL}/api/IaPreguntas/planes-por-hospital-con-loc`;
 
+// --- Determinación adversa CONSOLIDADA (ranking global) ---
+// Mismo dato que `determinacion-adversa-monto-por-hospital`, pero con los
+// días denegados y el dinero perdidos ya SUMADOS sobre TODOS los hospitales
+// seleccionados: una sola fila por determinación adversa (concepto).
+// Úsala para el ranking global ("qué determinación costó más entre estos
+// hospitales"); la variante por hospital queda para "cuánto perdió X".
+export const DETERMINACION_ADVERSA_MONTO_CONSOLIDADO_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-monto-consolidado`;
+
 // --- Desempeño de médicos ---
 // Devuelve KPIs por médico (días denegados/aprobados/recuperados, montos, etc.)
 // en un período + planes + loc + médico específicos.

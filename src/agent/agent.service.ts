@@ -1021,15 +1021,17 @@ export class AgentService {
           // mensaje actual del usuario. Si no coinciden, RECHAZAMOS y
           // forzamos una re-llamada a la tool.
           if (round >= 1 && turnToolCalls.length === 0) {
-            const lastDataToolInput = [
-              'consultar_resumen_financiero_hospitales',
-              'consultar_montos_por_estado',
-              'consultar_determinacion_adversa_mas_frecuente',
-              'consultar_concepto_mas_dias_denegados',
-              'consultar_determinacion_adversa_monto',
-            ]
-              .map((tn) => extractLastToolInput(history, tn))
-              .find((x) => x !== null && x !== undefined) ?? null;
+            const lastDataToolInput =
+              [
+                'consultar_resumen_financiero_hospitales',
+                'consultar_montos_por_estado',
+                'consultar_determinacion_adversa_mas_frecuente',
+                'consultar_concepto_mas_dias_denegados',
+                'consultar_determinacion_adversa_monto',
+                'consultar_determinacion_adversa_monto_consolidado',
+              ]
+                .map((tn) => extractLastToolInput(history, tn))
+                .find((x) => x !== null && x !== undefined) ?? null;
             const mismatch = detectFilterMismatch(
               userMessageText,
               lastDataToolInput,
@@ -1072,6 +1074,7 @@ export class AgentService {
               'consultar_determinacion_adversa_mas_frecuente',
               'consultar_concepto_mas_dias_denegados',
               'consultar_determinacion_adversa_monto',
+              'consultar_determinacion_adversa_monto_consolidado',
             ].includes(name),
           );
           if (
@@ -1190,6 +1193,7 @@ export class AgentService {
           'consultar_determinacion_adversa_mas_frecuente',
           'consultar_concepto_mas_dias_denegados',
           'consultar_determinacion_adversa_monto',
+          'consultar_determinacion_adversa_monto_consolidado',
         ]);
         if (DATA_TOOLS.has(tu.name) && round < 4) {
           dataToolCalledInConversation = true;
@@ -1208,9 +1212,16 @@ export class AgentService {
               ? (lastInput.idPlanes as number[])
               : [];
 
+            // `global: true` significa "TODOS los hospitales del catálogo": no
+            // hay lista de IDs que comparar, así que el control de filtros
+            // inventados NO aplica al filtro de hospitales en ese caso.
+            const newGlobal = args.global === true;
+            const lastGlobal = lastInput.global === true;
             const hospitalChanged =
-              newHospitals.length !== lastHospitals.length ||
-              !newHospitals.every((h) => lastHospitals.includes(h));
+              !newGlobal &&
+              !lastGlobal &&
+              (newHospitals.length !== lastHospitals.length ||
+                !newHospitals.every((h) => lastHospitals.includes(h)));
             const planChanged =
               newPlanes.length !== lastPlanes.length ||
               !newPlanes.every((p) => lastPlanes.includes(p));

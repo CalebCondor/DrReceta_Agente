@@ -21,6 +21,7 @@ import {
   HOSPITALES_DISPONIBLES_URL,
   MONTOS_ESTADO,
   DETERMINACION_ADVERSA_MONTO_URL,
+  DETERMINACION_ADVERSA_MONTO_CONSOLIDADO_URL,
   PLANES_POR_HOSPITAL_CON_LOC_URL,
   DESEMPENO_MEDICO_URL,
   DETERMINACION_ADVERSA_MEDICO_ALTA_URL,
@@ -279,6 +280,18 @@ export async function executeTool(
     if (Array.isArray(idHospitales) && idHospitales.length > 0) {
       body['idHospitales'] = idHospitales;
     }
+    // `global` (opcional): con `true` se consideran TODOS los hospitales del
+    // catálogo e `idHospitales` se ignora. Sólo lo usa la tool consolidada
+    // (`determinacion-adversa-monto-consolidado`); las demás no lo mandan.
+    const globalRaw = toolInput['global'];
+    const esGlobal =
+      globalRaw === true ||
+      (typeof globalRaw === 'string' &&
+        globalRaw.trim().toLowerCase() === 'true');
+    if (esGlobal) {
+      body['global'] = true;
+      delete body['idHospitales'];
+    }
     const idPlanes = toolInput['idPlanes'];
     if (Array.isArray(idPlanes) && idPlanes.length > 0) {
       body['idPlanes'] = idPlanes;
@@ -382,6 +395,58 @@ export async function executeTool(
         ? `${DETERMINACION_ADVERSA_MONTO_URL}?top=${encodeURIComponent(String(top))}`
         : DETERMINACION_ADVERSA_MONTO_URL;
     return JSON.stringify(await apiPost(url, body, token));
+  }
+
+  if (toolName === 'consultar_determinacion_adversa_monto_consolidado') {
+    const body = buildIaPreguntasBody();
+    const esGlobal = body['global'] === true;
+
+    // `anio` obligatorio (1900–2999). Aceptamos string numérico porque el
+    // modelo a veces manda "2026" en vez de 2026.
+    const anioRaw = toolInput['anio'];
+    let anio = NaN;
+    if (typeof anioRaw === 'number') {
+      anio = anioRaw;
+    } else if (typeof anioRaw === 'string' && anioRaw.trim().length > 0) {
+      anio = Number(anioRaw.trim());
+    }
+    if (!Number.isInteger(anio) || anio < 1900 || anio > 2999) {
+      return JSON.stringify({
+        success: false,
+        error:
+          'Falta el parámetro `anio` (número 1900–2999). Si el usuario no dijo el año, usa el año en curso.',
+      });
+    }
+    body['anio'] = anio;
+
+    // `idHospitales` es obligatorio salvo que venga `global: true`.
+    if (
+      !esGlobal &&
+      (!Array.isArray(body['idHospitales']) ||
+        body['idHospitales'].length === 0)
+    ) {
+      return JSON.stringify({
+        success: false,
+        error:
+          'Falta el parámetro requerido `idHospitales` (int[], ≥1). Llama antes a `obtener_hospitales_disponibles` (campo `hosId`) y reintenta con esos IDs; si el usuario no dijo cuáles, manda `global: true` para considerar todos los hospitales.',
+      });
+    }
+
+    // `dia` sólo se interpreta con EXACTAMENTE un mes en `meses`; con dos o
+    // más el backend responde 400. Se valida acá para devolverle al modelo
+    // una instrucción accionable en vez de un error opaco.
+    const meses = Array.isArray(body['meses']) ? body['meses'] : [];
+    if (body['dia'] !== undefined && meses.length !== 1) {
+      return JSON.stringify({
+        success: false,
+        error:
+          'El parámetro `dia` sólo se puede usar con EXACTAMENTE un mes en `meses` (el endpoint responde 400 con dos o más meses). Reintenta con `meses: [10]` si el usuario pidió un día de octubre, o sin `dia` para consultar el mes completo.',
+      });
+    }
+
+    return JSON.stringify(
+      await apiPost(DETERMINACION_ADVERSA_MONTO_CONSOLIDADO_URL, body, token),
+    );
   }
 
   // ─── Desempeño de médicos ───────────────────────────────────────────────
