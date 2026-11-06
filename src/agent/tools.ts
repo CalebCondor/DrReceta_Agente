@@ -614,9 +614,17 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • NUNCA inventes `idPlanes` ni uses IDs memorizados de conversaciones ' +
       'anteriores.\n\n' +
       'OBTENCIÓN DE PARÁMETROS:\n' +
-      '  • `anio`: int requerido (1900–2999). Si el usuario no lo da, pregunta.\n' +
-      '  • `meses`: int[] opcional (1–12). Si se omite o se envía vacío, se asumen ' +
-      'los 12 meses del año.\n' +
+      '  • `fechaInicio` / `fechaFin`: string (YYYY-MM-DD) — el PERÍODO como rango, ' +
+      'con ambos extremos INCLUSIVOS. Esta tool NO usa `anio` / `meses` / `dia`: ' +
+      'el backend filtra por rango de fechas. Manda SIEMPRE las dos fechas:\n' +
+      '    - "de marzo a octubre" / "del 5 al 9 de marzo" / "entre enero y junio" → ' +
+      '`fechaInicio` = primer día del rango, `fechaFin` = último día.\n' +
+      '    - "octubre" / "en octubre" → mes completo (del día 1 al último del mes).\n' +
+      '    - "el 15 de octubre" → `fechaInicio` = `fechaFin` = ese día.\n' +
+      '    - "2025" / "en 2025" → `2025-01-01` a `2025-12-31`.\n' +
+      '    - El usuario NO menciona período → AÑO EN CURSO COMPLETO: `fechaInicio` = ' +
+      '1 de enero del año en curso, `fechaFin` = 31 de diciembre del año en curso. ' +
+      'NO preguntes por el período.\n' +
       '  • `idHospitales`: int[] requerido (al menos uno). Si el usuario solo ' +
       'dice "mis hospitales", usa el listado derivado de las herramientas de ' +
       'perfil/permisos.\n' +
@@ -655,20 +663,22 @@ export const TOOLS: Anthropic.Tool[] = [
     input_schema: {
       type: 'object',
       properties: {
-        anio: {
-          type: 'integer',
-          description: 'Año del período. Rango válido: 1900–2999.',
-          minimum: 1900,
-          maximum: 2999,
-        },
-        meses: {
-          type: 'array',
-          items: { type: 'integer', minimum: 1, maximum: 12 },
+        fechaInicio: {
+          type: 'string',
+          pattern: '^\\d{4}-\\d{2}-\\d{2}$',
           description:
-            'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
-            'Ej: [1, 2, 4] = enero, febrero y abril.',
+            'Primer día del período (INCLUSIVO), formato YYYY-MM-DD. Ej: ' +
+            '"2026-03-01". Si el usuario no menciona período, usa el 1 de enero ' +
+            'del año en curso.',
         },
-        dia: DIA_SCHEMA,
+        fechaFin: {
+          type: 'string',
+          pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+          description:
+            'Último día del período (INCLUSIVO), formato YYYY-MM-DD. Ej: ' +
+            '"2026-04-30". Si el usuario no menciona período, usa el 31 de ' +
+            'diciembre del año en curso. NO puede ser anterior a `fechaInicio`.',
+        },
         idHospitales: {
           type: 'array',
           items: { type: 'integer' },
@@ -710,7 +720,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'cuidado / location, OMITE el campo.',
         },
       },
-      required: ['anio', 'idHospitales'],
+      required: ['idHospitales'],
     },
   },
 

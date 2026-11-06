@@ -28,6 +28,7 @@ describe.each([
   'consultar_resumen_financiero_hospitales',
   'consultar_montos_por_estado',
   'consultar_determinacion_adversa_mas_frecuente',
+  'consultar_determinacion_adversa_monto',
 ])('executeTool · %s', (toolName) => {
   const fetchMock = jest.fn();
 
