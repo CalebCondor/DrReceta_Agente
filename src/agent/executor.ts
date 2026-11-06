@@ -79,9 +79,10 @@ function idPivoteEnQuery(
 }
 
 /**
- * Rango de fechas para `consultar_resumen_financiero_hospitales`.
+ * Rango de fechas para `consultar_resumen_financiero_hospitales` y
+ * `consultar_montos_por_estado`.
  *
- * Ese endpoint NO filtra por `anio`/`meses`/`dia` sino por RANGO:
+ * Esos endpoints NO filtran por `anio`/`meses`/`dia` sino por RANGO:
  * `fechaInicio` / `fechaFin` (YYYY-MM-DD, extremos inclusivos).
  *
  * Reglas:
@@ -491,7 +492,16 @@ export async function executeTool(
   }
 
   if (toolName === 'consultar_montos_por_estado') {
+    // Este endpoint filtra por RANGO de fechas: `anio`/`meses`/`dia` no
+    // aplican (el backend los ignora), así que se sustituyen por
+    // `fechaInicio`/`fechaFin`.
     const body = buildIaPreguntasBody();
+    delete body['anio'];
+    delete body['meses'];
+    delete body['dia'];
+    const rango = resolverRangoFechas(toolInput);
+    body['fechaInicio'] = rango.fechaInicio;
+    body['fechaFin'] = rango.fechaFin;
     return JSON.stringify(await apiPost(MONTOS_ESTADO, body, token));
   }
 

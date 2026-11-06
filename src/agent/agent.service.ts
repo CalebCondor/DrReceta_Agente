@@ -1676,6 +1676,30 @@ export function detectFilterMismatch(
     ? (lastInput.idHospitales as number[])
     : [];
 
+  // Tools con contrato de RANGO (`consultar_resumen_financiero_hospitales`
+  // y `consultar_montos_por_estado`): el período NO viaja en `anio`/`meses`
+  // sino en `fechaInicio`/`fechaFin`. Las comprobaciones de mes/año de
+  // abajo se hacen contra el RANGO aplicado (comparar contra `meses` no
+  // serviría: el modelo no debe volver a mandar `meses`).
+  const lastFechaInicio =
+    typeof lastInput.fechaInicio === 'string' ? lastInput.fechaInicio : null;
+  const lastFechaFin =
+    typeof lastInput.fechaFin === 'string' ? lastInput.fechaFin : null;
+  const esRango = lastFechaInicio !== null && lastFechaFin !== null;
+  // Meses (1–12) cubiertos por el rango. Vacío si el rango cruza años
+  // (un rango de un solo año no lo describe: se omite la comparación).
+  const mesesDelRango: number[] = (() => {
+    if (!esRango) return [];
+    const mesInicio = parseInt(lastFechaInicio.slice(5, 7), 10);
+    const mesFin = parseInt(lastFechaFin.slice(5, 7), 10);
+    if (!Number.isFinite(mesInicio) || !Number.isFinite(mesFin)) return [];
+    if (mesFin < mesInicio) return [];
+    return Array.from(
+      { length: mesFin - mesInicio + 1 },
+      (_, i) => mesInicio + i,
+    );
+  })();
+
   const msg = userMessage.toLowerCase();
 
   // Detectar mención de rango de meses en el mensaje del usuario.
@@ -1727,24 +1751,45 @@ export function detectFilterMismatch(
       { length: maxMonth - minMonth + 1 },
       (_, i) => minMonth + i,
     );
-    if (
+    if (esRango) {
+      // Tool de RANGO: el período se corrige con fechaInicio/fechaFin.
+      if (
+        mesesDelRango.length > 0 &&
+        (mesesDelRango.length !== expected.length ||
+          !expected.every((m) => mesesDelRango.includes(m)))
+      ) {
+        return `El usuario pidió un rango de meses (${minMonth}–${maxMonth}) pero la última consulta usó el rango ${lastFechaInicio} – ${lastFechaFin}. DEBES re-llamar la herramienta con fechaInicio/fechaFin que cubra los meses ${minMonth} a ${maxMonth}.`;
+      }
+    } else if (
       lastMeses.length !== expected.length ||
       !expected.every((m) => lastMeses.includes(m))
     ) {
       return `El usuario pidió un rango de meses (${minMonth}–${maxMonth}) pero la última consulta usó meses: [${lastMeses.join(', ')}]. DEBES re-llamar la herramienta con meses: [${expected.join(', ')}].`;
     }
-  } else if (mentionedMonths.length > 0 && lastMeses.length > 0) {
+  } else if (mentionedMonths.length > 0 && (lastMeses.length > 0 || esRango)) {
     // El usuario mencionó un mes específico, ¿coincide con el último?
     const mentioned = mentionedMonths[0];
-    if (lastMeses.length === 1 && lastMeses[0] !== mentioned) {
+    if (esRango) {
+      if (mesesDelRango.length > 0 && !mesesDelRango.includes(mentioned)) {
+        return `El usuario pidió el mes ${mentioned} pero la última consulta usó el rango ${lastFechaInicio} – ${lastFechaFin}. DEBES re-llamar la herramienta con fechaInicio/fechaFin dentro del mes ${mentioned}.`;
+      }
+    } else if (lastMeses.length === 1 && lastMeses[0] !== mentioned) {
       return `El usuario pidió el mes ${mentioned} pero la última consulta usó meses: [${lastMeses.join(', ')}]. DEBES re-llamar la herramienta con meses: [${mentioned}].`;
     }
   }
 
   // Detectar mención de año.
   const yearMatch = msg.match(/\b(20\d{2})\b/);
-  if (yearMatch && lastAnio && parseInt(yearMatch[1]) !== lastAnio) {
-    return `El usuario pidió el año ${yearMatch[1]} pero la última consulta usó anio: ${lastAnio}. DEBES re-llamar la herramienta con anio: ${parseInt(yearMatch[1])}.`;
+  if (yearMatch) {
+    const anioPedido = parseInt(yearMatch[1], 10);
+    if (esRango) {
+      const anioRango = parseInt(lastFechaInicio.slice(0, 4), 10);
+      if (Number.isFinite(anioRango) && anioRango !== anioPedido) {
+        return `El usuario pidió el año ${anioPedido} pero la última consulta usó el rango ${lastFechaInicio} – ${lastFechaFin}. DEBES re-llamar la herramienta con fechaInicio: ${anioPedido}-01-01 y fechaFin: ${anioPedido}-12-31.`;
+      }
+    } else if (lastAnio && anioPedido !== lastAnio) {
+      return `El usuario pidió el año ${yearMatch[1]} pero la última consulta usó anio: ${lastAnio}. DEBES re-llamar la herramienta con anio: ${parseInt(yearMatch[1])}.`;
+    }
   }
 
   // Detectar "todos los hospitales" cuando la última consulta tenía uno.

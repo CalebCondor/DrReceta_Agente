@@ -24,7 +24,10 @@ describe('executeTool · consultacion de determinación adversa por auditor', ()
   });
 });
 
-describe('executeTool · consultar_resumen_financiero_hospitales', () => {
+describe.each([
+  'consultar_resumen_financiero_hospitales',
+  'consultar_montos_por_estado',
+])('executeTool · %s', (toolName) => {
   const fetchMock = jest.fn();
 
   beforeEach(() => {
@@ -38,12 +41,7 @@ describe('executeTool · consultar_resumen_financiero_hospitales', () => {
   });
 
   const body = async (input: Record<string, unknown>) => {
-    await executeTool(
-      'consultar_resumen_financiero_hospitales',
-      input,
-      1,
-      {} as DbService,
-    );
+    await executeTool(toolName, input, 1, {} as DbService);
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     return JSON.parse(init.body as string) as Record<string, unknown>;
   };

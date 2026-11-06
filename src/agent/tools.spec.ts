@@ -21,9 +21,12 @@ describe('tools · consultacion de determinación adversa por auditor', () => {
   });
 });
 
-describe('tools · resumen financiero por hospitales', () => {
+describe.each([
+  'consultar_resumen_financiero_hospitales',
+  'consultar_montos_por_estado',
+])('tools · %s', (toolName) => {
   const tool = (TOOLS as unknown as ToolShape[]).find(
-    (t) => t.name === 'consultar_resumen_financiero_hospitales',
+    (t) => t.name === toolName,
   );
 
   it('filtra por RANGO de fechas, no por anio/meses/dia', () => {
@@ -33,5 +36,10 @@ describe('tools · resumen financiero por hospitales', () => {
     expect(tool?.input_schema.properties).not.toHaveProperty('anio');
     expect(tool?.input_schema.properties).not.toHaveProperty('meses');
     expect(tool?.input_schema.properties).not.toHaveProperty('dia');
+  });
+
+  it('NO exige `anio` (el backend filtra por rango)', () => {
+    expect(tool?.input_schema.required).not.toContain('anio');
+    expect(tool?.input_schema.required).toContain('idHospitales');
   });
 });
