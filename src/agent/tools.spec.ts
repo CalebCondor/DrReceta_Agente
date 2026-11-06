@@ -51,6 +51,26 @@ describe.each([
   });
 });
 
+describe('tools · consultar_determinacion_adversa_manejador_caso', () => {
+  const tool = (TOOLS as unknown as ToolShape[]).find(
+    (t) => t.name === 'consultar_determinacion_adversa_manejador_caso',
+  );
+
+  it('filtra por RANGO de fechas, no por anio/meses/dia', () => {
+    expect(tool).toBeDefined();
+    expect(tool?.input_schema.properties).toHaveProperty('fechaInicio');
+    expect(tool?.input_schema.properties).toHaveProperty('fechaFin');
+    expect(tool?.input_schema.properties).not.toHaveProperty('anio');
+    expect(tool?.input_schema.properties).not.toHaveProperty('meses');
+    expect(tool?.input_schema.properties).not.toHaveProperty('dia');
+  });
+
+  it('exige `idManejadorCaso` y NO `anio`', () => {
+    expect(tool?.input_schema.required).toContain('idManejadorCaso');
+    expect(tool?.input_schema.required).not.toContain('anio');
+  });
+});
+
 describe('tools · consultar_determinacion_adversa_monto_consolidado', () => {
   const tool = (TOOLS as unknown as ToolShape[]).find(
     (t) => t.name === 'consultar_determinacion_adversa_monto_consolidado',
