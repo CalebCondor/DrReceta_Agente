@@ -84,6 +84,7 @@ function idPivoteEnQuery(
  * `consultar_determinacion_adversa_mas_frecuente`,
  * `consultar_determinacion_adversa_monto`,
  * `consultar_determinacion_adversa_monto_consolidado`,
+ * `consultar_desempeno_medico`,
  * `consultar_desempeno_auditor`,
  * `consultar_determinacion_adversa_auditor`,
  * `consultar_facturacion_auditor_hospitales`,
@@ -582,7 +583,16 @@ export async function executeTool(
   // de médicos disponible para los filtros aplicados — útil para que la IA
   // resuelva el nombre antes de hacer una consulta concreta.
   if (toolName === 'consultar_desempeno_medico') {
+    // Este endpoint filtra por RANGO de fechas: `anio`/`meses`/`dia` no
+    // aplican (el backend los ignora), así que se sustituyen por
+    // `fechaInicio`/`fechaFin`.
     const body = buildIaPreguntasBody();
+    delete body['anio'];
+    delete body['meses'];
+    delete body['dia'];
+    const rango = resolverRangoFechas(toolInput);
+    body['fechaInicio'] = rango.fechaInicio;
+    body['fechaFin'] = rango.fechaFin;
     // `agruparPor` (opcional): 1 (o ausente) = por hospital (histórico),
     // 2 = por médico → plan → hospital (el desempeño del médico en todos
     // los hospitales que evaluó).

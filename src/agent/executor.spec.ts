@@ -30,6 +30,7 @@ describe.each([
   'consultar_determinacion_adversa_mas_frecuente',
   'consultar_determinacion_adversa_monto',
   'consultar_determinacion_adversa_monto_consolidado',
+  'consultar_desempeno_medico',
   'consultar_desempeno_auditor',
   'consultar_determinacion_adversa_auditor',
   'consultar_facturacion_auditor_hospitales',
