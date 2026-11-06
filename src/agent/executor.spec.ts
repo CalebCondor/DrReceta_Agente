@@ -36,6 +36,7 @@ describe.each([
   'consultar_desempeno_manejador_caso',
   'consultar_facturacion_manejador_hospitales',
   'consultar_determinacion_adversa_manejador_caso',
+  'consultar_determinacion_adversa_medico_alta',
 ])('executeTool · %s', (toolName) => {
   const fetchMock = jest.fn();
 
@@ -79,6 +80,32 @@ describe.each([
     const b = await body({ anio: 2025, meses: [10], idHospitales: [6] });
     expect(b['fechaInicio']).toBe('2025-10-01');
     expect(b['fechaFin']).toBe('2025-10-31');
+  });
+});
+
+describe('executeTool · consultar_determinacion_adversa_medico_alta', () => {
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ ok: true })),
+    });
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+  });
+
+  it('reenvía `idMedicoAlta` en el body (el backend lo exige ahí)', async () => {
+    await executeTool(
+      'consultar_determinacion_adversa_medico_alta',
+      { fechaInicio: '2026-01-01', fechaFin: '2026-12-31', idMedicoAlta: 16 },
+      1,
+      {} as DbService,
+    );
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const b = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(b['idMedicoAlta']).toBe(16);
   });
 });
 
