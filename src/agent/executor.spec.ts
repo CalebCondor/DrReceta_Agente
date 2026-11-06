@@ -31,6 +31,8 @@ describe.each([
   'consultar_determinacion_adversa_monto',
   'consultar_determinacion_adversa_monto_consolidado',
   'consultar_desempeno_auditor',
+  'consultar_determinacion_adversa_auditor',
+  'consultar_facturacion_auditor_hospitales',
 ])('executeTool · %s', (toolName) => {
   const fetchMock = jest.fn();
 

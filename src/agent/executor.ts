@@ -83,8 +83,10 @@ function idPivoteEnQuery(
  * `consultar_montos_por_estado`,
  * `consultar_determinacion_adversa_mas_frecuente`,
  * `consultar_determinacion_adversa_monto`,
- * `consultar_determinacion_adversa_monto_consolidado` y
- * `consultar_desempeno_auditor`.
+ * `consultar_determinacion_adversa_monto_consolidado`,
+ * `consultar_desempeno_auditor`,
+ * `consultar_determinacion_adversa_auditor` y
+ * `consultar_facturacion_auditor_hospitales`.
  *
  * Esos endpoints NO filtran por `anio`/`meses`/`dia` sino por RANGO:
  * `fechaInicio` / `fechaFin` (YYYY-MM-DD, extremos inclusivos).
@@ -649,7 +651,16 @@ export async function executeTool(
   // auditoría) en lugar de por manejador de caso. El endpoint NO toma un
   // ID pivote: siempre devuelve el agregado completo (un auditor por fila).
   if (toolName === 'consultar_facturacion_auditor_hospitales') {
+    // Este endpoint filtra por RANGO de fechas: `anio`/`meses`/`dia` no
+    // aplican (el backend los ignora), así que se sustituyen por
+    // `fechaInicio`/`fechaFin`.
     const body = buildIaPreguntasBody();
+    delete body['anio'];
+    delete body['meses'];
+    delete body['dia'];
+    const rango = resolverRangoFechas(toolInput);
+    body['fechaInicio'] = rango.fechaInicio;
+    body['fechaFin'] = rango.fechaFin;
     return JSON.stringify(
       await apiPost(FACTURACION_AUDITOR_HOSPITALES_URL, body, token),
     );
@@ -682,7 +693,16 @@ export async function executeTool(
   // Análogo a `consultar_determinacion_adversa_medico_alta`, pero filtrando
   // por `idAuditor`. El endpoint requiere el ID explícito (no es catálogo).
   if (toolName === 'consultar_determinacion_adversa_auditor') {
+    // Este endpoint filtra por RANGO de fechas: `anio`/`meses`/`dia` no
+    // aplican (el backend los ignora), así que se sustituyen por
+    // `fechaInicio`/`fechaFin`.
     const body = buildIaPreguntasBody();
+    delete body['anio'];
+    delete body['meses'];
+    delete body['dia'];
+    const rango = resolverRangoFechas(toolInput);
+    body['fechaInicio'] = rango.fechaInicio;
+    body['fechaFin'] = rango.fechaFin;
     // Este endpoint exige `idHospitales` (≥1). Sin él el backend responde
     // HTTP 400 y el modelo solo ve un error opaco; se valida aquí para
     // devolverle una instrucción accionable y que pueda reintentar.
