@@ -82,8 +82,9 @@ function idPivoteEnQuery(
  * Rango de fechas para `consultar_resumen_financiero_hospitales`,
  * `consultar_montos_por_estado`,
  * `consultar_determinacion_adversa_mas_frecuente`,
- * `consultar_determinacion_adversa_monto` y
- * `consultar_determinacion_adversa_monto_consolidado`.
+ * `consultar_determinacion_adversa_monto`,
+ * `consultar_determinacion_adversa_monto_consolidado` y
+ * `consultar_desempeno_auditor`.
  *
  * Esos endpoints NO filtran por `anio`/`meses`/`dia` sino por RANGO:
  * `fechaInicio` / `fechaFin` (YYYY-MM-DD, extremos inclusivos).
@@ -660,7 +661,16 @@ export async function executeTool(
   // pero agrupado por AUDITOR. Si NO se pasa `idAuditor`, el backend devuelve
   // el catálogo de auditores disponibles bajo los otros filtros.
   if (toolName === 'consultar_desempeno_auditor') {
+    // Este endpoint filtra por RANGO de fechas: `anio`/`meses`/`dia` no
+    // aplican (el backend los ignora), así que se sustituyen por
+    // `fechaInicio`/`fechaFin`.
     const body = buildIaPreguntasBody();
+    delete body['anio'];
+    delete body['meses'];
+    delete body['dia'];
+    const rango = resolverRangoFechas(toolInput);
+    body['fechaInicio'] = rango.fechaInicio;
+    body['fechaFin'] = rango.fechaFin;
     // El ID del auditor viaja como QUERY param, no en el body.
     const qs = idPivoteEnQuery(body, 'idAuditor', 'idAuditores');
     const url = qs ? `${DESEMPENO_AUDITOR_URL}?${qs}` : DESEMPENO_AUDITOR_URL;

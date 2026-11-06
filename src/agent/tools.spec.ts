@@ -26,6 +26,7 @@ describe.each([
   'consultar_montos_por_estado',
   'consultar_determinacion_adversa_mas_frecuente',
   'consultar_determinacion_adversa_monto',
+  'consultar_desempeno_auditor',
 ])('tools · %s', (toolName) => {
   const tool = (TOOLS as unknown as ToolShape[]).find(
     (t) => t.name === toolName,
