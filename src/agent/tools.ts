@@ -1478,7 +1478,8 @@ export const TOOLS: Anthropic.Tool[] = [
       'el desglose completo (un manejador por fila) bajo los filtros ' +
       'aplicados. La IA ordena / filtra el resultado según la pregunta.\\n' +
       '  • Si el usuario pregunta por "el manejador que más perdió en ' +
-      'octubre", llama con el `meses: [10]` correspondiente y devuelve el ' +
+      'octubre", llama con el rango de octubre (`fechaInicio` = 1 de ' +
+      'octubre, `fechaFin` = último día del mes) y devuelve el ' +
       'ranking ordenado por monto perdido descendente.\\n\\n' +
       'PRERREQUISITOS:\\n' +
       '  • Antes de invocar esta tool, DEBES llamar antes a ' +
@@ -1488,11 +1489,19 @@ export const TOOLS: Anthropic.Tool[] = [
       '(campo `hosId`).\\n' +
       '  • NUNCA inventes `idHospitales` ni `idPlanes`.\\n\\n' +
       'OBTENCIÓN DE PARÁMETROS:\\n' +
-      '  • `anio`: int REQUERIDO (1900–2999). Si el usuario no lo da, ' +
-      'pregunta.\\n' +
+      '  • `fechaInicio` / `fechaFin`: string (YYYY-MM-DD) — el PERÍODO como rango, ' +
+      'con ambos extremos INCLUSIVOS. Esta tool NO usa `anio` / `meses` / `dia`: ' +
+      'el backend filtra por rango de fechas. Manda SIEMPRE las dos fechas:\\n' +
+      '    - "de marzo a octubre" / "del 5 al 9 de marzo" / "entre enero y junio" → ' +
+      '`fechaInicio` = primer día del rango, `fechaFin` = último día.\\n' +
+      '    - "octubre" / "en octubre" → mes completo (del día 1 al último del mes).\\n' +
+      '    - "el 15 de octubre" → `fechaInicio` = `fechaFin` = ese día.\\n' +
+      '    - "2025" / "en 2025" → `2025-01-01` a `2025-12-31`.\\n' +
+      '    - El usuario NO menciona período → AÑO EN CURSO COMPLETO: `fechaInicio` = ' +
+      '1 de enero del año en curso, `fechaFin` = 31 de diciembre del año en curso. ' +
+      'NO preguntes por el período.\\n' +
       '  • `idHospitales`: int[] REQUERIDO (al menos un hospital). Resuélvelos ' +
       'SIEMPRE antes con `obtener_hospitales_disponibles`. SIEMPRE array.\\n' +
-      '  • `meses`: int[] opcional (1–12). Si se omite, se asumen los 12 meses.\\n' +
       '  • `idPlanes`: int[] opcional. Si el usuario dice "todos", OMITE el ' +
       'campo (no envíes array vacío).\\n' +
       '  • `loc`: array opcional de "ACUTE" / "SNF". SIEMPRE como ARRAY. Si ' +
@@ -1521,13 +1530,21 @@ export const TOOLS: Anthropic.Tool[] = [
     input_schema: {
       type: 'object',
       properties: {
-        anio: {
-          type: 'integer',
+        fechaInicio: {
+          type: 'string',
+          pattern: '\\d{4}-\\d{2}-\\d{2}$',
           description:
-            'Año del período (1900–2999). Si el usuario no lo da, ' +
-            'pregunta concreta y brevemente.',
-          minimum: 1900,
-          maximum: 2999,
+            'Primer día del período (INCLUSIVO), formato YYYY-MM-DD. Ej: ' +
+            '"2026-03-01". Si el usuario no menciona período, usa el 1 de enero ' +
+            'del año en curso.',
+        },
+        fechaFin: {
+          type: 'string',
+          pattern: '\\d{4}-\\d{2}-\\d{2}$',
+          description:
+            'Último día del período (INCLUSIVO), formato YYYY-MM-DD. Ej: ' +
+            '"2026-04-30". Si el usuario no menciona período, usa el 31 de ' +
+            'diciembre del año en curso. NO puede ser anterior a `fechaInicio`.',
         },
         idHospitales: {
           type: 'array',
@@ -1537,14 +1554,6 @@ export const TOOLS: Anthropic.Tool[] = [
             'SIEMPRE antes con `obtener_hospitales_disponibles` (campo ' +
             '`hosId`). Ej: "San Lucas" → `[6]`. SIEMPRE array, NUNCA objeto.',
         },
-        meses: {
-          type: 'array',
-          items: { type: 'integer', minimum: 1, maximum: 12 },
-          description:
-            'Meses a incluir (1–12). Si se omite, se asumen los 12 meses del año. ' +
-            'Ej: [10] = octubre.',
-        },
-        dia: DIA_SCHEMA,
         idPlanes: {
           type: 'array',
           items: { type: 'integer' },
@@ -1562,7 +1571,7 @@ export const TOOLS: Anthropic.Tool[] = [
             '["ACUTE","SNF"]. Si el usuario no menciona nivel, OMITE el campo.',
         },
       },
-      required: ['anio', 'idHospitales'],
+      required: ['idHospitales'],
     },
   },
 

@@ -86,8 +86,9 @@ function idPivoteEnQuery(
  * `consultar_determinacion_adversa_monto_consolidado`,
  * `consultar_desempeno_auditor`,
  * `consultar_determinacion_adversa_auditor`,
- * `consultar_facturacion_auditor_hospitales` y
- * `consultar_desempeno_manejador_caso`.
+ * `consultar_facturacion_auditor_hospitales`,
+ * `consultar_desempeno_manejador_caso` y
+ * `consultar_facturacion_manejador_hospitales`.
  *
  * Esos endpoints NO filtran por `anio`/`meses`/`dia` sino por RANGO:
  * `fechaInicio` / `fechaFin` (YYYY-MM-DD, extremos inclusivos).
@@ -648,7 +649,16 @@ export async function executeTool(
   // completo de manejadores aplicables. La IA ordena / filtra localmente
   // según la pregunta (p. ej. "el que más perdió").
   if (toolName === 'consultar_facturacion_manejador_hospitales') {
+    // Este endpoint filtra por RANGO de fechas: `anio`/`meses`/`dia` no
+    // aplican (el backend los ignora), así que se sustituyen por
+    // `fechaInicio`/`fechaFin`.
     const body = buildIaPreguntasBody();
+    delete body['anio'];
+    delete body['meses'];
+    delete body['dia'];
+    const rango = resolverRangoFechas(toolInput);
+    body['fechaInicio'] = rango.fechaInicio;
+    body['fechaFin'] = rango.fechaFin;
     return JSON.stringify(
       await apiPost(FACTURACION_MANEJADOR_HOSPITALES_URL, body, token),
     );

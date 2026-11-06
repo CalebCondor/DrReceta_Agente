@@ -1684,7 +1684,8 @@ export function detectFilterMismatch(
   // `consultar_desempeno_auditor`,
   // `consultar_determinacion_adversa_auditor` y
   // `consultar_facturacion_auditor_hospitales` y
-  // `consultar_desempeno_manejador_caso`): el período NO
+  // `consultar_desempeno_manejador_caso` y
+  // `consultar_facturacion_manejador_hospitales`): el período NO
   // viaja en `anio`/`meses` sino en `fechaInicio`/`fechaFin`. Las
   // comprobaciones de mes/año de abajo se hacen contra el RANGO aplicado
   // (comparar contra `meses` no serviría: el modelo no debe volver a
