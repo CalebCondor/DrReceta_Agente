@@ -79,8 +79,9 @@ function idPivoteEnQuery(
 }
 
 /**
- * Rango de fechas para `consultar_resumen_financiero_hospitales` y
- * `consultar_montos_por_estado`.
+ * Rango de fechas para `consultar_resumen_financiero_hospitales`,
+ * `consultar_montos_por_estado` y
+ * `consultar_determinacion_adversa_mas_frecuente`.
  *
  * Esos endpoints NO filtran por `anio`/`meses`/`dia` sino por RANGO:
  * `fechaInicio` / `fechaFin` (YYYY-MM-DD, extremos inclusivos).
@@ -482,7 +483,16 @@ export async function executeTool(
   }
 
   if (toolName === 'consultar_determinacion_adversa_mas_frecuente') {
+    // Este endpoint filtra por RANGO de fechas: `anio`/`meses`/`dia` no
+    // aplican (el backend los ignora), así que se sustituyen por
+    // `fechaInicio`/`fechaFin`.
     const body = buildIaPreguntasBody();
+    delete body['anio'];
+    delete body['meses'];
+    delete body['dia'];
+    const rango = resolverRangoFechas(toolInput);
+    body['fechaInicio'] = rango.fechaInicio;
+    body['fechaFin'] = rango.fechaFin;
     const top = toolInput['top'];
     const url =
       typeof top === 'number'

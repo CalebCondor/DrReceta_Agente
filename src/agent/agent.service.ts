@@ -1676,11 +1676,13 @@ export function detectFilterMismatch(
     ? (lastInput.idHospitales as number[])
     : [];
 
-  // Tools con contrato de RANGO (`consultar_resumen_financiero_hospitales`
-  // y `consultar_montos_por_estado`): el período NO viaja en `anio`/`meses`
-  // sino en `fechaInicio`/`fechaFin`. Las comprobaciones de mes/año de
-  // abajo se hacen contra el RANGO aplicado (comparar contra `meses` no
-  // serviría: el modelo no debe volver a mandar `meses`).
+  // Tools con contrato de RANGO (`consultar_resumen_financiero_hospitales`,
+  // `consultar_montos_por_estado` y
+  // `consultar_determinacion_adversa_mas_frecuente`): el período NO viaja
+  // en `anio`/`meses` sino en `fechaInicio`/`fechaFin`. Las
+  // comprobaciones de mes/año de abajo se hacen contra el RANGO aplicado
+  // (comparar contra `meses` no serviría: el modelo no debe volver a
+  // mandar `meses`).
   const lastFechaInicio =
     typeof lastInput.fechaInicio === 'string' ? lastInput.fechaInicio : null;
   const lastFechaFin =

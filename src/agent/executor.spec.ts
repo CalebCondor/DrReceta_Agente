@@ -27,6 +27,7 @@ describe('executeTool · consultacion de determinación adversa por auditor', ()
 describe.each([
   'consultar_resumen_financiero_hospitales',
   'consultar_montos_por_estado',
+  'consultar_determinacion_adversa_mas_frecuente',
 ])('executeTool · %s', (toolName) => {
   const fetchMock = jest.fn();
 
