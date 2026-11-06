@@ -44,6 +44,105 @@ function errMsg(e: unknown): string {
 }
 
 /**
+ * Normaliza un valor del tool input a entero. El modelo a veces manda
+ * "2" (string) en vez de 2 (number). Devuelve NaN si no es numérico.
+ */
+function toInt(raw: unknown): number {
+  if (typeof raw === 'number') return raw;
+  if (typeof raw === 'string' && raw.trim().length > 0)
+    return Number(raw.trim());
+  return NaN;
+}
+
+/**
+ * Mueve el ID del pivote (médico / manejador / auditor) del body a la
+ * query string.
+ *
+ * Los endpoints de desempeño (`desempeno-medico`, `desempeno-manejador-caso`,
+ * `desempeno-auditor`) toman ese ID como QUERY param (`idMedicosAlta`,
+ * `idManejadores`, `idAuditores`). Si se manda en el body, el backend lo
+ * descarta en silencio y devuelve el catálogo completo de médicos /
+ * manejadores / auditores — la IA creería estar filtrando y no está.
+ *
+ * Devuelve el query string (sin `?`) o null si no hay ID.
+ */
+function idPivoteEnQuery(
+  body: Record<string, unknown>,
+  bodyKey: string,
+  queryKey: string,
+): string | null {
+  const raw = body[bodyKey];
+  delete body[bodyKey];
+  const id = toInt(raw);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  return `${queryKey}=${encodeURIComponent(String(Math.trunc(id)))}`;
+}
+
+/**
+ * Rango de fechas para `consultar_resumen_financiero_hospitales`.
+ *
+ * Ese endpoint NO filtra por `anio`/`meses`/`dia` sino por RANGO:
+ * `fechaInicio` / `fechaFin` (YYYY-MM-DD, extremos inclusivos).
+ *
+ * Reglas:
+ *   - Si el modelo manda el rango → se usa tal cual.
+ *   - Si manda sólo uno de los dos → el otro se completa con el año del que
+ *     vino (1-ene o 31-dic).
+ *   - Si manda `anio`/`meses`/`dia` (el contrato del resto de tools, por
+ *     costumbre del modelo) → se traduce al rango equivalente.
+ *   - Si no manda nada → AÑO EN CURSO COMPLETO (1-ene → 31-dic).
+ */
+function resolverRangoFechas(toolInput: Record<string, unknown>): {
+  fechaInicio: string;
+  fechaFin: string;
+} {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const iso = (v: unknown): string | null => {
+    if (typeof v !== 'string') return null;
+    const s = v.trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+  };
+
+  const inicio = iso(toolInput['fechaInicio']);
+  const fin = iso(toolInput['fechaFin']);
+  if (inicio && fin) return { fechaInicio: inicio, fechaFin: fin };
+  if (inicio)
+    return { fechaInicio: inicio, fechaFin: `${inicio.slice(0, 4)}-12-31` };
+  if (fin) return { fechaInicio: `${fin.slice(0, 4)}-01-01`, fechaFin: fin };
+
+  const anio = toInt(toolInput['anio']);
+  if (Number.isInteger(anio) && anio >= 1900 && anio <= 2999) {
+    const meses = (
+      Array.isArray(toolInput['meses']) ? (toolInput['meses'] as unknown[]) : []
+    )
+      .map(toInt)
+      .filter((m) => Number.isInteger(m) && m >= 1 && m <= 12)
+      .sort((a, b) => a - b);
+    if (meses.length === 0) {
+      return { fechaInicio: `${anio}-01-01`, fechaFin: `${anio}-12-31` };
+    }
+    const dia = toInt(toolInput['dia']);
+    if (meses.length === 1 && Number.isInteger(dia) && dia >= 1 && dia <= 31) {
+      const unDia = `${anio}-${pad(meses[0])}-${pad(dia)}`;
+      return { fechaInicio: unDia, fechaFin: unDia };
+    }
+    const primero = meses[0];
+    const ultimo = meses[meses.length - 1];
+    return {
+      fechaInicio: `${anio}-${pad(primero)}-01`,
+      // `new Date(anio, mes, 0)` = último día del mes `mes` (mes es 1-based).
+      fechaFin: `${anio}-${pad(ultimo)}-${new Date(anio, ultimo, 0).getDate()}`,
+    };
+  }
+
+  const anioActual = new Date().getFullYear();
+  return {
+    fechaInicio: `${anioActual}-01-01`,
+    fechaFin: `${anioActual}-12-31`,
+  };
+}
+
+/**
  * Tools que requieren una sesión autenticada.
  *
  * IMPORTANTE: los endpoints de Audita (`/api/IaPreguntas/*` y los catálogos
@@ -366,7 +465,16 @@ export async function executeTool(
   };
 
   if (toolName === 'consultar_resumen_financiero_hospitales') {
+    // Este endpoint filtra por RANGO de fechas: `anio`/`meses`/`dia` no
+    // aplican (el backend los ignora), así que se sustituyen por
+    // `fechaInicio`/`fechaFin`.
     const body = buildIaPreguntasBody();
+    delete body['anio'];
+    delete body['meses'];
+    delete body['dia'];
+    const rango = resolverRangoFechas(toolInput);
+    body['fechaInicio'] = rango.fechaInicio;
+    body['fechaFin'] = rango.fechaFin;
     return JSON.stringify(
       await apiPost(RESUMEN_FINANCIERO_HOSPITALES_URL, body, token),
     );
@@ -458,7 +566,17 @@ export async function executeTool(
   // resuelva el nombre antes de hacer una consulta concreta.
   if (toolName === 'consultar_desempeno_medico') {
     const body = buildIaPreguntasBody();
-    return JSON.stringify(await apiPost(DESEMPENO_MEDICO_URL, body, token));
+    // `agruparPor` (opcional): 1 (o ausente) = por hospital (histórico),
+    // 2 = por médico → plan → hospital (el desempeño del médico en todos
+    // los hospitales que evaluó).
+    const agruparPor = toInt(toolInput['agruparPor']);
+    if (agruparPor === 1 || agruparPor === 2) {
+      body['agruparPor'] = agruparPor;
+    }
+    // El ID del médico viaja como QUERY param, no en el body.
+    const qs = idPivoteEnQuery(body, 'idMedicoAlta', 'idMedicosAlta');
+    const url = qs ? `${DESEMPENO_MEDICO_URL}?${qs}` : DESEMPENO_MEDICO_URL;
+    return JSON.stringify(await apiPost(url, body, token));
   }
 
   // ─── Determinación adversa más frecuente del médico de alta ─────────────
@@ -480,9 +598,12 @@ export async function executeTool(
   // `idManejadorCaso`, el backend devuelve el catálogo de manejadores.
   if (toolName === 'consultar_desempeno_manejador_caso') {
     const body = buildIaPreguntasBody();
-    return JSON.stringify(
-      await apiPost(DESEMPENO_MANEJADOR_CASO_URL, body, token),
-    );
+    // El ID del manejador viaja como QUERY param, no en el body.
+    const qs = idPivoteEnQuery(body, 'idManejadorCaso', 'idManejadores');
+    const url = qs
+      ? `${DESEMPENO_MANEJADOR_CASO_URL}?${qs}`
+      : DESEMPENO_MANEJADOR_CASO_URL;
+    return JSON.stringify(await apiPost(url, body, token));
   }
 
   // ─── Determinación adversa más frecuente del manejador de caso ─────────
@@ -530,7 +651,10 @@ export async function executeTool(
   // el catálogo de auditores disponibles bajo los otros filtros.
   if (toolName === 'consultar_desempeno_auditor') {
     const body = buildIaPreguntasBody();
-    return JSON.stringify(await apiPost(DESEMPENO_AUDITOR_URL, body, token));
+    // El ID del auditor viaja como QUERY param, no en el body.
+    const qs = idPivoteEnQuery(body, 'idAuditor', 'idAuditores');
+    const url = qs ? `${DESEMPENO_AUDITOR_URL}?${qs}` : DESEMPENO_AUDITOR_URL;
+    return JSON.stringify(await apiPost(url, body, token));
   }
 
   // ─── Determinación adversa más frecuente de un auditor ──────────────────

@@ -151,8 +151,17 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • El filtro de plan va por la cadena `Auditorias.IdPlanNivel → PlanNivel.PnlPlanId → ' +
       'Planes.IdPlanes`. Auditorías sin plan quedan EXCLUIDAS cuando se envía `idPlanes`.\n\n' +
       'OBTENCIÓN DE PARÁMETROS:\n' +
-      '  • `anio`: int requerido (1900–2999). Si el usuario no lo da, pregunta.\n' +
-      '  • `meses`: int[] opcional (1–12). Si se omite o se envía vacío, se asumen los 12 meses del año.\n' +
+      '  • `fechaInicio` / `fechaFin`: string (YYYY-MM-DD) — el PERÍODO como rango, ' +
+      'con ambos extremos INCLUSIVOS. Esta tool NO usa `anio` / `meses` / `dia`: ' +
+      'el backend filtra por rango de fechas. Manda SIEMPRE las dos fechas:\n' +
+      '    - "de marzo a octubre" / "del 5 al 9 de marzo" / "entre enero y junio" → ' +
+      '`fechaInicio` = primer día del rango, `fechaFin` = último día.\n' +
+      '    - "octubre" / "en octubre" → mes completo (del día 1 al último del mes).\n' +
+      '    - "el 15 de octubre" → `fechaInicio` = `fechaFin` = ese día.\n' +
+      '    - "2025" / "en 2025" → `2025-01-01` a `2025-12-31`.\n' +
+      '    - El usuario NO menciona período → AÑO EN CURSO COMPLETO: `fechaInicio` = ' +
+      '1 de enero del año en curso, `fechaFin` = 31 de diciembre del año en curso. ' +
+      'NO preguntes por el período.\n' +
       '  • `idHospitales`: int[] requerido (al menos uno). Si el usuario solo dice "mis hospitales", ' +
       'usa el listado derivado de las herramientas de perfil/permisos.\n' +
       '  • `idPlanes`: int[] opcional. ANTES de usarlo, llama a `obtener_planes_disponibles` ' +
@@ -184,20 +193,22 @@ export const TOOLS: Anthropic.Tool[] = [
     input_schema: {
       type: 'object',
       properties: {
-        anio: {
-          type: 'integer',
-          description: 'Año del período. Rango válido: 1900–2999.',
-          minimum: 1900,
-          maximum: 2999,
-        },
-        meses: {
-          type: 'array',
-          items: { type: 'integer', minimum: 1, maximum: 12 },
+        fechaInicio: {
+          type: 'string',
+          pattern: '^\\d{4}-\\d{2}-\\d{2}$',
           description:
-            'Meses a incluir (1–12). Si se omite o se envía vacío, se asumen los 12 meses del año. ' +
-            'Ej: [1, 2, 4] = enero, febrero y abril.',
+            'Primer día del período (INCLUSIVO), formato YYYY-MM-DD. Ej: ' +
+            '"2026-03-01". Si el usuario no menciona período, usa el 1 de enero ' +
+            'del año en curso.',
         },
-        dia: DIA_SCHEMA,
+        fechaFin: {
+          type: 'string',
+          pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+          description:
+            'Último día del período (INCLUSIVO), formato YYYY-MM-DD. Ej: ' +
+            '"2026-04-30". Si el usuario no menciona período, usa el 31 de ' +
+            'diciembre del año en curso. NO puede ser anterior a `fechaInicio`.',
+        },
         idHospitales: {
           type: 'array',
           items: { type: 'integer' },
@@ -231,7 +242,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'OMITE el campo (no envíes array vacío ni [""]).',
         },
       },
-      required: ['anio', 'idHospitales'],
+      required: ['idHospitales'],
     },
   },
 
@@ -944,6 +955,35 @@ export const TOOLS: Anthropic.Tool[] = [
       'modo cuando necesites mapear un nombre de médico a su `idMedicoAlta`.\n' +
       '  • MODO CONSULTA: si SÍ se envía `idMedicoAlta`, devuelve solo los KPIs ' +
       'de ese médico.\n\n' +
+      '🧠 AGRUPACIÓN DE LA RESPUESTA (`agruparPor`, opcional):\n' +
+      '  La respuesta puede venir en DOS jerarquías. Elige según la DIMENSIÓN ' +
+      'por la que el usuario quiere ver el dato, NO según los filtros: los ' +
+      'datos y las cifras son EXACTAMENTE los mismos en los dos modos (solo ' +
+      'cambia el orden de los niveles).\n' +
+      '  • `agruparPor: 1` (o si lo OMITES) → POR HOSPITAL: ' +
+      '`hospitales[] → medicos[] → categorias[] → planes[]`. Úsalo cuando la ' +
+      'pregunta sea "¿cómo se comporta CADA médico EN un hospital?" o "ranking ' +
+      'de médicos por hospital" (comparar médicos DENTRO de un hospital). ' +
+      'Ej: "qué médico deniega más días en San Lucas", "cómo se comportan los ' +
+      'médicos del San Lucas en 2026".\n' +
+      '  • `agruparPor: 2` → POR MÉDICO: `medicos[] → planes[] → ' +
+      'hospitales[]` (el médico es el nivel principal y los hospitals cuelgan ' +
+      'del plan). Úsalo cuando la pregunta sea "¿cómo se comporta el médico X ' +
+      'en TODOS los hospitales que evaluó?" o "¿en qué hospital/plan rinde o ' +
+      'pierde más el médico X?". Ej: "cómo se comporta el Dr. X entre todos los ' +
+      'hospitales", "en qué hospital pierde más el Dr. X".\n' +
+      '    OJO, en el modo 2 hay DOS niveles de hospital: `medicos[].hospitales[]` ' +
+      'es el TOTAL del médico en ese hospital (ya viene SUMADO entre todos sus ' +
+      'planes: úsalo para "cuántos días denegados tuvo en San Lucas"), y ' +
+      '`medicos[].planes[].hospitales[]` es el detalle de CADA plan dentro de ' +
+      'ese hospital. Para la respuesta usa SIEMPRE los totales de ' +
+      '`medicos[].hospitales[]` y NO sumes los planes a mano (una suma tuya no ' +
+      'existe en la respuesta y se descarta como dato inventado).\n' +
+      '  • Si la pregunta es ambigua ("desempeño del Dr. X"), usa ' +
+      '`agruparPor: 2`: es el modo que responde POR EL MÉDICO y no por el ' +
+      'hospital.\n' +
+      '  • En el modo 2 la CATEGORÍA se colapsa dentro de cada plan (no existe ' +
+      '`categorias[]`): el desglose disponible es plan → hospital.\n\n' +
       'PRERREQUISITOS:\n' +
       '  • Antes de invocar esta tool, DEBES llamar antes a ' +
       '`obtener_planes_disponibles` para tener el catálogo actualizado de ' +
@@ -965,7 +1005,11 @@ export const TOOLS: Anthropic.Tool[] = [
       'no, OMITE el campo.\n' +
       '  • `idMedicoAlta`: int opcional. Si el usuario preguntó por un médico ' +
       'CONCRETO (por nombre o ID), llámala primero en MODO CATÁLOGO para ' +
-      'resolver el ID y luego repítela pasándolo.\n\n' +
+      'resolver el ID y luego repítela pasándolo.\n' +
+      '  • `agruparPor`: int opcional (1 o 2). 1 = por hospital (omítelo si ' +
+      'el usuario pregunta por un hospital puntual o no dice nada); 2 = por ' +
+      'médico (úsalo cuando la pregunta es sobre UN médico a través de todos ' +
+      'los hospitales, o sobre su desempeño global).\n\n' +
       '🧠 CONTRATO DE FILTRO POR PLANES (CRÍTICO):\n' +
       '  • Si envías `idPlanes` → el backend devuelve el detalle agrupado POR ' +
       'PLAN (útil para responder "¿en qué plan X se concentran los días ' +
@@ -981,7 +1025,12 @@ export const TOOLS: Anthropic.Tool[] = [
       'OMITE `idPlanes`.\n\n' +
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples con ' +
       'guion (una línea por médico, con valores separados por comas o espacios). ' +
-      'NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas alineadas.',
+      'NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas alineadas.\n\n' +
+      'LEE LA JERARQUÍA SEGÚN `agruparPor`: con 1 los médicos cuelgan de ' +
+      '`hospitales[]`; con 2 los médicos cuelgan de la RAÍZ (`medicos[]`), cada ' +
+      'médico trae `planes[]` (y dentro de cada plan sus `hospitales[]`) y ' +
+      'además `hospitales[]` con su TOTAL por hospital. No busques médicos en el ' +
+      'mismo nivel en los dos modos.',
     input_schema: {
       type: 'object',
       properties: {
@@ -1035,6 +1084,19 @@ export const TOOLS: Anthropic.Tool[] = [
             'médico CONCRETO por nombre, PRIMERO llama sin este parámetro, ' +
             'identifica el ID en el catálogo, y VUELVE a llamar pasándolo.',
           minimum: 1,
+        },
+        agruparPor: {
+          type: 'integer',
+          enum: [1, 2],
+          description:
+            'Agrupador de la jerarquía de la respuesta (opcional). 1 (o si lo ' +
+            'OMITES) = POR HOSPITAL: `hospitales[] → medicos[] → categorias[] → ' +
+            'planes[]`; úsalo para "cada médico en cada hospital" y rankings ' +
+            'por hospital. 2 = POR MÉDICO: `medicos[] → planes[] → ' +
+            'hospitales[]`; úsalo para "el médico X en todos los hospitales que ' +
+            'evaluó" y "en qué hospital/plan rinde más el médico X". Los datos ' +
+            'y las cifras son los mismos en ambos modos; solo cambia el orden ' +
+            'de los niveles.',
         },
       },
       required: ['anio', 'idHospitales'],

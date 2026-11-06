@@ -20,3 +20,18 @@ describe('tools · consultacion de determinación adversa por auditor', () => {
     expect(tool?.input_schema.properties).toHaveProperty('idHospitales');
   });
 });
+
+describe('tools · resumen financiero por hospitales', () => {
+  const tool = (TOOLS as unknown as ToolShape[]).find(
+    (t) => t.name === 'consultar_resumen_financiero_hospitales',
+  );
+
+  it('filtra por RANGO de fechas, no por anio/meses/dia', () => {
+    expect(tool).toBeDefined();
+    expect(tool?.input_schema.properties).toHaveProperty('fechaInicio');
+    expect(tool?.input_schema.properties).toHaveProperty('fechaFin');
+    expect(tool?.input_schema.properties).not.toHaveProperty('anio');
+    expect(tool?.input_schema.properties).not.toHaveProperty('meses');
+    expect(tool?.input_schema.properties).not.toHaveProperty('dia');
+  });
+});
