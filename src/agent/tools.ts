@@ -873,6 +873,10 @@ export const TOOLS: Anthropic.Tool[] = [
       'plan opera. Estructura de la respuesta:\n' +
       '  • `hospitales[]` — un elemento por hospital consultado.\n' +
       '    - `hospital` (string): nombre del hospital.\n' +
+      '    - `cantidadPlanes` / `cantidadNiveles`: TOTALES del hospital ' +
+      '(planes distintos que maneja y niveles registrados). Si el usuario ' +
+      'pregunta "¿cuántos planes maneja X?", citá ESE número tal cual — NO ' +
+      'lo sumes vos a partir de las categorías.\n' +
       '    - `categorias[]` — agrupación por tipo de plan (ej. COMERCIAL, ASES (VITAL)).\n' +
       '      - `planes[]` — un elemento por plan con `idPlan`, `plan` (nombre) y `locs[]` ' +
       '        con los códigos de location en los que ese plan tiene actividad ' +

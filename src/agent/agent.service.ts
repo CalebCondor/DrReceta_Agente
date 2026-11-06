@@ -16,9 +16,25 @@ import {
 } from './state';
 import { TOOLS } from './tools';
 import { executeTool } from './executor';
-import { buildSystem, containsUnverifiedClaims, ToolStatus } from './system';
+import {
+  buildSystem,
+  containsUnverifiedClaims,
+  ToolStatus,
+  esToolDeDatos,
+} from './system';
 import { DbService } from './db.service';
 import { ChatGateway } from '../chat/chat.gateway';
+
+/**
+ * Mensaje que se devuelve al usuario cuando el turno termina sin una
+ * respuesta utilizable (el modelo se quedó en bucle re-produciendo el
+ * mismo texto). Se usa en DOS puntos: el corte por bucle y el
+ * agotamiento del límite de rondas (para no devolver una respuesta
+ * vacía).
+ */
+const LOOP_FALLBACK_MSG =
+  'Tuve un problema técnico al procesar tu consulta. ¿Puedes reformularla? ' +
+  'Por ejemplo: "días denegados del Hospital San Lucas en octubre 2026".';
 
 /**
  * Limpia texto generado por el assistant eliminando:
@@ -604,11 +620,8 @@ export class AgentService {
               `[Anthropic] BUCLE detectado (chat=${chatId}): ` +
                 `el modelo repite la misma respuesta ${similarCount} rondas. Cortando.`,
             );
-            const loopMsg =
-              'Tuve un problema técnico al procesar tu consulta. ¿Puedes reformularla? ' +
-              'Por ejemplo: "días denegados del Hospital San Lucas en octubre 2026".';
-            await this.persistMessage(chatId, 'assistant', loopMsg);
-            return loopMsg;
+            await this.persistMessage(chatId, 'assistant', LOOP_FALLBACK_MSG);
+            return LOOP_FALLBACK_MSG;
           }
         }
 
@@ -953,17 +966,23 @@ export class AgentService {
             history.push({
               role: 'user',
               content:
-                '[SISTEMA] Tu respuesta anterior fue rechazada porque contenía ' +
-                'cifras o datos concretos que NO provienen de una herramienta de ' +
-                'datos en este turno. Esos números son INVENTADOS.\n\n' +
-                'El usuario hace una pregunta concreta (ranking de planes, días ' +
-                'denegados, facturado, etc.). Para responder con datos reales, ' +
-                'tienes que EJECUTAR las herramientas necesarias. Si el usuario ' +
-                'menciona un hospital o plan por nombre, primero ejecuta la ' +
-                'herramienta de catálogo correspondiente para mapear el nombre al ' +
-                'identificador. Después, ejecuta la herramienta de datos que ' +
-                'corresponda al indicador. En tu próxima respuesta, el primer ' +
-                'elemento debe ser la llamada a la herramienta, no texto.',
+                '[SISTEMA] Tu respuesta anterior fue rechazada: contiene cifras ' +
+                'que NO aparecen LITERALMENTE en el resultado de ninguna ' +
+                'herramienta.\n\n' +
+                'REGLAS:\n' +
+                '  1. Cada cifra que escribas debe copiar un valor EXACTO del ' +
+                'resultado de la herramienta (ej: si el resultado trae ' +
+                '"cantidadPlanes: 6", podés escribir "6 planes"). NO sumes, NO ' +
+                'calcules, NO redondees: si el total NO viene publicado en el ' +
+                'resultado, NO lo escribas — muestra las partes (ej: "1 plan en ' +
+                'ASES y 3 en COMERCIAL") o di que el total no viene publicado.\n' +
+                '  2. Si al usuario le falta un dato que la herramienta no trae, ' +
+                'llama a la herramienta que sí lo trae (catálogo de planes u ' +
+                'hospitales si el usuario los nombró).\n' +
+                '  3. No repitas la misma respuesta: cambia el enfoque o pide ' +
+                'el dato que falta.\n\n' +
+                'En tu próxima respuesta: primero la llamada a la herramienta, ' +
+                'después el texto con SÓLO cifras que aparecen en el resultado.',
             });
             // Forzamos al modelo a llamar a una tool en el siguiente round.
             // Sin esto, el modelo puede volver a inventar texto.
@@ -1180,6 +1199,21 @@ export class AgentService {
           `[DEBUG] >>> TOOL_CALL name=${tu.name} id=${tu.id} input=${JSON.stringify(args)}`,
         );
 
+        // ═══ HAY DATOS DISPONIBLES ═══
+        // Cualquier tool que NO sea de memoria deja datos reales en el
+        // historial. Si más adelante detectamos un bucle, el modelo
+        // TIENE datos y lo correcto es exigirle que los use (retry
+        // fuerte), no cortarle la conversación con un error genérico.
+        //
+        // Antes esta bandera sólo se activaba para 6 tools concretas y
+        // sólo en las rondas < 4: con el resto de tools (p.ej.
+        // `obtener_planes_por_hospital_con_loc`) el bucle se cortaba
+        // con "Tuve un problema técnico" aunque la respuesta del modelo
+        // fuera correcta.
+        if (esToolDeDatos(tu.name)) {
+          dataToolCalledInConversation = true;
+        }
+
         // ═══ RECHAZO POR FILTROS INVENTADOS ═══
         // Si el bot llama a una tool de DATOS con filtros DIFERENTES al
         // último tool_call del mismo tipo, y el usuario NO mencionó ningún
@@ -1196,7 +1230,6 @@ export class AgentService {
           'consultar_determinacion_adversa_monto_consolidado',
         ]);
         if (DATA_TOOLS.has(tu.name) && round < 4) {
-          dataToolCalledInConversation = true;
           const lastInput = extractLastToolInput(history, tu.name);
           if (lastInput) {
             const newHospitals: number[] = Array.isArray(args.idHospitales)
@@ -1419,6 +1452,19 @@ export class AgentService {
       this.logger.warn(
         `[DEBUG] chat=${chatId} ⚠️  el modelo NO llamó ninguna tool de datos en este turno`,
       );
+    }
+
+    // El loop agotó las rondas sin dejar una respuesta utilizable (p.ej.
+    // el modelo insistiendo con un texto que el validador rechaza). No
+    // le devolvemos una respuesta VACÍA al usuario: le damos un mensaje
+    // claro y persistido.
+    if (collected.length === 0) {
+      this.logger.warn(
+        `[Anthropic] chat=${chatId} SIN RESPUESTA UTILIZABLE tras agotar ` +
+          `las rondas. Devolviendo mensaje de fallback.`,
+      );
+      await this.persistMessage(chatId, 'assistant', LOOP_FALLBACK_MSG);
+      return LOOP_FALLBACK_MSG;
     }
 
     return collected.join('\n');

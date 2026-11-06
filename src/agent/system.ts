@@ -19,6 +19,22 @@ export const MEMORY_TOOLS = [
 
 const NON_DATA_TOOLS: string[] = [...MEMORY_TOOLS];
 
+/**
+ * ¿Esta tool cuenta como "consulta de datos"?
+ *
+ * Todo lo que NO sea una tool de memoria deja datos reales en el
+ * historial: los catálogos (`obtener_planes_disponibles`,
+ * `obtener_hospitales_disponibles`), el catálogo jerárquico de planes
+ * (`obtener_planes_por_hospital_con_loc`) y todas las `consultar_*`.
+ *
+ * Lo usa (a) el validador de cifras para saber contra qué comparar y
+ * (b) el detector de bucles para saber si el modelo YA tiene datos y
+ * por lo tanto no se le debe cortar la conversación con un error.
+ */
+export function esToolDeDatos(toolName: string): boolean {
+  return !NON_DATA_TOOLS.includes(toolName);
+}
+
 const TIMEZONE = 'America/Lima';
 const LOCALE = 'es';
 const DEFAULT_TOP_N = 10;
@@ -191,9 +207,7 @@ export function containsUnverifiedClaims(
   toolResultsHistory: string[] = [],
 ): { suspicious: boolean; reasons: string[] } {
   const reasons: string[] = [];
-  const calledDataTool = toolCallsThisTurn.some(
-    (t) => !NON_DATA_TOOLS.includes(t),
-  );
+  const calledDataTool = toolCallsThisTurn.some(esToolDeDatos);
 
   // 1) Cifras sin respaldo
   const draftNumbers = extractNumbers(cleanDraftForNumbers(draftText));
@@ -564,6 +578,7 @@ const GLOSARIO_NEGOCIO = [
 const REGLAS_DE_DATOS = [
   '🛑 REGLA #1 — NINGUNA CIFRA SIN HERRAMIENTA:',
   'Nunca escribas una cifra, nombre de hospital/plan/nivel/auditor/manejador/determinación, ranking o porcentaje que no provenga TEXTUALMENTE de un resultado de herramienta de ESTE turno (o de un resultado previo con exactamente los mismos filtros, que no esté desactualizado). Si no lo tienes, llama a la herramienta en silencio y espera el resultado antes de escribir. "Si no viene de los datos, no va en mi respuesta."',
+  '⚠️ EN CONCRETO: NO sumes ni calcules totales por tu cuenta. Si la herramienta publica un total (por ejemplo `cantidadPlanes`, `cantidadNiveles`, `cantidadCasos`, `cantidadMedicos`), citá ESE campo tal cual ("6 planes"). Si el total NO viene publicado, mostrá las partes ("1 plan en ASES y 3 en COMERCIAL") o decí que el total no viene publicado — nunca inventes ni sumes el número.',
   '',
   'ELECCIÓN DE HERRAMIENTA: elige la herramienta cuya descripción corresponde al indicador y la entidad pedidos, y llámala ANTES de responder. Guía por intención:',
   '  El usuario pregunta por...                                   → Qué debes hacer',
