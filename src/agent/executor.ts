@@ -81,8 +81,9 @@ function idPivoteEnQuery(
 /**
  * Rango de fechas para `consultar_resumen_financiero_hospitales`,
  * `consultar_montos_por_estado`,
- * `consultar_determinacion_adversa_mas_frecuente` y
- * `consultar_determinacion_adversa_monto`.
+ * `consultar_determinacion_adversa_mas_frecuente`,
+ * `consultar_determinacion_adversa_monto` y
+ * `consultar_determinacion_adversa_monto_consolidado`.
  *
  * Esos endpoints NO filtran por `anio`/`meses`/`dia` sino por RANGO:
  * `fechaInicio` / `fechaFin` (YYYY-MM-DD, extremos inclusivos).
@@ -536,26 +537,17 @@ export async function executeTool(
   }
 
   if (toolName === 'consultar_determinacion_adversa_monto_consolidado') {
+    // Este endpoint filtra por RANGO de fechas: `anio`/`meses`/`dia` no
+    // aplican (el backend los ignora), así que se sustituyen por
+    // `fechaInicio`/`fechaFin`.
     const body = buildIaPreguntasBody();
+    delete body['anio'];
+    delete body['meses'];
+    delete body['dia'];
+    const rango = resolverRangoFechas(toolInput);
+    body['fechaInicio'] = rango.fechaInicio;
+    body['fechaFin'] = rango.fechaFin;
     const esGlobal = body['global'] === true;
-
-    // `anio` obligatorio (1900–2999). Aceptamos string numérico porque el
-    // modelo a veces manda "2026" en vez de 2026.
-    const anioRaw = toolInput['anio'];
-    let anio = NaN;
-    if (typeof anioRaw === 'number') {
-      anio = anioRaw;
-    } else if (typeof anioRaw === 'string' && anioRaw.trim().length > 0) {
-      anio = Number(anioRaw.trim());
-    }
-    if (!Number.isInteger(anio) || anio < 1900 || anio > 2999) {
-      return JSON.stringify({
-        success: false,
-        error:
-          'Falta el parámetro `anio` (número 1900–2999). Si el usuario no dijo el año, usa el año en curso.',
-      });
-    }
-    body['anio'] = anio;
 
     // `idHospitales` es obligatorio salvo que venga `global: true`.
     if (
@@ -567,18 +559,6 @@ export async function executeTool(
         success: false,
         error:
           'Falta el parámetro requerido `idHospitales` (int[], ≥1). Llama antes a `obtener_hospitales_disponibles` (campo `hosId`) y reintenta con esos IDs; si el usuario no dijo cuáles, manda `global: true` para considerar todos los hospitales.',
-      });
-    }
-
-    // `dia` sólo se interpreta con EXACTAMENTE un mes en `meses`; con dos o
-    // más el backend responde 400. Se valida acá para devolverle al modelo
-    // una instrucción accionable en vez de un error opaco.
-    const meses = Array.isArray(body['meses']) ? body['meses'] : [];
-    if (body['dia'] !== undefined && meses.length !== 1) {
-      return JSON.stringify({
-        success: false,
-        error:
-          'El parámetro `dia` sólo se puede usar con EXACTAMENTE un mes en `meses` (el endpoint responde 400 con dos o más meses). Reintenta con `meses: [10]` si el usuario pidió un día de octubre, o sin `dia` para consultar el mes completo.',
       });
     }
 

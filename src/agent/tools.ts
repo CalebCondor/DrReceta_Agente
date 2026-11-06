@@ -746,23 +746,28 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `consultar_determinacion_adversa_mas_frecuente`: ranking por CANTIDAD de veces que se ' +
       'aplicó cada determinación (no por días ni por dinero).\n\n' +
       'PARÁMETROS:\n' +
-      '  • `anio` (number, OBLIGATORIO): año de la consulta (1900-2999).\n' +
+      '  • `fechaInicio` / `fechaFin` (string YYYY-MM-DD, OBLIGATORIOS): el PERÍODO como rango, ' +
+      'con ambos extremos INCLUSIVOS. Esta tool NO usa `anio` / `meses` / `dia`: el backend filtra ' +
+      'por rango de fechas. Manda SIEMPRE las dos fechas:\n' +
+      '    - "de marzo a octubre" / "del 5 al 9 de marzo" / "entre enero y junio" → `fechaInicio` = ' +
+      'primer día del rango, `fechaFin` = último día.\n' +
+      '    - "octubre" / "en octubre" → mes completo (del día 1 al último del mes).\n' +
+      '    - "el 15 de octubre" → `fechaInicio` = `fechaFin` = ese día.\n' +
+      '    - "2025" / "en 2025" → `2025-01-01` a `2025-12-31`.\n' +
+      '    - El usuario NO menciona período → AÑO EN CURSO COMPLETO: `fechaInicio` = 1 de enero del ' +
+      'año en curso, `fechaFin` = 31 de diciembre del año en curso. NO preguntes por el período.\n' +
       '  • `idHospitales` (array of numbers, OBLIGATORIO salvo que mandes `global: true`): los ' +
       'hospitales a considerar. Si el usuario no dijo cuáles, usá `global: true` o preguntale.\n' +
       '  • `global` (boolean, opcional): con `true` se consideran TODOS los hospitales del catálogo y ' +
       '`idHospitales` se ignora.\n' +
-      '  • `meses` (array of numbers 1-12, opcional): meses a incluir. Vacío o ausente = todo el año. ' +
-      'Un mes: [10]. Rango: [1,2,3].\n' +
-      '  • `dia` (number 1-31, opcional): sólo tiene sentido con EXACTAMENTE un mes en `meses`; con dos ' +
-      'o más meses el endpoint responde 400.\n' +
       '  • `idPlanes` (array of numbers, opcional): filtra por plan médico. NUNCA inventes ids ni uses ' +
       'ids memorizados de conversaciones anteriores: llamá antes a la tool de CATÁLOGO DE PLANES para ' +
       'mapear el nombre del plan al `idPlan` (el catálogo puede cambiar entre sesiones).\n' +
       '  • `loc` (array of strings, opcional): filtra por nivel de cuidado — "ACUTE" y/o "SNF" ' +
       '(case-insensitive). Vacío o ausente = todos.\n\n' +
       'FORMATO DE RESPUESTA: devuelve un objeto JSON con:\n' +
-      '  • `filtrosAplicados` (object) — los filtros YA resueltos y en texto legible: `anio`, `periodo` ' +
-      '(p.ej. "Enero - Diciembre 2026"), `hospitales` (array con los nombres cortos), `planes` ("Todos" ' +
+      '  • `filtrosAplicados` (object) — los filtros YA resueltos y en texto legible: `periodo` ' +
+      '(p.ej. "01/01/2026 - 31/12/2026"), `hospitales` (array con los nombres cortos), `planes` ("Todos" ' +
       'o "2 planes solicitados: A, B") y `loc` ("Todos" o "ACUTE"). Usalo para confirmarle al usuario ' +
       'qué período y qué hospitales se aplicaron.\n' +
       '  • `totalDiasDenegados` (number) — Σ de días denegados del filtro.\n' +
@@ -814,11 +819,21 @@ export const TOOLS: Anthropic.Tool[] = [
     input_schema: {
       type: 'object',
       properties: {
-        anio: {
-          type: 'integer',
-          description: 'Año de la consulta (1900-2999). Obligatorio.',
-          minimum: 1900,
-          maximum: 2999,
+        fechaInicio: {
+          type: 'string',
+          pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+          description:
+            'Primer día del período (INCLUSIVO), formato YYYY-MM-DD. Ej: ' +
+            '"2026-03-01". Si el usuario no menciona período, usa el 1 de enero ' +
+            'del año en curso.',
+        },
+        fechaFin: {
+          type: 'string',
+          pattern: '^\\d{4}-\\d{2}-\\d{2}$',
+          description:
+            'Último día del período (INCLUSIVO), formato YYYY-MM-DD. Ej: ' +
+            '"2026-04-30". Si el usuario no menciona período, usa el 31 de ' +
+            'diciembre del año en curso. NO puede ser anterior a `fechaInicio`.',
         },
         idHospitales: {
           type: 'array',
@@ -830,18 +845,6 @@ export const TOOLS: Anthropic.Tool[] = [
           type: 'boolean',
           description:
             'true = considerar TODOS los hospitales del catálogo (ignora idHospitales).',
-        },
-        meses: {
-          type: 'array',
-          items: { type: 'integer', minimum: 1, maximum: 12 },
-          description: 'Meses 1-12 a incluir. Vacío o ausente = todo el año.',
-        },
-        dia: {
-          type: 'integer',
-          minimum: 1,
-          maximum: 31,
-          description:
-            'Día 1-31. Sólo con EXACTAMENTE un mes en meses (si no, el endpoint responde 400).',
         },
         idPlanes: {
           type: 'array',
@@ -856,7 +859,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'Códigos de LOC: "ACUTE" y/o "SNF" (case-insensitive). Vacío = todos.',
         },
       },
-      required: ['anio'],
+      required: [],
     },
   },
 

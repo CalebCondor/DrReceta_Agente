@@ -45,3 +45,24 @@ describe.each([
     expect(tool?.input_schema.required).toContain('idHospitales');
   });
 });
+
+describe('tools · consultar_determinacion_adversa_monto_consolidado', () => {
+  const tool = (TOOLS as unknown as ToolShape[]).find(
+    (t) => t.name === 'consultar_determinacion_adversa_monto_consolidado',
+  );
+
+  it('filtra por RANGO de fechas, no por anio/meses/dia', () => {
+    expect(tool).toBeDefined();
+    expect(tool?.input_schema.properties).toHaveProperty('fechaInicio');
+    expect(tool?.input_schema.properties).toHaveProperty('fechaFin');
+    expect(tool?.input_schema.properties).not.toHaveProperty('anio');
+    expect(tool?.input_schema.properties).not.toHaveProperty('meses');
+    expect(tool?.input_schema.properties).not.toHaveProperty('dia');
+  });
+
+  it('NO exige `anio` ni `idHospitales` (admite `global: true`)', () => {
+    expect(tool?.input_schema.required).not.toContain('anio');
+    expect(tool?.input_schema.required).not.toContain('idHospitales');
+    expect(tool?.input_schema.properties).toHaveProperty('global');
+  });
+});

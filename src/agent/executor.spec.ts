@@ -29,6 +29,7 @@ describe.each([
   'consultar_montos_por_estado',
   'consultar_determinacion_adversa_mas_frecuente',
   'consultar_determinacion_adversa_monto',
+  'consultar_determinacion_adversa_monto_consolidado',
 ])('executeTool · %s', (toolName) => {
   const fetchMock = jest.fn();
 
