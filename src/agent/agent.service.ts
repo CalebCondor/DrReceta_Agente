@@ -32,6 +32,14 @@ import {
   pareceRechazoDeAlcance,
   DeteccionFueraDeAlcance,
 } from './scope';
+import {
+  contieneCifras,
+  detectarConsultaSinIndicador,
+  directivaSinIndicador,
+  menuDeMetricas,
+  ofreceOpcionesDeMetrica,
+  DeteccionSinIndicador,
+} from './intent';
 
 /**
  * Tools que resuelven el desempeño de una PERSONA (médico de alta, auditor,
@@ -51,6 +59,16 @@ const TOOLS_POR_PERSONA = new Set([
   'consultar_determinacion_adversa_auditor',
   'consultar_determinacion_adversa_manejador_caso',
 ]);
+
+/**
+ * Tools de DATOS (las que devuelven cifras). En un turno en el que el
+ * usuario comparó pero NO dijo qué medir, estas se bloquean: sin métrica
+ * declarada no hay nada que consultar, y consultarlas es exactamente lo que
+ * llevaba a Aida a ASUMIR una métrica y devolver un ranking inventado.
+ */
+function esToolDeDatosConCifras(toolName: string): boolean {
+  return toolName.startsWith('consultar_');
+}
 
 /**
  * Mensaje que se devuelve al usuario cuando el turno termina sin una
@@ -529,6 +547,34 @@ export class AgentService {
       );
     }
 
+    // ═══ ALCANCE DEL TURNO (SEGUNDA REGLA) ═══
+    // El usuario comparó o pidió un ranking pero NO declaró la métrica
+    // ("a cuál hospital le va mejor", "cuál hospital es el mejor", "dame los
+    // 5 mejores hospitales"). Cada métrica ordena distinto, así que:
+    //   (a) se avisa al modelo con una directiva dinámica para que ofrezca
+    //       el MENÚ de métricas en vez de asumir una;
+    //   (b) se bloquean las tools de datos (sin métrica no hay nada que
+    //       consultar, y consultarlas era lo que producía el ranking
+    //       asumido);
+    //   (c) si la respuesta no ofrece opciones, se reemplaza por el menú
+    //       canónico.
+    const deteccionIntent: DeteccionSinIndicador =
+      detectarConsultaSinIndicador(userMessageText);
+    const sinIndicador = deteccionIntent.sinIndicador;
+    let toolsBloqueadasPorIndicador = 0;
+    // Turnos en los que NO se esperan cifras: o el dato no existe, o el
+    // usuario no dijo qué medir. Los validadores que exigen "consultá una
+    // tool para poder afirmar algo" pelean contra las respuestas correctas
+    // en estos turnos, así que quedan desactivados.
+    const turnoSinDatos = fueraDeAlcance || sinIndicador;
+
+    if (sinIndicador) {
+      this.logger.log(
+        `[DEBUG] chat=${chatId} SIN_INDICADOR (dimension=${deteccionIntent.dimension}) ` +
+          `msg="${userMessageText.slice(0, 90)}"`,
+      );
+    }
+
     for (let round = 0; round < 10; round++) {
       const systemPrompt = await buildSystem(
         chatId,
@@ -540,7 +586,9 @@ export class AgentService {
               deteccionScope.tieneParteEnAlcance,
               idiomaScope,
             )
-          : undefined,
+          : sinIndicador
+            ? directivaSinIndicador(deteccionIntent.dimension, idiomaScope)
+            : undefined,
       );
 
       // ─── Depurador: qué tools tiene disponibles el modelo en este turno ───
@@ -689,10 +737,13 @@ export class AgentService {
             );
             // Si el turno era una consulta fuera de alcance, el mensaje
             // correcto NO es el error genérico: es la negativa con el
-            // catálogo de lo que sí tenemos.
+            // catálogo de lo que sí tenemos. Y si faltaba la métrica,
+            // el mensaje correcto es el menú de métricas.
             const msgFinal = fueraDeAlcance
               ? mensajeFueraDeAlcance(deteccionScope.entidades, idiomaScope)
-              : LOOP_FALLBACK_MSG;
+              : sinIndicador
+                ? menuDeMetricas(deteccionIntent.dimension, idiomaScope)
+                : LOOP_FALLBACK_MSG;
             await this.persistMessage(chatId, 'assistant', msgFinal);
             return msgFinal;
           }
@@ -723,6 +774,28 @@ export class AgentService {
             );
             textToSave = mensajeFueraDeAlcance(
               deteccionScope.entidades,
+              idiomaScope,
+            );
+          }
+        }
+
+        // ═══ GUARD DE MENÚ PROACTIVO (CONSULTA SIN INDICADOR) ═══
+        // El usuario comparó pero no dijo qué medir. La respuesta correcta
+        // es un MENÚ de métricas. Si el modelo respondió con datos (asumió
+        // una métrica) o con una pregunta abierta, se sustituye por el menú
+        // canónico.
+        if (sinIndicador && textToSave) {
+          const ofreceOpciones = ofreceOpcionesDeMetrica(textToSave);
+          const tiroCifras = contieneCifras(textToSave);
+          if (!ofreceOpciones || tiroCifras) {
+            this.logger.warn(
+              `[Anthropic] round=${round} SIN_INDICADOR_SIN_MENU (chat=${chatId}): ` +
+                `ofreceOpciones=${ofreceOpciones} tiroCifras=${tiroCifras}. ` +
+                `Se sustituye por el menú canónico. ` +
+                `preview="${textToSave.slice(0, 120).replace(/\n/g, ' ')}"`,
+            );
+            textToSave = menuDeMetricas(
+              deteccionIntent.dimension,
               idiomaScope,
             );
           }
@@ -1058,7 +1131,7 @@ export class AgentService {
             // obtuvo en turnos anteriores (p.ej. listas de catálogos).
             extractHistoricalToolResults(history),
           );
-          if (validation.suspicious && round < 4 && !fueraDeAlcance) {
+          if (validation.suspicious && round < 4 && !turnoSinDatos) {
             // (deja la lógica de abajo con el mensaje de alucinación)
 
             this.logger.warn(
@@ -1105,7 +1178,7 @@ export class AgentService {
             round >= 1 &&
             turnToolCalls.length === 0 &&
             turnToolResults.length === 0 &&
-            !fueraDeAlcance &&
+            !turnoSinDatos &&
             // No es una respuesta final de "no tengo datos" (eso se filtra
             // por sanitización más abajo). Aquí solo capturamos "preguntas
             // vagas" que parecen rinden al modelo.
@@ -1204,7 +1277,7 @@ export class AgentService {
             sinDatosRe.test(textToSave) &&
             !llamoDataTool &&
             round < 4 &&
-            !fueraDeAlcance
+            !turnoSinDatos
           ) {
             this.logger.warn(
               `[Anthropic] round=${round} SIN_DATOS_SIN_TOOL (chat=${chatId}): ` +
@@ -1258,6 +1331,27 @@ export class AgentService {
               }
               textToSave = mensajeFueraDeAlcance(
                 deteccionScope.entidades,
+                idiomaScope,
+              );
+            }
+          }
+
+          // ═══ GUARD DE MENÚ PROACTIVO (post-sanitización) ═══
+          // El sanitizador puede haber quitado parte del menú (frases
+          // prohibidas). Si tras limpiar la respuesta ya no ofrece
+          // opciones, se entrega el menú canónico completo.
+          if (sinIndicador && !fueraDeAlcance) {
+            const ofreceOpciones = ofreceOpcionesDeMetrica(textToSave);
+            if (!ofreceOpciones) {
+              if (textToSave) {
+                this.logger.warn(
+                  `[Anthropic] round=${round} SIN_INDICADOR_POST_SANITIZE (chat=${chatId}): ` +
+                    `la respuesta perdió las opciones tras sanitizar. ` +
+                    `preview="${textToSave.slice(0, 120).replace(/\n/g, ' ')}"`,
+                );
+              }
+              textToSave = menuDeMetricas(
+                deteccionIntent.dimension,
                 idiomaScope,
               );
             }
@@ -1534,6 +1628,47 @@ export class AgentService {
           continue;
         }
 
+        // ═══ BLOQUEO DE TOOLS DE DATOS EN UN TURNO SIN INDICADOR ═══
+        // El usuario comparó pero NO dijo qué medir. Consultar cualquier
+        // métrica sería ASUMIRLA, y la respuesta sería un ranking
+        // arbitrario presentado como si fuera el pedido. Se bloquean las
+        // tools de datos y se le exige el menú de métricas.
+        //
+        // El límite de 2 bloqueos evita un bucle infinito: si insiste, se le
+        // deja pasar y el guard post-procesamiento corrige la respuesta.
+        if (
+          sinIndicador &&
+          esToolDeDatosConCifras(tu.name) &&
+          toolsBloqueadasPorIndicador < 2
+        ) {
+          toolsBloqueadasPorIndicador++;
+          this.logger.warn(
+            `[Anthropic] round=${round} TOOL_BLOQUEADA_SIN_INDICADOR (chat=${chatId}): ` +
+              `tool=${tu.name} (la pregunta no declara la métrica a comparar)`,
+          );
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: tu.id,
+            is_error: true,
+            content: JSON.stringify({
+              _sistema: 'SIN_INDICADOR',
+              error:
+                'BLOQUEADA: el usuario pidió una comparación pero NO indicó ' +
+                'qué métrica quiere comparar. Cada métrica ordena distinto, ' +
+                'así que consultar una sería asumirla y devolver un ranking ' +
+                'que no es el pedido.\n\n' +
+                'Responde con un MENÚ de las métricas que sí puedes comparar ' +
+                '(días denegados, % de denegación, días de estancia LOS y % ' +
+                'sobre LOS, monto perdido y % de pérdida, monto facturado y ' +
+                'recuperado, días recuperados y % de recuperación, ' +
+                'determinaciones adversas, ranking de auditores/manejadores de ' +
+                'caso/médicos de alta), una por línea con guion, y pide que ' +
+                'elija una. No llames a ninguna herramienta de datos.',
+            }),
+          });
+          continue;
+        }
+
         const resultStr = await executeTool(tu.name, args, chatId, this.db);
         const toolElapsed = Date.now() - toolStart;
 
@@ -1639,7 +1774,9 @@ export class AgentService {
       );
       const msgFinal = fueraDeAlcance
         ? mensajeFueraDeAlcance(deteccionScope.entidades, idiomaScope)
-        : LOOP_FALLBACK_MSG;
+        : sinIndicador
+          ? menuDeMetricas(deteccionIntent.dimension, idiomaScope)
+          : LOOP_FALLBACK_MSG;
       await this.persistMessage(chatId, 'assistant', msgFinal);
       return msgFinal;
     }

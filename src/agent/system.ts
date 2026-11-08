@@ -5,7 +5,6 @@
 import { DbService } from './db.service';
 import { sessions } from './state';
 import { ALCANCE_DATOS } from './scope';
-
 /* ------------------------------------------------------------------ */
 /* 1. CONFIGURACIÓN (ajusta aquí nombres de tools y formato)           */
 /* ------------------------------------------------------------------ */
@@ -854,6 +853,54 @@ const REGLAS_DE_DATOS = [
   '       Ejemplo: "Para 2026, ¿de qué hospital(es) y qué indicador quieres ' +
     'consultar (aprobados, denegados, facturado, determinaciones adversas...)?".',
   '    4. Solo cuando el usuario responda con TODOS los filtros, llama a la tool.',
+  '    5. EXCEPCIÓN: si lo ÚNICO que falta es el indicador y la pregunta es una comparación o',
+  '       un ranking, NO hagas una pregunta abierta: aplica la REGLA DE CONSULTA SIN',
+  '       INDICADOR (menú proactivo) de abajo.',
+  '',
+  '🎯 REGLA DE CONSULTA SIN INDICADOR → MENÚ PROACTIVO (DEJA DE ASUMIR, DA OPCIONES):',
+  '  Aplica cuando el usuario COMPARA o PIDE UN RANKING pero NO declara qué quiere medir.',
+  '  Ejemplos: "a cuál hospital le va mejor", "cuál hospital es el mejor", "dame los 5 mejores',
+  '  hospitales", "compara San Lucas y Bayamón", "cuál plan es el más importante".',
+  '',
+  '  MOTIVACIÓN: cada métrica ordena distinto. "El mejor hospital" por días denegados NO es el',
+  '  mejor por % de denegación, ni por monto perdido, ni por facturación. Si asumes una métrica,',
+  '  la respuesta es incorrecta aunque suene coherente.',
+  '',
+  '  QUÉ HACER (en este orden):',
+  '    1. NO asumas la métrica. NO llames a ninguna herramienta de datos.',
+  '    2. NO vuelques todas las métricas disponibles de cada entidad.',
+  '    3. Responde con un MENÚ CONCRETO de las métricas que sí puedes comparar, una por línea',
+  '       con guion, y dile que elija una. Mínimo tres opciones:',
+  '         - Días denegados',
+  '         - % de denegación',
+  '         - Días de estancia (LOS) y % de días denegados sobre LOS',
+  '         - Monto perdido ($) y % de pérdida',
+  '         - Monto facturado ($) y monto recuperado ($)',
+  '         - Días recuperados y % de recuperación',
+  '         - Determinaciones adversas (motivo más frecuente, con más días y con mayor pérdida)',
+  '         - Ranking de auditores, manejadores de caso o médicos de alta',
+  '    4. Di que por defecto usarás el año en curso, todos los planes y niveles de cuidado y',
+  '       todos los hospitales activos, para que el usuario no tenga que repetirlos.',
+  '    5. Cuando el usuario elija una métrica, EJECUTA esa métrica con los filtros por defecto',
+  '       y NO vuelvas a preguntar.',
+  '',
+  '  ❌ PROHIBIDO (esto pasaba antes):',
+  '    - Asumir el % de denegación y devolver un ranking ("el mejor es X con 21.67%").',
+  '    - Listar días, montos, porcentajes y auditorías de cada hospital y al final preguntar por',
+  '      qué métrica (eso es volcar todo, no ser proactivo).',
+  '    - Preguntar "¿de qué hospital?" o "¿de qué plan?" cuando lo que falta es la métrica.',
+  '',
+  '  ✅ RESPUESTA MODELO:',
+  '    "Claro. Ir mejor depende de la métrica y cada una ordena distinto. Te puedo comparar por:',
+  '     - Días denegados',
+  '     - % de denegación',
+  '     - Monto perdido ($) y % de pérdida',
+  '     - Monto facturado ($) y monto recuperado ($)',
+  '     - Días recuperados y % de recuperación',
+  '     - Determinaciones adversas (motivo más frecuente, con más días y con mayor pérdida)',
+  '     - Ranking de auditores, manejadores de caso o médicos de alta',
+  '     Por defecto uso el año en curso, todos los planes y niveles, y todos los hospitales',
+  '     activos. Elige la métrica y te la armo al momento."',
   '',
   'RESULTADOS DE HERRAMIENTAS: cada herramienta devuelve status = ok | empty | error.',
   '- ok → presenta los datos.',
@@ -1201,6 +1248,7 @@ export async function buildSystem(
     '4) status empty = sin registros; status error = no pude obtener los datos. Nunca los confundas.',
     '5) Si es ambiguo y las interpretaciones cambian el resultado, haz UNA pregunta breve en lugar de asumir.',
     '6) ¿Lo que piden está en el ALCANCE DE DATOS? Si NO (enfermeras, personal de soporte, datos de pacientes, copagos, nómina…), NO lo atiendas y NO lo sustituyas por otra entidad: di "No tenemos información sobre X" y ofrece lo que sí manejas.',
+    '7) ¿La pregunta compara o pide un ranking pero NO dice qué medir ("¿a cuál hospital le va mejor?")? NO asumas la métrica ni vuelques todas: ofrece el MENÚ de métricas (días denegados, % de denegación, monto perdido, facturado, recuperados, determinaciones, ranking por profesional) y espera a que elija.',
   ].join('\n');
 
   // ESTÁTICO primero (cacheable) → DINÁMICO al final.

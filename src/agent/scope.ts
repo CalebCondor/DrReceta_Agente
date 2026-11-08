@@ -290,14 +290,16 @@ export type Idioma = 'es' | 'en';
  */
 export function detectarIdioma(mensaje: string): Idioma {
   const t = (mensaje ?? '').toLowerCase();
+  // Solo palabras EXCLUSIVAS de cada idioma: "hospital", "plan" y "auditor"
+  // existen en ambos y no sirven para distinguir.
   const es = (
     t.match(
-      /\b(el|la|los|las|de|que|cual|cu[aá]l|con|para|m[aá]s|d[ií]as|auditor|m[eé]dico|enfermer|hospital|plan|por)\b/g,
+      /\b(el|la|los|las|de|que|cual|cu[aá]l|cu[aá]les|cu[aá]nto|con|para|m[aá]s|d[ií]as|enfermer|enfermera|qu[eé]|son|est[aá]|hay|tienes|puedes|dime)\b/g,
     ) ?? []
   ).length;
   const en = (
     t.match(
-      /\b(the|which|of|is|are|with|for|more|days|nurse|nursing|doctor|auditor|hospital|plan|most|least)\b/g,
+      /\b(the|which|what|how|of|is|are|with|for|more|show|tell|give|nurse|nursing|best|better|worst|most|least|can|you)\b/g,
     ) ?? []
   ).length;
   if (en > es) return 'en';
