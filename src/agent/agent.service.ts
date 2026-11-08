@@ -24,6 +24,33 @@ import {
 } from './system';
 import { DbService } from './db.service';
 import { ChatGateway } from '../chat/chat.gateway';
+import {
+  detectarConsultaFueraDeAlcance,
+  detectarIdioma,
+  directivaFueraDeAlcance,
+  mensajeFueraDeAlcance,
+  pareceRechazoDeAlcance,
+  DeteccionFueraDeAlcance,
+} from './scope';
+
+/**
+ * Tools que resuelven el desempeño de una PERSONA (médico de alta, auditor,
+ * manejador de caso). Son las que el modelo usaría para SUSTITUIR una
+ * entidad que no tenemos (p.ej. la "enfermera" por el "médico") cuando la
+ * pregunta del usuario es fuera de alcance. En un turno marcado como
+ * fuera de alcance las bloqueamos, salvo que el mensaje también mencione
+ * un rol que SÍ está en el alcance (pregunta mixta).
+ */
+const TOOLS_POR_PERSONA = new Set([
+  'consultar_desempeno_medico',
+  'consultar_desempeno_auditor',
+  'consultar_desempeno_manejador_caso',
+  'consultar_facturacion_auditor_hospitales',
+  'consultar_facturacion_manejador_hospitales',
+  'consultar_determinacion_adversa_medico_alta',
+  'consultar_determinacion_adversa_auditor',
+  'consultar_determinacion_adversa_manejador_caso',
+]);
 
 /**
  * Mensaje que se devuelve al usuario cuando el turno termina sin una
@@ -473,8 +500,48 @@ export class AgentService {
       }
     }
 
+    // ═══ ALCANCE DE DATOS ═══
+    // Detecta de forma determinista si el usuario preguntó por una entidad
+    // que Audita NO tiene (enfermeras, pacientes, nómina, copagos, …).
+    // Cuando es así:
+    //   (a) se avisa al modelo con una directiva dinámica en el system
+    //       prompt para que rechace esa parte sin llamar herramientas;
+    //   (b) se bloquean las tools "por persona" para que no pueda
+    //       SUSTITUIR la entidad pedida (enfermera) por otra que sí
+    //       tiene (médico de alta);
+    //   (c) si aun así responde con datos, se reemplaza la respuesta por
+    //       el mensaje canónico de negativa.
+    const deteccionScope: DeteccionFueraDeAlcance =
+      detectarConsultaFueraDeAlcance(userMessageText);
+    const idiomaScope = detectarIdioma(userMessageText);
+    const fueraDeAlcance = deteccionScope.fuera;
+    // Pregunta "mixta": el mensaje también menciona un rol que SÍ tenemos.
+    const scopeBloqueaToolsPorPersona =
+      fueraDeAlcance && !deteccionScope.tieneParteEnAlcance;
+    let toolsBloqueadasPorScope = 0;
+
+    if (fueraDeAlcance) {
+      this.logger.log(
+        `[DEBUG] chat=${chatId} FUERA_DE_ALCANCE (entidades=${deteccionScope.entidades.join(
+          ' | ',
+        )}, match=${deteccionScope.matches.join(' | ')}, ` +
+          `parteEnAlcance=${deteccionScope.tieneParteEnAlcance})`,
+      );
+    }
+
     for (let round = 0; round < 10; round++) {
-      const systemPrompt = await buildSystem(chatId, this.db);
+      const systemPrompt = await buildSystem(
+        chatId,
+        this.db,
+        undefined,
+        fueraDeAlcance
+          ? directivaFueraDeAlcance(
+              deteccionScope.entidades,
+              deteccionScope.tieneParteEnAlcance,
+              idiomaScope,
+            )
+          : undefined,
+      );
 
       // ─── Depurador: qué tools tiene disponibles el modelo en este turno ───
       // Logueamos los nombres de las tools disponibles y el historial para
@@ -620,8 +687,44 @@ export class AgentService {
               `[Anthropic] BUCLE detectado (chat=${chatId}): ` +
                 `el modelo repite la misma respuesta ${similarCount} rondas. Cortando.`,
             );
-            await this.persistMessage(chatId, 'assistant', LOOP_FALLBACK_MSG);
-            return LOOP_FALLBACK_MSG;
+            // Si el turno era una consulta fuera de alcance, el mensaje
+            // correcto NO es el error genérico: es la negativa con el
+            // catálogo de lo que sí tenemos.
+            const msgFinal = fueraDeAlcance
+              ? mensajeFueraDeAlcance(deteccionScope.entidades, idiomaScope)
+              : LOOP_FALLBACK_MSG;
+            await this.persistMessage(chatId, 'assistant', msgFinal);
+            return msgFinal;
+          }
+        }
+
+        // ═══ GUARD DE ALCANCE DE DATOS ═══
+        // El usuario preguntó por algo que Audita NO tiene (enfermeras,
+        // pacientes, nómina…). La respuesta correcta es un RECHAZO. Si el
+        // modelo respondió con un ranking, una cifra o con la entidad
+        // SUSTITUIDA (p.ej. el ranking de médicos en lugar de enfermeras),
+        // lo corregimos con el mensaje canónico de negativa.
+        //
+        // Este control va ANTES de los validadores anti-alucinación: un
+        // rechazo ("no hay datos de enfermería") no debe ser tratado como
+        // una afirmación de ausencia de datos que hay que verificar con
+        // una tool.
+        if (fueraDeAlcance && textToSave) {
+          const esRechazo = pareceRechazoDeAlcance(
+            textToSave,
+            deteccionScope.matches,
+          );
+          if (!esRechazo) {
+            this.logger.warn(
+              `[Anthropic] round=${round} FUERA_DE_ALCANCE_SIN_RECHAZO (chat=${chatId}): ` +
+                `el modelo respondió con datos para una consulta fuera de alcance. ` +
+                `Se sustituye por el mensaje canónico. ` +
+                `preview="${textToSave.slice(0, 120).replace(/\n/g, ' ')}"`,
+            );
+            textToSave = mensajeFueraDeAlcance(
+              deteccionScope.entidades,
+              idiomaScope,
+            );
           }
         }
 
@@ -955,7 +1058,7 @@ export class AgentService {
             // obtuvo en turnos anteriores (p.ej. listas de catálogos).
             extractHistoricalToolResults(history),
           );
-          if (validation.suspicious && round < 4) {
+          if (validation.suspicious && round < 4 && !fueraDeAlcance) {
             // (deja la lógica de abajo con el mensaje de alucinación)
 
             this.logger.warn(
@@ -1002,6 +1105,7 @@ export class AgentService {
             round >= 1 &&
             turnToolCalls.length === 0 &&
             turnToolResults.length === 0 &&
+            !fueraDeAlcance &&
             // No es una respuesta final de "no tengo datos" (eso se filtra
             // por sanitización más abajo). Aquí solo capturamos "preguntas
             // vagas" que parecen rinden al modelo.
@@ -1099,7 +1203,8 @@ export class AgentService {
           if (
             sinDatosRe.test(textToSave) &&
             !llamoDataTool &&
-            round < 4
+            round < 4 &&
+            !fueraDeAlcance
           ) {
             this.logger.warn(
               `[Anthropic] round=${round} SIN_DATOS_SIN_TOOL (chat=${chatId}): ` +
@@ -1132,6 +1237,32 @@ export class AgentService {
           // o tasas no pedidas en la BD, y el cliente recibe el texto
           // ya limpio.
           textToSave = sanitizeAssistantText(textToSave);
+
+          // ═══ GUARD DE ALCANCE (post-sanitización) ═══
+          // El sanitizador puede vaciar la respuesta (frases prohibidas)
+          // o dejarla sin la negativo. En un turno fuera de alcance
+          // nunca regeneramos ni aceptamos una respuesta que no sea un
+          // rechazo: devolvemos el mensaje canónico.
+          if (fueraDeAlcance) {
+            const esRechazo = pareceRechazoDeAlcance(
+              textToSave,
+              deteccionScope.matches,
+            );
+            if (!esRechazo) {
+              if (textToSave) {
+                this.logger.warn(
+                  `[Anthropic] round=${round} FUERA_DE_ALCANCE_POST_SANITIZE (chat=${chatId}): ` +
+                    `la respuesta no era un rechazo válido tras sanitizar. ` +
+                    `preview="${textToSave.slice(0, 120).replace(/\n/g, ' ')}"`,
+                );
+              }
+              textToSave = mensajeFueraDeAlcance(
+                deteccionScope.entidades,
+                idiomaScope,
+              );
+            }
+          }
+
           if (!textToSave && round < 9) {
             // La respuesta quedó vacía tras sanitizar: contenía SOLO
             // frases prohibidas (p. ej. "indícame el ID del hospital"
@@ -1360,6 +1491,49 @@ export class AgentService {
           }
         }
 
+        // ═══ BLOQUEO DE TOOLS "POR PERSONA" EN UN TURNO FUERA DE ALCANCE ═══
+        // Si el usuario preguntó por una entidad que Audita NO tiene, el
+        // modelo no puede "resolverla" consultando el desempeño de OTRA
+        // persona (médico de alta, auditor o manejador de caso) y
+        // presentar ese ranking como si fuera la respuesta: eso es
+        // SUSTITUIR la entidad pedida. Bloqueamos esas tools y le exigimos
+        // la negativa.
+        //
+        // El límite de 2 bloqueos evita un bucle infinito: si insiste, se
+        // le deja pasar y el guard post-procesamiento corrige la respuesta.
+        if (
+          scopeBloqueaToolsPorPersona &&
+          TOOLS_POR_PERSONA.has(tu.name) &&
+          toolsBloqueadasPorScope < 2
+        ) {
+          toolsBloqueadasPorScope++;
+          this.logger.warn(
+            `[Anthropic] round=${round} TOOL_BLOQUEADA_POR_SCOPE (chat=${chatId}): ` +
+              `tool=${tu.name} (consulta fuera de alcance: ${deteccionScope.entidades.join(' y ')})`,
+          );
+          toolResults.push({
+            type: 'tool_result',
+            tool_use_id: tu.id,
+            is_error: true,
+            content: JSON.stringify({
+              _sistema: 'FUERA_DE_ALCANCE',
+              error:
+                'BLOQUEADA: el usuario preguntó por algo que Audita NO tiene (' +
+                deteccionScope.entidades.join(' y ') +
+                '). Esta herramienta devuelve el desempeño de OTRA persona ' +
+                '(médico de alta, auditor o manejador de caso) y NO puede ' +
+                'usarse para responder lo que se preguntó: sería sustituir ' +
+                'la entidad por otra y dar un dato que no es el pedido.\n\n' +
+                'Responde esa parte con una negativa breve indicando qué ' +
+                'datos sí manejamos: hospitales, planes médicos, días ' +
+                'aprobados/denegados/recuperados, días de estancia (LOS), ' +
+                'facturación, determinaciones adversas, y el desempeño de ' +
+                'auditores, manejadores de caso y médicos de alta.',
+            }),
+          });
+          continue;
+        }
+
         const resultStr = await executeTool(tu.name, args, chatId, this.db);
         const toolElapsed = Date.now() - toolStart;
 
@@ -1463,8 +1637,11 @@ export class AgentService {
         `[Anthropic] chat=${chatId} SIN RESPUESTA UTILIZABLE tras agotar ` +
           `las rondas. Devolviendo mensaje de fallback.`,
       );
-      await this.persistMessage(chatId, 'assistant', LOOP_FALLBACK_MSG);
-      return LOOP_FALLBACK_MSG;
+      const msgFinal = fueraDeAlcance
+        ? mensajeFueraDeAlcance(deteccionScope.entidades, idiomaScope)
+        : LOOP_FALLBACK_MSG;
+      await this.persistMessage(chatId, 'assistant', msgFinal);
+      return msgFinal;
     }
 
     return collected.join('\n');

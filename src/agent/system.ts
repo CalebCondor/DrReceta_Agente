@@ -4,6 +4,7 @@
 
 import { DbService } from './db.service';
 import { sessions } from './state';
+import { ALCANCE_DATOS } from './scope';
 
 /* ------------------------------------------------------------------ */
 /* 1. CONFIGURACIÓN (ajusta aquí nombres de tools y formato)           */
@@ -1112,6 +1113,12 @@ export async function buildSystem(
   chatId: number,
   db: DbService,
   knownName?: string,
+  /**
+   * Nota dinámica SOLO para este turno (ej.: aviso de consulta fuera del
+   * alcance de datos). Se anexa al final del prompt para NO romper el
+   * prefijo cacheable de los bloques estáticos.
+   */
+  extraDinamico?: string,
 ): Promise<string> {
   const session = sessions.get(chatId) as unknown as SessionExt | undefined;
   if (knownName && session) session.name = knownName;
@@ -1193,12 +1200,14 @@ export async function buildSystem(
     '3) Verifica el indicador correcto (días ≠ dinero; aprobados ≠ denegados ≠ recuperados; facturado ≠ perdido ≠ potencial ≠ recuperado) y declara periodo y filtros aplicados.',
     '4) status empty = sin registros; status error = no pude obtener los datos. Nunca los confundas.',
     '5) Si es ambiguo y las interpretaciones cambian el resultado, haz UNA pregunta breve en lugar de asumir.',
+    '6) ¿Lo que piden está en el ALCANCE DE DATOS? Si NO (enfermeras, personal de soporte, datos de pacientes, copagos, nómina…), NO lo atiendas y NO lo sustituyas por otra entidad: di "No tenemos información sobre X" y ofrece lo que sí manejas.',
   ].join('\n');
 
   // ESTÁTICO primero (cacheable) → DINÁMICO al final.
   return [
     // ---- estático ----
     REGLAS_CRITICAS_INICIO,
+    ALCANCE_DATOS,
     REGLAS_DE_DATOS,
     ROL_Y_PERSONA,
     GLOSARIO_NEGOCIO,
@@ -1213,6 +1222,7 @@ export async function buildSystem(
     filtrosActivos,
     capacidades,
     recordatorioFinal,
+    extraDinamico,
   ]
     .filter(Boolean)
     .join('\n\n');
