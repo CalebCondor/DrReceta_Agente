@@ -80,12 +80,16 @@ function toInt(raw: unknown): number {
  *       3 = por hospital     (`auditor → hospitales[] → determinaciones[]`)
  *       4 = por plan y hospital
  *                          (`auditor → planes[] → hospitales[] → determinaciones[]`)
+ *   · `consultar_facturacion_auditor_hospitales`:
+ *       1 = por hospital (`hospitales[] → auditores[] → planes[]`)
+ *       2 = por auditor  (`auditores[] → planes[] → hospitales[]`)
  */
 const AGRUPAR_POR_POR_TOOL: Record<string, number[]> = {
   consultar_desempeno_medico: [1, 2],
   consultar_desempeno_manejador_caso: [1, 2, 3],
   consultar_desempeno_auditor: [1, 2],
   consultar_determinacion_adversa_auditor: [1, 2, 3, 4],
+  consultar_facturacion_auditor_hospitales: [1, 2],
 };
 
 /**
@@ -522,6 +526,9 @@ export async function executeTool(
     //     planes[]`), 2 = por manejador (`manejadores[] → hospitales[] →
     //     planes[]`), 3 = por plan (`manejadores[] → planes[] →
     //     hospitales[]`).
+    //   · `consultar_facturacion_auditor_hospitales`: 1 (o ausente) = por
+    //     hospital (`hospitales[] → auditores[] → planes[]`), 2 = por
+    //     auditor (`auditores[] → planes[] → hospitales[]`).
     const agruparPor = toInt(toolInput['agruparPor']);
     const agruparPorAdmitidos = AGRUPAR_POR_POR_TOOL[toolName];
     if (

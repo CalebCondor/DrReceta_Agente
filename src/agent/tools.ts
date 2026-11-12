@@ -1739,28 +1739,59 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `idPlanes`: int[] opcional. Si el usuario dice "todos", OMITE el ' +
       'campo (no envíes array vacío).\\n' +
       '  • `loc`: array opcional de "ACUTE" / "SNF". SIEMPRE como ARRAY. Si ' +
-      'el usuario no menciona nivel de cuidado, OMITE el campo.\\n\\n' +
+      'el usuario no menciona nivel de cuidado, OMITE el campo.\\n' +
+      '  • `agruparPor`: int opcional (1 o 2). Ver "AGRUPACIÓN DE LA ' +
+      'RESPUESTA" más abajo.\\n\\n' +
+      '🧠 AGRUPACIÓN DE LA RESPUESTA (`agruparPor`, opcional):\\n' +
+      '  • `agruparPor: 1` (o si lo OMITES) → POR HOSPITAL: ' +
+      '`hospitales[] → auditores[] → planes[]`. Responde "¿qué auditores ' +
+      'firman en el hospital X?", "¿cuánto perdió cada uno en ese ' +
+      'hospital?" y "¿en qué planes del hospital trabajó cada auditor?".\\n' +
+      '  • `agruparPor: 2` → POR AUDITOR: `auditores[] → planes[] → ' +
+      'hospitales[]`. Responde "¿cuánto perdió el auditor X?", "¿en qué ' +
+      'plan pierde más?" y "¿en qué hospital de ese plan?".\\n' +
+      '  • Los MISMOS datos, filtros y montos en los dos modos: sólo cambia ' +
+      'el orden de los niveles; `totales` es idéntico en ambos.\\n' +
+      '  • Usa el 1 cuando la pregunta gira en torno al HOSPITAL ("en el ' +
+      'hospital X, ¿quién perdió más?") y el 2 cuando gira en torno al ' +
+      'AUDITOR ("el auditor X, ¿cuánto perdió y dónde?"). Ante la duda, ' +
+      'usa el 1 (es el modo por defecto).\\n\\n' +
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
       'con guion (una línea por auditor, con valores separados por comas ' +
       'o espacios — usa el símbolo $ antes de los montos). NUNCA uses <pre>, ' +
       '<table>, <ul>, <li>, <br>, ni columnas alineadas.\\n\\n' +
       '📦 ESTRUCTURA DEL PAYLOAD QUE DEVUELVE EL ENDPOINT (úsalo literal, ' +
       'NO renombres NI recalcules nada):\\n' +
+      '  • `filtrosAplicados`: { periodo, hospitales[], planes, loc } — los ' +
+      'filtros ya resueltos, en texto legible.\\n' +
       '  • `totales`: { cantidadCasos, cantidadPlanes, cantidadAuditores, ' +
-      '    montoFacturado, montoPerdido, montoRecuperado, ' +
-      '    porcentajeFacturado, porcentajePerdido, porcentajeRecuperado }\\n' +
-      '  • `hospitales[]`: un elemento por hospital, con sus propios montos ' +
-      'y porcentajes.\\n' +
-      '  • `auditores[]`: un elemento por auditor, con los campos ' +
-      '    `idAuditor`, `auditor` (nombre), `casos`, ' +
-      '    `montoFacturado`, `montoPerdido`, `montoRecuperado`, ' +
-      '    `porcentajeFacturado`, `porcentajePerdido`, `porcentajeRecuperado`.\\n' +
-      '⚠️ NOTA: el campo de porcentaje se llama EXACTAMENTE `porcentajePerdido` ' +
-      '(NO `porcentajePerdida`, NO `porcentajePerdidoDeFacturado`, etc.). Si el ' +
-      'usuario pregunta por el "% de pérdida", lee directamente el campo ' +
-      '`porcentajePerdido` del payload — NO lo calcules dividiendo ' +
-      'montoPerdido entre montoFacturado ni sumando nada. NO existe un campo ' +
-      '"potencial" explícito: NO inventes esa cifra.',
+      'cantidadHospitales, montoFacturado, montoPerdido, montoRecuperado, ' +
+      'montoPotencial, porcentajeFacturadoSobrePotencial, ' +
+      'porcentajePerdidoSobrePotencial, porcentajeRecuperadoSobrePotencial }.\\n' +
+      '  • MODO 1: `hospitales[]` → cada hospital trae sus montos, sus ' +
+      'porcentajes y `auditores[]`; cada auditor trae sus montos, sus ' +
+      'porcentajes y `planes[]` (la HOJA).\\n' +
+      '  • MODO 2: `auditores[]` → cada auditor trae sus montos, sus ' +
+      'porcentajes y `planes[]`; cada plan trae sus montos, sus ' +
+      'porcentajes y `hospitales[]` (la HOJA).\\n' +
+      '  • Cada nodo (hospital / auditor / plan) trae: `cantidadCasos`, ' +
+      '`montoFacturado`, `montoPerdido`, `montoRecuperado`, `montoPotencial`, ' +
+      '`porcentajeFacturadoSobrePotencial`, `porcentajePerdidoSobrePotencial`, ' +
+      '`porcentajeRecuperadoSobrePotencial` y su cuota dentro del nivel de ' +
+      'ARRIBA (`porcentajeXDelTotal` en la raíz, `porcentajeXDelHospital`, ' +
+      '`porcentajeXDelAuditor` o `porcentajeXDelPlan` según el nivel): los ' +
+      'hijos suman el 100% de su padre.\\n' +
+      '  • Los identificadores van con su nombre: `idHospital` + ' +
+      '`hospitalNombre`, `idAuditor` + `nombreCompleto`, `idPlan` + ' +
+      '`planNombre`.\\n' +
+      '⚠️ NOTA: los porcentajes se llaman EXACTAMENTE ' +
+      '`porcentajeFacturadoSobrePotencial`, `porcentajePerdidoSobrePotencial` ' +
+      'y `porcentajeRecuperadoSobrePotencial` (NO `porcentajeFacturado` ni ' +
+      '`porcentajePerdido` a secas). Si el usuario pregunta por el "% de ' +
+      'pérdida", lee `porcentajePerdidoSobrePotencial` (o el `...Del...` que ' +
+      'corresponda al nivel) — NO lo calcules dividiendo montoPerdido entre ' +
+      'montoFacturado ni sumando nada. `montoPotencial` SÍ existe: es el ' +
+      'denominador de esos porcentajes.',
     input_schema: {
       type: 'object',
       properties: {
@@ -1803,6 +1834,18 @@ export const TOOLS: Anthropic.Tool[] = [
             'Filtro por Location / Nivel de cuidado (opcional, array de enum). ' +
             'Se envía SIEMPRE como ARRAY: ej ["ACUTE"], ["SNF"] o ' +
             '["ACUTE","SNF"]. Si el usuario no menciona nivel, OMITE el campo.',
+        },
+        agruparPor: {
+          type: 'integer',
+          enum: [1, 2],
+          description:
+            'Agrupador de la jerarquía de la respuesta (opcional). 1 (o si lo ' +
+            'OMITES) = POR HOSPITAL: `hospitales[] → auditores[] → planes[]`; ' +
+            'úsalo para "en el hospital X, ¿qué auditores firman y cuánto ' +
+            'perdieron?". 2 = POR AUDITOR: `auditores[] → planes[] → ' +
+            'hospitales[]`; úsalo para "el auditor X, ¿cuánto perdió, en qué ' +
+            'plan y en qué hospital?". Los datos y las cifras son los mismos ' +
+            'en ambos modos; solo cambia el orden de los niveles.',
         },
       },
       required: ['idHospitales'],

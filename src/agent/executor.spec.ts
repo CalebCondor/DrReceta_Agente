@@ -461,3 +461,81 @@ describe('executeTool · consultar_determinacion_adversa_auditor · agruparPor',
     expect(body['agruparPor']).toBe(2);
   });
 });
+
+describe('executeTool · consultar_facturacion_auditor_hospitales · agruparPor', () => {
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ ok: true })),
+    });
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+  });
+
+  const called = () => {
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    return {
+      url,
+      body: JSON.parse(init.body as string) as Record<string, unknown>,
+    };
+  };
+
+  it('manda `agruparPor: 2` (por auditor) en el body', async () => {
+    await executeTool(
+      'consultar_facturacion_auditor_hospitales',
+      { anio: 2026, idHospitales: [6], agruparPor: 2 },
+      1,
+      {} as DbService,
+    );
+    const { url, body } = called();
+    expect(body['agruparPor']).toBe(2);
+    expect(url).not.toContain('agruparPor');
+  });
+
+  it('manda `agruparPor: 1` (por hospital) cuando el modelo lo pide explícito', async () => {
+    await executeTool(
+      'consultar_facturacion_auditor_hospitales',
+      { anio: 2026, idHospitales: [6], agruparPor: 1 },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body['agruparPor']).toBe(1);
+  });
+
+  it('omite `agruparPor` cuando no viene (modo por hospital)', async () => {
+    await executeTool(
+      'consultar_facturacion_auditor_hospitales',
+      { anio: 2026, idHospitales: [6] },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body).not.toHaveProperty('agruparPor');
+  });
+
+  it('acepta `agruparPor` como string numérico (el modelo a veces manda "2")', async () => {
+    await executeTool(
+      'consultar_facturacion_auditor_hospitales',
+      { anio: 2026, idHospitales: [6], agruparPor: '2' },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body['agruparPor']).toBe(2);
+  });
+
+  it('DESCARTA `agruparPor: 3` (este endpoint NO admite ese modo)', async () => {
+    await executeTool(
+      'consultar_facturacion_auditor_hospitales',
+      { anio: 2026, idHospitales: [6], agruparPor: 3 },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body).not.toHaveProperty('agruparPor');
+  });
+});

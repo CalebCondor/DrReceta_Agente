@@ -307,3 +307,59 @@ describe('tools · consultar_determinacion_adversa_auditor · agruparPor', () =>
     expect(d).toContain('EN ESE PLAN');
   });
 });
+
+describe('tools · consultar_facturacion_auditor_hospitales · agruparPor', () => {
+  const tool = (TOOLS as unknown as ToolShape[]).find(
+    (t) => t.name === 'consultar_facturacion_auditor_hospitales',
+  );
+
+  type AgruparPorProp = { type: string; enum: number[]; description: string };
+
+  const agruparPor = () =>
+    (tool?.input_schema.properties?.['agruparPor'] ?? undefined) as
+      | AgruparPorProp
+      | undefined;
+
+  const description = () =>
+    (tool as unknown as { description: string } | undefined)?.description ?? '';
+
+  it('declara `agruparPor` con los valores 1 y 2', () => {
+    expect(agruparPor()).toBeDefined();
+    expect(agruparPor()?.type).toBe('integer');
+    expect(agruparPor()?.enum).toEqual([1, 2]);
+  });
+
+  it('NO lo exige (es opcional: si se omite, el backend usa el modo 1)', () => {
+    expect(tool?.input_schema.required).not.toContain('agruparPor');
+  });
+
+  it('la descripción dice QUÉ modo es cuál y cuándo usar cada uno', () => {
+    const d = agruparPor()?.description ?? '';
+    // 1 = por hospital (y es el default si se omite)
+    expect(d).toContain('POR HOSPITAL');
+    expect(d).toContain('OMITES');
+    // 2 = por auditor
+    expect(d).toContain('POR AUDITOR');
+  });
+
+  it('la descripción de la tool explica las DOS jerarquías', () => {
+    const d = description();
+    expect(d).toContain('agruparPor');
+    // Modo 1: Hospital → Auditor → Plan
+    expect(d).toContain('hospitales[] → auditores[] → planes[]');
+    // Modo 2: Auditor → Plan → Hospital
+    expect(d).toContain('auditores[] → planes[] → hospitales[]');
+  });
+
+  it('documenta el payload real (los nombres de los porcentajes y del potencial)', () => {
+    const d = description();
+    expect(d).toContain('porcentajeFacturadoSobrePotencial');
+    expect(d).toContain('porcentajePerdidoSobrePotencial');
+    expect(d).toContain('montoPotencial');
+    // La cuota dentro del nivel de arriba.
+    expect(d).toContain('porcentajeXDelTotal');
+    expect(d).toContain('porcentajeXDelHospital');
+    expect(d).toContain('porcentajeXDelAuditor');
+    expect(d).toContain('porcentajeXDelPlan');
+  });
+});
