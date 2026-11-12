@@ -1827,8 +1827,8 @@ export const TOOLS: Anthropic.Tool[] = [
     description:
       'Devuelve el desempeño de los AUDITORES que han firmado/revisado ' +
       'auditorías en el período y filtros seleccionados (días aprobados / ' +
-      'denegados / recuperados, montos, número de auditorías, etc., agrupado ' +
-      'por auditor).\\n\\n' +
+      'denegados / recuperados, montos, número de auditorías, etc.), en la ' +
+      'jerarquía que elijas con `agruparPor`.\\n\\n' +
       '⚠️ DISTINCIÓN IMPORTANTE: "auditor" es la persona que FIRMA/REVISA la ' +
       'auditoría. NO es lo mismo que:\\n' +
       '  • el MÉDICO DE ALTA (quien firma el alta médica del paciente) → usa ' +
@@ -1843,6 +1843,25 @@ export const TOOLS: Anthropic.Tool[] = [
       'este modo cuando necesites mapear un nombre a su `idAuditor`.\\n' +
       '  • MODO CONSULTA: si SÍ se envía `idAuditor`, devuelve solo los KPIs ' +
       'de ese auditor.\\n\\n' +
+      '🧠 AGRUPACIÓN DE LA RESPUESTA (`agruparPor`, opcional):\\n' +
+      '  La respuesta puede venir en DOS jerarquías. Elige según la ' +
+      'DIMENSIÓN por la que el usuario quiere ver el dato, NO según los ' +
+      'filtros: los datos y las cifras son EXACTAMENTE los mismos en los ' +
+      'dos modos (solo cambia el orden de los niveles).\\n' +
+      '  • `agruparPor: 1` (o si lo OMITES) → POR HOSPITAL: ' +
+      '`hospitales[] → auditores[] → planes[]` (el hospital es el nivel ' +
+      'principal; de cada auditor cuelgan los planes en los que firmó ' +
+      'auditorías EN ese hospital). Úsalo cuando la pregunta sea "¿qué ' +
+      'auditores firman en el hospital X y en qué planes lo hicieron?" o ' +
+      '"ranking de auditores por hospital".\\n' +
+      '  • `agruparPor: 2` → POR AUDITOR: `auditores[] → planes[] → ' +
+      'hospitales[]` (el auditor es el nivel principal, el plan es el ' +
+      'intermedio y el hospital cuelga del plan). Úsalo cuando la pregunta ' +
+      'sea "¿en qué hospital auditó el auditor X el plan Y?" o "¿cómo se ' +
+      'comporta el auditor X en todos los hospitales donde auditó?".\\n' +
+      '  • Si la pregunta es ambigua ("desempeño del auditor X"), usa ' +
+      '`agruparPor: 2`: es el modo que responde POR EL AUDITOR y no por el ' +
+      'hospital.\\n\\n' +
       'PRERREQUISITOS:\\n' +
       '  • Antes de invocar esta tool, DEBES llamar antes a ' +
       '`obtener_planes_disponibles` para tener el catálogo actualizado de ' +
@@ -1870,15 +1889,24 @@ export const TOOLS: Anthropic.Tool[] = [
       'menciona nivel de cuidado, OMITE el campo.\\n' +
       '  • `idAuditor`: int opcional. Si el usuario preguntó por un auditor ' +
       'CONCRETO, llámala primero en MODO CATÁLOGO para resolver el ID y ' +
-      'luego repítela pasándolo.\\n\\n' +
+      'luego repítela pasándolo.\\n' +
+      '  • `agruparPor`: int opcional (1 o 2). 1 = por hospital (omítelo ' +
+      'si el usuario pregunta por un hospital puntual o no dice nada); 2 = ' +
+      'por auditor (úsalo cuando la pregunta es sobre UN auditor a través ' +
+      'de todos sus hospitales/planes).\\n\\n' +
       '🧠 CONTRATO DE FILTRO POR PLANES (CRÍTICO):\\n' +
-      '  • Si envías `idPlanes` → el backend devuelve el detalle agrupado POR ' +
-      'PLAN (útil para responder "¿en qué plan X se concentran los días ' +
-      'denegados del auditor Y?" o "¿cuánto perdió cada plan para este ' +
-      'auditor?"). SIEMPRE lista primero el catálogo con ' +
-      '`obtener_planes_disponibles` para tener los IDs reales.\\n' +
-      '  • Si OMITES `idPlanes` (o envías array vacío) → el backend devuelve ' +
-      'el resultado GLOBAL del auditor, sin desglose por plan.\\n' +
+      '  • `idPlanes` ACOTA los planes del reporte (útil para responder ' +
+      '"¿en qué plan X se concentran los días denegados del auditor Y?" o ' +
+      '"¿cuánto perdió cada plan para este auditor?"). SIEMPRE lista primero ' +
+      'el catálogo con `obtener_planes_disponibles` para tener los IDs ' +
+      'reales.\\n' +
+      '  • Si OMITES `idPlanes` (o envías array vacío) → trae TODOS los ' +
+      'planes del filtro.\\n' +
+      '  • El desglose por plan viene SIEMPRE en los dos modos de ' +
+      '`agruparPor`: en el modo 1 cuelga del auditor (dentro de cada ' +
+      'hospital) y en el modo 2 cuelga del auditor (y de él cuelgan los ' +
+      'hospitales). Con `idPlanes` el detalle se acota a esos planes; sin ' +
+      '`idPlanes` trae todos.\\n' +
       '  • Para la pregunta "¿en qué plan se le deniegan más días al ' +
       'auditor X?" PASA `idPlanes` con la lista completa del catálogo.\\n' +
       '  • Para "días denegados totales del auditor X sin importar el plan" ' +
@@ -1886,7 +1914,12 @@ export const TOOLS: Anthropic.Tool[] = [
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
       'con guion (una línea por auditor, con valores separados por comas o ' +
       'espacios). NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas ' +
-      'alineadas.',
+      'alineadas.\\n\\n' +
+      'LEE LA JERARQUÍA SEGÚN `agruparPor`: con 1 los auditores cuelgan de ' +
+      '`hospitales[]`; con 2 los auditores cuelgan de la RAÍZ ' +
+      '(`auditores[]`) y, debajo, vienen los `planes[]` (que a su vez traen ' +
+      'sus `hospitales[]`). No busques auditores en el mismo nivel en los ' +
+      'dos modos.',
     input_schema: {
       type: 'object',
       properties: {
@@ -1938,6 +1971,19 @@ export const TOOLS: Anthropic.Tool[] = [
             'por nombre, PRIMERO llama sin este parámetro, identifica el ID ' +
             'en el catálogo, y VUELVE a llamar pasándolo.',
           minimum: 1,
+        },
+        agruparPor: {
+          type: 'integer',
+          enum: [1, 2],
+          description:
+            'Agrupador de la jerarquía de la respuesta (opcional). 1 (o si lo ' +
+            'OMITES) = POR HOSPITAL: `hospitales[] → auditores[] → planes[]`; ' +
+            'úsalo para "qué auditores firman en cada hospital y en qué ' +
+            'planes" y rankings por hospital. 2 = POR AUDITOR: `auditores[] → ' +
+            'planes[] → hospitales[]`; úsalo para "el auditor X en todos los ' +
+            'hospitales donde auditó" y "en qué hospital auditó el auditor X el ' +
+            'plan Y". Los datos y las cifras son los mismos en los dos modos; ' +
+            'solo cambia el orden de los niveles.',
         },
       },
       required: ['idHospitales'],

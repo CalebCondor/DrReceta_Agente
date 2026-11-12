@@ -71,10 +71,14 @@ function toInt(raw: unknown): number {
  *       1 = por hospital     (`hospitales[] → manejadores[] → categorias[] → planes[]`)
  *       2 = por manejador    (`manejadores[] → hospitales[] → planes[]`)
  *       3 = por plan médico  (`manejadores[] → planes[] → hospitales[]`)
+ *   · `consultar_desempeno_auditor`:
+ *       1 = por hospital  (`hospitales[] → auditores[] → planes[]`)
+ *       2 = por auditor   (`auditores[] → planes[] → hospitales[]`)
  */
 const AGRUPAR_POR_POR_TOOL: Record<string, number[]> = {
   consultar_desempeno_medico: [1, 2],
   consultar_desempeno_manejador_caso: [1, 2, 3],
+  consultar_desempeno_auditor: [1, 2],
 };
 
 /**
