@@ -1272,7 +1272,7 @@ export const TOOLS: Anthropic.Tool[] = [
       'Devuelve el desempeño de los MANEJADORES DE CASO que gestionan los ' +
       'casos en el período y filtros seleccionados (días aprobados / denegados ' +
       '/ recuperados, montos facturados / perdidos / recuperados, número de ' +
-      'auditorías, etc., agrupado por manejador).\\n\\n' +
+      'auditorías, etc.), en la jerarquía que elijas con `agruparPor`.\\n\\n' +
       '⚠️ DISTINCIÓN IMPORTANTE: "manejador de caso" es la persona que ' +
       'administra/coordina el caso del paciente; NO es lo mismo que el médico ' +
       'que firma el alta. Si el usuario no aclara, pregúntale si se refiere al ' +
@@ -1284,6 +1284,36 @@ export const TOOLS: Anthropic.Tool[] = [
       '`idManejadorCaso`.\\n' +
       '  • MODO CONSULTA: si SÍ se envía `idManejadorCaso`, devuelve solo los ' +
       'KPIs de ese manejador.\\n\\n' +
+      '🧠 AGRUPACIÓN DE LA RESPUESTA (`agruparPor`, opcional):\\n' +
+      '  La respuesta puede venir en TRES jerarquías. Elige según la ' +
+      'DIMENSIÓN por la que el usuario quiere ver el dato, NO según los ' +
+      'filtros: los datos y las cifras son EXACTAMENTE los mismos en los ' +
+      'tres modos (solo cambia el orden de los niveles).\\n' +
+      '  • `agruparPor: 1` (o si lo OMITES) → POR HOSPITAL: ' +
+      '`hospitales[] → manejadores[] → categorias[] → planes[]`. Úsalo ' +
+      'cuando la pregunta sea "¿cómo se comporta CADA manejador EN un ' +
+      'hospital?" o "ranking de manejadores por hospital" (comparar ' +
+      'manejadores DENTRO de un hospital). Ej: "qué manejador deniega más ' +
+      'días en San Lucas".\\n' +
+      '  • `agruparPor: 2` → POR MANEJADOR DE CASO: ' +
+      '`manejadores[] → hospitales[] → planes[]` (el manejador es el nivel ' +
+      'principal y los planes cuelgan del hospital). Úsalo cuando la ' +
+      'pregunta sea "¿cómo se comporta el manejador X en TODOS los ' +
+      'hospitales donde tuvo casos?" o "¿en qué hospital/plan rinde o pierde ' +
+      'más el manejador X?". Ej: "cómo se comporta Ana Pérez entre todos ' +
+      'los hospitales", "en qué hospital pierde más el manejador X".\\n' +
+      '  • `agruparPor: 3` → POR PLAN MÉDICO: `manejadores[] → planes[] → ' +
+      'hospitales[]` (el manejador es el nivel principal, el plan es el ' +
+      'intermedio y el hospital cuelga del plan). Úsalo cuando la pregunta ' +
+      'sea "¿en qué hospital evaluó el manejador X el plan Y?" o "¿cómo se ' +
+      'comporta el manejador X en el plan Y, hospital por hospital?".\\n' +
+      '  • Si la pregunta es ambigua ("desempeño del manejador X"), usa ' +
+      '`agruparPor: 2`: es el modo que responde POR EL MANEJADOR y no por el ' +
+      'hospital.\\n' +
+      '  • En los modos 2 y 3 la CATEGORÍA se colapsa dentro de cada plan ' +
+      '(no existe `categorias[]`): el desglose disponible es hospital → ' +
+      'plan (modo 2) o plan → hospital (modo 3). En el modo 1 el desglose ' +
+      'por plan SOLO viene si mandas `idPlanes`.\\n\\n' +
       'PRERREQUISITOS:\\n' +
       '  • Antes de invocar esta tool, DEBES llamar antes a ' +
       '`obtener_planes_disponibles` para tener el catálogo actualizado de ' +
@@ -1311,7 +1341,12 @@ export const TOOLS: Anthropic.Tool[] = [
       'menciona nivel de cuidado, OMITE el campo.\\n' +
       '  • `idManejadorCaso`: int opcional. Si el usuario preguntó por un ' +
       'manejador CONCRETO, llámala primero en MODO CATÁLOGO para resolver ' +
-      'el ID y luego repítela pasándolo.\\n\\n' +
+      'el ID y luego repítela pasándolo.\\n' +
+      '  • `agruparPor`: int opcional (1, 2 o 3). 1 = por hospital (omítelo ' +
+      'si el usuario pregunta por un hospital puntual o no dice nada); 2 = ' +
+      'por manejador (úsalo cuando la pregunta es sobre UN manejador a ' +
+      'través de todos sus hospitales); 3 = por plan médico (úsalo cuando ' +
+      'la pregunta es "¿en qué hospital evaluó el manejador X el plan Y?").\\n\\n' +
       '🧠 CONTRATO DE FILTRO POR PLANES (CRÍTICO):\\n' +
       '  • Si envías `idPlanes` → el backend devuelve el detalle agrupado POR ' +
       'PLAN (útil para responder "¿en qué plan X se concentran los días ' +
@@ -1320,6 +1355,11 @@ export const TOOLS: Anthropic.Tool[] = [
       '`obtener_planes_disponibles` para tener los IDs reales.\\n' +
       '  • Si OMITES `idPlanes` (o envías array vacío) → el backend devuelve ' +
       'el resultado GLOBAL del manejador, sin desglose por plan.\\n' +
+      '  • OJO: en los MODOS 2 y 3 (`agruparPor: 2` o `3`) el desglose por ' +
+      'plan viene SIEMPRE, pase lo que pase con `idPlanes`: el plan cuelga ' +
+      'del hospital (modo 2) o del manejador (modo 3). Con `idPlanes` el ' +
+      'detalle se acota a esos planes; sin `idPlanes` trae TODOS los planes ' +
+      'del manejador.\\n' +
       '  • Para la pregunta "¿en qué plan se le deniegan más días al ' +
       'manejador X?" PASA `idPlanes` con la lista completa del catálogo.\\n' +
       '  • Para "días denegados totales del manejador X sin importar el plan" ' +
@@ -1327,7 +1367,12 @@ export const TOOLS: Anthropic.Tool[] = [
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
       'con guion (una línea por manejador, con valores separados por comas o ' +
       'espacios). NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas ' +
-      'alineadas.',
+      'alineadas.\\n\\n' +
+      'LEE LA JERARQUÍA SEGÚN `agruparPor`: con 1 los manejadores cuelgan ' +
+      'de `hospitales[]`; con 2 y con 3 los manejadores cuelgan de la RAÍZ ' +
+      '(`manejadores[]`) y, debajo, vienen los `hospitales[]` (modo 2) o los ' +
+      '`planes[]` (modo 3, que a su vez traen sus `hospitales[]`). No busques ' +
+      'manejadores en el mismo nivel en los tres modos.',
     input_schema: {
       type: 'object',
       properties: {
@@ -1379,6 +1424,22 @@ export const TOOLS: Anthropic.Tool[] = [
             'manejador CONCRETO por nombre, PRIMERO llama sin este parámetro, ' +
             'identifica el ID en el catálogo, y VUELVE a llamar pasándolo.',
           minimum: 1,
+        },
+        agruparPor: {
+          type: 'integer',
+          enum: [1, 2, 3],
+          description:
+            'Agrupador de la jerarquía de la respuesta (opcional). 1 (o si lo ' +
+            'OMITES) = POR HOSPITAL: `hospitales[] → manejadores[] → ' +
+            'categorias[] → planes[]`; úsalo para "cada manejador en cada ' +
+            'hospital" y rankings por hospital. 2 = POR MANEJADOR DE CASO: ' +
+            '`manejadores[] → hospitales[] → planes[]`; úsalo para "el ' +
+            'manejador X en todos los hospitales donde tuvo casos" y "en qué ' +
+            'hospital/plan pierde más el manejador X". 3 = POR PLAN MÉDICO: ' +
+            '`manejadores[] → planes[] → hospitales[]`; úsalo para "en qué ' +
+            'hospital evaluó el manejador X el plan Y". Los datos y las cifras ' +
+            'son los mismos en los tres modos; solo cambia el orden de los ' +
+            'niveles.',
         },
       },
       required: ['idHospitales'],

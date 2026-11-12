@@ -55,6 +55,29 @@ function toInt(raw: unknown): number {
 }
 
 /**
+ * Valores de `agruparPor` que admite CADA tool.
+ *
+ * `agruparPor` es el AGRUPADOR de la jerarquía de la respuesta de los
+ * endpoints de `api/IaPreguntas`: no cambia los datos ni los filtros,
+ * sólo el pivote (qué nivel cuelga de cuál). Cada endpoint admite sus
+ * PROPIOS valores, así que la lista va por tool: si el modelo manda un
+ * valor que el endpoint no admite se descarta (el backend respondería
+ * 400 con un error inútil para la IA).
+ *
+ *   · `consultar_desempeno_medico`:
+ *       1 = por hospital (`hospitales[] → medicos[] → categorias[] → planes[]`)
+ *       2 = por médico    (`medicos[] → planes[] → hospitales[]`)
+ *   · `consultar_desempeno_manejador_caso`:
+ *       1 = por hospital     (`hospitales[] → manejadores[] → categorias[] → planes[]`)
+ *       2 = por manejador    (`manejadores[] → hospitales[] → planes[]`)
+ *       3 = por plan médico  (`manejadores[] → planes[] → hospitales[]`)
+ */
+const AGRUPAR_POR_POR_TOOL: Record<string, number[]> = {
+  consultar_desempeno_medico: [1, 2],
+  consultar_desempeno_manejador_caso: [1, 2, 3],
+};
+
+/**
  * Mueve el ID del pivote (médico / manejador / auditor) del body a la
  * query string.
  *
@@ -476,15 +499,25 @@ export async function executeTool(
     // `agruparPor` (opcional): el AGRUPADOR de la jerarquía de la respuesta.
     // Es un parámetro GLOBAL del request de `api/IaPreguntas` (el backend
     // lo acepta en el DTO global y en la familia por rango de fechas), pero
-    // por ahora SÓLO `consultar_desempeno_medico` lo implementa: 1 (o
-    // ausente) = por hospital (`hospitales[] → medicos[] → categorias[] →
-    // planes[]`), 2 = por médico (`medicos[] → planes[] → hospitales[]`).
+    // cada endpoint admite SUS PROPIOS valores, así que se filtran aquí
+    // (por tool): si el modelo manda un valor fuera de rango se descarta
+    // (el backend respondería 400 con un error poco útil para la IA).
     //
-    // Se reenvía sólo si la tool lo declara en su `input_schema`; si el
-    // modelo manda un valor fuera de rango se descarta (el backend
-    // respondería 400 con un error poco útil para la IA).
+    //   · `consultar_desempeno_medico`: 1 (o ausente) = por hospital
+    //     (`hospitales[] → medicos[] → categorias[] → planes[]`),
+    //     2 = por médico (`medicos[] → planes[] → hospitales[]`).
+    //   · `consultar_desempeno_manejador_caso`: 1 (o ausente) = por
+    //     hospital (`hospitales[] → manejadores[] → categorias[] →
+    //     planes[]`), 2 = por manejador (`manejadores[] → hospitales[] →
+    //     planes[]`), 3 = por plan (`manejadores[] → planes[] →
+    //     hospitales[]`).
     const agruparPor = toInt(toolInput['agruparPor']);
-    if (agruparPor === 1 || agruparPor === 2) {
+    const agruparPorAdmitidos = AGRUPAR_POR_POR_TOOL[toolName];
+    if (
+      agruparPor != null &&
+      agruparPorAdmitidos != null &&
+      agruparPorAdmitidos.includes(agruparPor)
+    ) {
       body['agruparPor'] = agruparPor;
     }
     return body;

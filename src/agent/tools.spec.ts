@@ -148,3 +148,50 @@ describe('tools · consultar_desempeno_medico · agruparPor', () => {
     expect(d).toContain('planes[]');
   });
 });
+
+describe('tools · consultar_desempeno_manejador_caso · agruparPor', () => {
+  const tool = (TOOLS as unknown as ToolShape[]).find(
+    (t) => t.name === 'consultar_desempeno_manejador_caso',
+  );
+
+  type AgruparPorProp = { type: string; enum: number[]; description: string };
+
+  const agruparPor = () =>
+    (tool?.input_schema.properties?.['agruparPor'] ?? undefined) as
+      | AgruparPorProp
+      | undefined;
+
+  it('declara `agruparPor` con los valores 1, 2 y 3', () => {
+    expect(agruparPor()).toBeDefined();
+    expect(agruparPor()?.type).toBe('integer');
+    expect(agruparPor()?.enum).toEqual([1, 2, 3]);
+  });
+
+  it('NO lo exige (es opcional: si se omite, el backend usa el modo 1)', () => {
+    expect(tool?.input_schema.required).not.toContain('agruparPor');
+  });
+
+  it('la descripción dice QUÉ modo es cuál y cuándo usar cada uno', () => {
+    const d = agruparPor()?.description ?? '';
+    // 1 = por hospital (y es el default si se omite)
+    expect(d).toContain('POR HOSPITAL');
+    expect(d).toContain('OMITES');
+    // 2 = por manejador de caso
+    expect(d).toContain('POR MANEJADOR DE CASO');
+    // 3 = por plan médico
+    expect(d).toContain('POR PLAN MÉDICO');
+    // las tres jerarquías, para que la IA sepa dónde leer los datos
+    expect(d).toContain('manejadores[]');
+    expect(d).toContain('hospitales[]');
+    expect(d).toContain('planes[]');
+  });
+
+  it('la descripción de la tool explica los TRES modos', () => {
+    const d = (tool as unknown as { description: string } | undefined)
+      ?.description;
+    expect(d).toContain('agruparPor');
+    expect(d).toContain('POR HOSPITAL');
+    expect(d).toContain('POR MANEJADOR DE CASO');
+    expect(d).toContain('POR PLAN MÉDICO');
+  });
+});

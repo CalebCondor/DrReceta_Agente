@@ -198,4 +198,93 @@ describe('executeTool · consultar_desempeno_medico', () => {
     expect(url).toContain('idMedicosAlta=16');
     expect(body).not.toHaveProperty('idMedicoAlta');
   });
+
+  it('DESCARTA `agruparPor: 3` (este endpoint NO admite el modo por plan)', async () => {
+    await executeTool(
+      'consultar_desempeno_medico',
+      { anio: 2026, idHospitales: [6], agruparPor: 3 },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body).not.toHaveProperty('agruparPor');
+  });
+});
+
+describe('executeTool · consultar_desempeno_manejador_caso · agruparPor', () => {
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ ok: true })),
+    });
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+  });
+
+  const called = () => {
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    return {
+      url,
+      body: JSON.parse(init.body as string) as Record<string, unknown>,
+    };
+  };
+
+  it('manda `agruparPor: 2` (por manejador) en el body', async () => {
+    await executeTool(
+      'consultar_desempeno_manejador_caso',
+      { anio: 2026, idHospitales: [6], agruparPor: 2 },
+      1,
+      {} as DbService,
+    );
+    const { url, body } = called();
+    expect(body['agruparPor']).toBe(2);
+    expect(url).not.toContain('agruparPor');
+  });
+
+  it('manda `agruparPor: 3` (por plan médico) en el body', async () => {
+    await executeTool(
+      'consultar_desempeno_manejador_caso',
+      { anio: 2026, idHospitales: [6], agruparPor: 3 },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body['agruparPor']).toBe(3);
+  });
+
+  it('acepta `agruparPor` como string numérico (el modelo a veces manda "3")', async () => {
+    await executeTool(
+      'consultar_desempeno_manejador_caso',
+      { anio: 2026, idHospitales: [6], agruparPor: '3' },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body['agruparPor']).toBe(3);
+  });
+
+  it('omite `agruparPor` cuando no viene (modo por hospital)', async () => {
+    await executeTool(
+      'consultar_desempeno_manejador_caso',
+      { anio: 2026, idHospitales: [6] },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body).not.toHaveProperty('agruparPor');
+  });
+
+  it('DESCARTA `agruparPor` fuera de rango (el backend respondería 400)', async () => {
+    await executeTool(
+      'consultar_desempeno_manejador_caso',
+      { anio: 2026, idHospitales: [6], agruparPor: 7 },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body).not.toHaveProperty('agruparPor');
+  });
 });
