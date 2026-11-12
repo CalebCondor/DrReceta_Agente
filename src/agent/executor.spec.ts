@@ -143,10 +143,43 @@ describe('executeTool · consultar_desempeno_medico', () => {
     expect(url).not.toContain('agruparPor');
   });
 
+  it('manda `agruparPor: 1` (por hospital) cuando el modelo lo pide explícito', async () => {
+    await executeTool(
+      'consultar_desempeno_medico',
+      { anio: 2026, idHospitales: [6], agruparPor: 1 },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body['agruparPor']).toBe(1);
+  });
+
+  it('acepta `agruparPor` como string numérico (el modelo a veces manda "2")', async () => {
+    await executeTool(
+      'consultar_desempeno_medico',
+      { anio: 2026, idHospitales: [6], agruparPor: '2' },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body['agruparPor']).toBe(2);
+  });
+
   it('omite `agruparPor` cuando no viene (modo por hospital)', async () => {
     await executeTool(
       'consultar_desempeno_medico',
       { anio: 2026, idHospitales: [6] },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body).not.toHaveProperty('agruparPor');
+  });
+
+  it('DESCARTA `agruparPor` fuera de rango (el backend respondería 400)', async () => {
+    await executeTool(
+      'consultar_desempeno_medico',
+      { anio: 2026, idHospitales: [6], agruparPor: 7 },
       1,
       {} as DbService,
     );

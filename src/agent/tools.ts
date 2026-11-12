@@ -985,8 +985,8 @@ export const TOOLS: Anthropic.Tool[] = [
     description:
       'Devuelve el desempeño de los médicos que han firmado altas en el período ' +
       'y filtros seleccionados (días aprobados / denegados / recuperados, ' +
-      'montos facturados / perdidos / recuperados, número de auditorías, etc., ' +
-      'agrupado por médico).\n\n' +
+      'montos facturados / perdidos / recuperados, número de auditorías, etc.), ' +
+      'en la jerarquía que elijas con `agruparPor`.\n\n' +
       'MODOS DE USO:\n' +
       '  • MODO CATÁLOGO: si NO se envía `idMedicoAlta`, el endpoint devuelve ' +
       'el listado de médicos disponibles para los filtros aplicados. USA este ' +
@@ -1021,7 +1021,8 @@ export const TOOLS: Anthropic.Tool[] = [
       '`agruparPor: 2`: es el modo que responde POR EL MÉDICO y no por el ' +
       'hospital.\n' +
       '  • En el modo 2 la CATEGORÍA se colapsa dentro de cada plan (no existe ' +
-      '`categorias[]`): el desglose disponible es plan → hospital.\n\n' +
+      '`categorias[]`): el desglose disponible es plan → hospital. En el modo 1 ' +
+      'el desglose por plan SOLO viene si mandas `idPlanes`.\n\n' +
       'PRERREQUISITOS:\n' +
       '  • Antes de invocar esta tool, DEBES llamar antes a ' +
       '`obtener_planes_disponibles` para tener el catálogo actualizado de ' +
@@ -1062,13 +1063,19 @@ export const TOOLS: Anthropic.Tool[] = [
       'denegados?" o "¿cuánto perdió cada plan para este médico/auditor/ ' +
       'manejador?"). SIEMPRE lista primero el catálogo con ' +
       '`obtener_planes_disponibles` para tener los IDs reales.\n' +
-      '  • Si OMITES `idPlanes` (o envías array vacío) → el backend devuelve ' +
-      'el resultado GLOBAL del médico/auditor/manejador, sin desglose por ' +
-      'plan (todos los planes sumados).\n' +
+      '  • En el MODO 2 (`agruparPor: 2`) el desglose por plan viene SIEMPRE, ' +
+      'pase lo que pase con `idPlanes`: `medicos[].planes[]` cuelga del médico ' +
+      'y cada plan trae sus `hospitales[]`. Con `idPlanes` el detalle se ' +
+      'acota a esos planes; sin `idPlanes` trae TODOS los planes del médico.\n' +
+      '  • En el MODO 1 (sin `agruparPor`) el desglose por plan SOLO viene si ' +
+      'mantas `idPlanes`: sin él, `medicos[].categorias[]` viene `[]` (vacío) ' +
+      'y sólo tienes los totales por médico (`medicos[].totales`).\n' +
       '  • Para la pregunta "¿en qué plan se le deniegan más días al médico X?" ' +
-      'PASA `idPlanes` con la lista completa del catálogo. NO omitas el campo.\n' +
+      'PASA `idPlanes` con la lista completa del catálogo (modo 1) o usa el ' +
+      'modo 2 y lee `medicos[].planes[]`. NO omitas el campo en modo 1.\n' +
       '  • Para "días denegados totales del médico X sin importar el plan" ' +
-      'OMITE `idPlanes`.\n\n' +
+      'OMITE `idPlanes` y usa los totales (`medicos[].totales` en ambos ' +
+      'modos).\n\n' +
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples con ' +
       'guion (una línea por médico, con valores separados por comas o espacios). ' +
       'NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas alineadas.\n\n' +

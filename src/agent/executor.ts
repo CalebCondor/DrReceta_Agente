@@ -427,7 +427,10 @@ export async function executeTool(
       idMedicoAlta > 0
     ) {
       body['idMedicoAlta'] = Math.trunc(idMedicoAlta);
-    } else if (typeof idMedicoAlta === 'string' && idMedicoAlta.trim().length > 0) {
+    } else if (
+      typeof idMedicoAlta === 'string' &&
+      idMedicoAlta.trim().length > 0
+    ) {
       const parsed = Number(idMedicoAlta.trim());
       if (Number.isFinite(parsed) && parsed > 0) {
         body['idMedicoAlta'] = Math.trunc(parsed);
@@ -464,14 +467,25 @@ export async function executeTool(
       idAuditor > 0
     ) {
       body['idAuditor'] = Math.trunc(idAuditor);
-    } else if (
-      typeof idAuditor === 'string' &&
-      idAuditor.trim().length > 0
-    ) {
+    } else if (typeof idAuditor === 'string' && idAuditor.trim().length > 0) {
       const parsed = Number(idAuditor.trim());
       if (Number.isFinite(parsed) && parsed > 0) {
         body['idAuditor'] = Math.trunc(parsed);
       }
+    }
+    // `agruparPor` (opcional): el AGRUPADOR de la jerarquía de la respuesta.
+    // Es un parámetro GLOBAL del request de `api/IaPreguntas` (el backend
+    // lo acepta en el DTO global y en la familia por rango de fechas), pero
+    // por ahora SÓLO `consultar_desempeno_medico` lo implementa: 1 (o
+    // ausente) = por hospital (`hospitales[] → medicos[] → categorias[] →
+    // planes[]`), 2 = por médico (`medicos[] → planes[] → hospitales[]`).
+    //
+    // Se reenvía sólo si la tool lo declara en su `input_schema`; si el
+    // modelo manda un valor fuera de rango se descarta (el backend
+    // respondería 400 con un error poco útil para la IA).
+    const agruparPor = toInt(toolInput['agruparPor']);
+    if (agruparPor === 1 || agruparPor === 2) {
+      body['agruparPor'] = agruparPor;
     }
     return body;
   };
@@ -593,13 +607,10 @@ export async function executeTool(
     const rango = resolverRangoFechas(toolInput);
     body['fechaInicio'] = rango.fechaInicio;
     body['fechaFin'] = rango.fechaFin;
-    // `agruparPor` (opcional): 1 (o ausente) = por hospital (histórico),
-    // 2 = por médico → plan → hospital (el desempeño del médico en todos
-    // los hospitales que evaluó).
-    const agruparPor = toInt(toolInput['agruparPor']);
-    if (agruparPor === 1 || agruparPor === 2) {
-      body['agruparPor'] = agruparPor;
-    }
+    // `agruparPor` (opcional) ya lo reenvía `buildIaPreguntasBody` (es un
+    // parámetro global del request): 1 (o ausente) = por hospital
+    // (histórico), 2 = por médico → plan → hospital (el desempeño del
+    // médico en todos los hospitales que evaluó).
     // El ID del médico viaja como QUERY param, no en el body.
     const qs = idPivoteEnQuery(body, 'idMedicoAlta', 'idMedicosAlta');
     const url = qs ? `${DESEMPENO_MEDICO_URL}?${qs}` : DESEMPENO_MEDICO_URL;
