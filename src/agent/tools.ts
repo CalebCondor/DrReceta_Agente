@@ -2037,7 +2037,52 @@ export const TOOLS: Anthropic.Tool[] = [
       'NO preguntes por el período.\\n' +
       '  • `idPlanes`: int[] opcional. Llama antes a ' +
       '`obtener_planes_disponibles`. Si NO envías, OMITE el campo.\\n' +
-      '  • `loc`: array opcional de "ACUTE" / "SNF".\\n\\n' +
+      '  • `loc`: array opcional de "ACUTE" / "SNF".\\n' +
+      '  • `agruparPor`: int opcional (1, 2, 3 o 4). Ver "AGRUPACIÓN DE LA ' +
+      'RESPUESTA" más abajo.\\n\\n' +
+      '🧠 AGRUPACIÓN DE LA RESPUESTA (`agruparPor`, opcional):\\n' +
+      '  En las CUATRO modalidades la RAÍZ es el AUDITOR (sus atributos y ' +
+      'sus totales van en el envelope); lo que cambia es qué se cuelga de ' +
+      'él. Los datos y las cifras son EXACTAMENTE los mismos en los cuatro ' +
+      'modos (solo cambia el orden de los niveles).\\n' +
+      '  • `agruparPor: 1` (o si lo OMITES) → GENERAL: el auditor y sus ' +
+      'determinaciones adversas (sin desglose por plan ni por hospital).\\n' +
+      '  • `agruparPor: 2` → POR PLAN MÉDICO: el auditor, sus planes y, de ' +
+      'cada plan, sus determinaciones ("¿en qué plan del auditor se ' +
+      'concentra cada determinación?").\\n' +
+      '  • `agruparPor: 3` → POR HOSPITAL: el auditor, sus hospitales y, de ' +
+      'cada hospital, sus determinaciones ("¿en qué hospital del auditor se ' +
+      'concentra cada determinación?").\\n' +
+      '  • `agruparPor: 4` → POR PLAN Y HOSPITAL: el auditor, sus planes, de ' +
+      'cada plan sus hospitales y de cada hospital sus determinaciones (el ' +
+      'desglose completo).\\n' +
+      '  • El árbol es HOMOGÉNEO: cada nodo trae `tipo` ("plan", "hospital" o ' +
+      '"determinacion"), `nombre` y sus `hijos[]`. La categoría de la ' +
+      'determinación viaja como atributo (`tipoCategoria`) del nodo ' +
+      '"determinacion", NO como un nivel.\\n' +
+      '  • QUÉ POSEEN LOS NODOS (léelo bien antes de responder):\\n' +
+      '    - Nodos "plan" y "hospital": `diasDenegados`, `montoPerdido`, los ' +
+      'porcentajes y un bloque `totales` con la CASUÍSTICA del auditor en ese ' +
+      'alcance (`numeroCasos`, `los`, `diasAprobados`, `potencial`, ' +
+      '`facturado`).\\n' +
+      '    - Nodos "determinacion" (las HOJAS): SOLO `diasDenegados`, ' +
+      '`montoPerdido` y sus porcentajes. NO tienen `totales` (ni número de ' +
+      'casos ni LOS): una determinación adversa SOLO se relaciona con días ' +
+      'denegados y con el dinero perdido. NUNCA inventes ni menciones casos ' +
+      'o días de estancia de una determinación.\\n' +
+      '  • Los porcentajes de cada nodo se miden contra SU PADRE (el nivel de ' +
+      'arriba), así que los hijos suman el 100% de su padre:\\n' +
+      '    - `porcentajeDiasDenegadosvsTotalDenegados`: días denegados del ' +
+      'nodo / días denegados del padre.\\n' +
+      '    - `porcentajeMontoPerdidoVsTotalMontoPerdido`: monto perdido del ' +
+      'nodo / monto perdido del padre (en el modo 2: la parte que ' +
+      'representa de todo lo que el auditor perdió EN ESE PLAN).\\n' +
+      '    - `porcentajeDiasDenegadosVsLos`: días denegados del nodo sobre el ' +
+      'LOS de su BASE (en plan/hospital, el propio; en una determinación, el ' +
+      'del padre).\\n' +
+      '  • Si la pregunta es ambigua ("determinaciones del auditor X"), usa ' +
+      '`agruparPor: 1`: es el modo que responde POR EL AUDITOR y no por el ' +
+      'plan ni por el hospital.\\n\\n' +
       '🧠 CONTRATO DE FILTRO POR PLANES (CRÍTICO):\\n' +
       '  • Si envías `idPlanes` → el backend devuelve los conceptos de ' +
       'determinación adversa FILTRADOS solo a esos planes. Útil para ' +
@@ -2047,7 +2092,11 @@ export const TOOLS: Anthropic.Tool[] = [
       'considerando TODOS los planes aplicables (global sin filtro de plan).\\n\\n' +
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
       'con guion (una línea por concepto). NUNCA uses <pre>, <table>, <ul>, ' +
-      '<li>, <br>, ni columnas alineadas.',
+      '<li>, <br>, ni columnas alineadas.\\n\\n' +
+      'LEE LA JERARQUÍA SEGÚN `agruparPor`: la RAÍZ siempre es el auditor ' +
+      '(`idAuditor`, `nombreCompleto`, `totales`); sus hijos están en ' +
+      '`nodos[]` y son determinaciones (1), planes (2), hospitales (3) o ' +
+      'planes (4). Los nietos van en `hijos[]`.',
     input_schema: {
       type: 'object',
       properties: {
@@ -2096,6 +2145,22 @@ export const TOOLS: Anthropic.Tool[] = [
           description:
             'Filtro por Location / Nivel de cuidado (opcional). Se envía ' +
             'como ARRAY. Si el usuario no menciona nivel de cuidado, OMITE.',
+        },
+        agruparPor: {
+          type: 'integer',
+          enum: [1, 2, 3, 4],
+          description:
+            'Agrupador de la jerarquía de la respuesta (opcional). 1 (o si lo ' +
+            'OMITES) = GENERAL: el auditor y sus determinaciones adversas. ' +
+            '2 = POR PLAN MÉDICO: el auditor, sus planes y de cada plan sus ' +
+            'determinaciones. 3 = POR HOSPITAL: el auditor, sus hospitales y ' +
+            'de cada hospital sus determinaciones. 4 = POR PLAN Y HOSPITAL: ' +
+            'el desglose completo (plan → hospital → determinación). Los datos ' +
+            'y las cifras son los mismos en los cuatro modos; solo cambia el ' +
+            'orden de los niveles. Los porcentajes de cada nodo se miden ' +
+            'contra su nivel superior (en el modo 2, el "% perdido" de una ' +
+            'determinación es su parte de lo que el auditor perdió en ese ' +
+            'plan).',
         },
       },
       required: ['idAuditor', 'idHospitales'],

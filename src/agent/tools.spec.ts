@@ -239,3 +239,71 @@ describe('tools · consultar_desempeno_auditor · agruparPor', () => {
     expect(d).toContain('POR AUDITOR');
   });
 });
+
+describe('tools · consultar_determinacion_adversa_auditor · agruparPor', () => {
+  const tool = (TOOLS as unknown as ToolShape[]).find(
+    (t) => t.name === 'consultar_determinacion_adversa_auditor',
+  );
+
+  type AgruparPorProp = { type: string; enum: number[]; description: string };
+
+  const agruparPor = () =>
+    (tool?.input_schema.properties?.['agruparPor'] ?? undefined) as
+      | AgruparPorProp
+      | undefined;
+
+  it('declara `agruparPor` con los valores 1, 2, 3 y 4', () => {
+    expect(agruparPor()).toBeDefined();
+    expect(agruparPor()?.type).toBe('integer');
+    expect(agruparPor()?.enum).toEqual([1, 2, 3, 4]);
+  });
+
+  it('NO lo exige (es opcional: si se omite, el backend usa el modo 1)', () => {
+    expect(tool?.input_schema.required).not.toContain('agruparPor');
+  });
+
+  it('la descripción dice QUÉ modo es cuál y cuándo usar cada uno', () => {
+    const d = agruparPor()?.description ?? '';
+    // 1 = general (y es el default si se omite)
+    expect(d).toContain('GENERAL');
+    expect(d).toContain('OMITES');
+    // 2 = por plan médico
+    expect(d).toContain('POR PLAN MÉDICO');
+    // 3 = por hospital
+    expect(d).toContain('POR HOSPITAL');
+    // 4 = por plan y hospital
+    expect(d).toContain('POR PLAN Y HOSPITAL');
+  });
+
+  it('la descripción de la tool explica los CUATRO modos', () => {
+    const d = (tool as unknown as { description: string } | undefined)
+      ?.description;
+    expect(d).toContain('agruparPor');
+    expect(d).toContain('GENERAL');
+    expect(d).toContain('POR PLAN MÉDICO');
+    expect(d).toContain('POR HOSPITAL');
+    expect(d).toContain('POR PLAN Y HOSPITAL');
+  });
+
+  it('dice que las hojas (determinaciones) NO tienen `totales` ni casos/LOS', () => {
+    const d =
+      (tool as unknown as { description: string } | undefined)?.description ??
+      '';
+    expect(d).toContain('determinacion');
+    expect(d).toContain('SOLO `diasDenegados`');
+    expect(d).toContain('NO tienen `totales`');
+    // La categoría viaja como atributo, no como un nivel.
+    expect(d).toContain('tipoCategoria');
+  });
+
+  it('explica que los porcentajes de cada nodo se miden contra su PADRE', () => {
+    const d =
+      (tool as unknown as { description: string } | undefined)?.description ??
+      '';
+    expect(d).toContain('PADRE');
+    expect(d).toContain('porcentajeMontoPerdidoVsTotalMontoPerdido');
+    expect(d).toContain('porcentajeDiasDenegadosVsLos');
+    // En el modo 2 el denominador es lo perdido EN ESE PLAN.
+    expect(d).toContain('EN ESE PLAN');
+  });
+});

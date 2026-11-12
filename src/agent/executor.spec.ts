@@ -379,3 +379,85 @@ describe('executeTool · consultar_desempeno_auditor · agruparPor', () => {
     expect(body['agruparPor']).toBe(2);
   });
 });
+
+describe('executeTool · consultar_determinacion_adversa_auditor · agruparPor', () => {
+  const fetchMock = jest.fn();
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ ok: true })),
+    });
+    (global as unknown as { fetch: unknown }).fetch = fetchMock;
+  });
+
+  const called = () => {
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    return {
+      url,
+      body: JSON.parse(init.body as string) as Record<string, unknown>,
+    };
+  };
+
+  it.each([1, 2, 3, 4])(
+    'manda `agruparPor: %i` en el body (el backend lo lee del body)',
+    async (modo) => {
+      await executeTool(
+        'consultar_determinacion_adversa_auditor',
+        { anio: 2026, idHospitales: [6], idAuditor: 72, agruparPor: modo },
+        1,
+        {} as DbService,
+      );
+      const { url, body } = called();
+      expect(body['agruparPor']).toBe(modo);
+      expect(url).not.toContain('agruparPor');
+    },
+  );
+
+  it('omite `agruparPor` cuando no viene (modo general)', async () => {
+    await executeTool(
+      'consultar_determinacion_adversa_auditor',
+      { anio: 2026, idHospitales: [6], idAuditor: 72 },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body).not.toHaveProperty('agruparPor');
+  });
+
+  it('acepta `agruparPor` como string numérico (el modelo a veces manda "4")', async () => {
+    await executeTool(
+      'consultar_determinacion_adversa_auditor',
+      { anio: 2026, idHospitales: [6], idAuditor: 72, agruparPor: '4' },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body['agruparPor']).toBe(4);
+  });
+
+  it('DESCARTA `agruparPor: 5` (fuera de rango: el backend respondería 400)', async () => {
+    await executeTool(
+      'consultar_determinacion_adversa_auditor',
+      { anio: 2026, idHospitales: [6], idAuditor: 72, agruparPor: 5 },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body).not.toHaveProperty('agruparPor');
+  });
+
+  it('el ID del auditor sigue viajando en el body (este endpoint lo exige ahí)', async () => {
+    await executeTool(
+      'consultar_determinacion_adversa_auditor',
+      { anio: 2026, idHospitales: [6], idAuditor: 72, agruparPor: 2 },
+      1,
+      {} as DbService,
+    );
+    const { body } = called();
+    expect(body['idAuditor']).toBe(72);
+    expect(body['agruparPor']).toBe(2);
+  });
+});
