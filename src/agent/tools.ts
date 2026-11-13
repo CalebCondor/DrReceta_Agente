@@ -498,6 +498,11 @@ export const TOOLS: Anthropic.Tool[] = [
       'el ganador es el de cifra MÁS BAJA, NO el primero del array. Lo mismo para el MÁXIMO.\n' +
       '  • Cada hospital trae `perdido` ($), `potencial`, `porcentajePerdidaSobrePotencialHospital` ' +
       '(% de pérdida sobre SU propio potencial) y `porcentajeFacturadoSobrePotencialHospital`.\n' +
+      '  • Cada hospital trae además `porcentajePerdidoSobrePerdidaGlobal` y ' +
+      '`porcentajeFacturadoSobreFacturacionGlobal`: la CUOTA de ese hospital sobre el TOTAL de todos ' +
+      'los hospitales consultados (qué % de la pérdida total y de la facturación total aportó). ' +
+      'ÚSALOS para "¿qué hospital aporta más a la pérdida/facturación global?"; NO son lo mismo que ' +
+      'los porcentajes contra SU propio potencial.\n' +
       '  • Un hospital que aparece en `filtrosAplicados.hospitales` pero NO en `porHospital[]` NO ' +
       'tiene datos en el período: no es "el que menos perdió" (no registró nada) y no lo presentes ' +
       'como si tuviera un valor.\n' +
