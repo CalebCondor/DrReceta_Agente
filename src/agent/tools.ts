@@ -250,13 +250,22 @@ export const TOOLS: Anthropic.Tool[] = [
     name: 'consultar_determinacion_adversa_mas_frecuente',
     description:
       'Responde: "¿Cuál es la determinación adversa más frecuente?".\n\n' +
-      'Devuelve un ranking de las determinaciones adversas (tabla AuditoriaConceptos) más ' +
-      'aplicadas en el período, agrupadas por hospital.\n\n' +
+      'Devuelve el ranking de las determinaciones adversas (tabla AuditoriaConceptos) que ' +
+      'MÁS DÍAS DENEGADOS acumularon en el período, agrupado por hospital.\n\n' +
+      '⚠️ NO hay conteo de aplicaciones: la "frecuencia" se mide EXCLUSIVAMENTE por ' +
+      '`totalDiasDenegados` (una determinación registrada muchas veces pero sin denegar días ' +
+      'no es frecuente en términos de impacto). NUNCA cuentes registros ni inventes una ' +
+      'frecuencia.\n\n' +
       'VISTAS DEVUELTAS:\n' +
-      '  • `items[]` (FLAT, siempre poblado) — top-N por (hospital, concepto). ' +
-      '`cantidad` y `totalDiasDenegados` rolled-up a través de los planes cuando hay filtro.\n' +
-      '  • `itemsPorPlan[]` (NESTED, sólo si `idPlanes` viene poblado) — top-N conceptos ' +
-      'dentro de cada (hospital, plan).\n\n' +
+      '  • `items[]` — top-N por hospital: cada hospital trae `totalDiasDenegados`, `losTotal` y ' +
+      'su lista `determinaciones[]` (cada una con `totalDiasDenegados` y sus 4 porcentajes de ' +
+      'contexto). Rolled-up a través de los planes cuando hay filtro.\n' +
+      '  • `itemsPorPlan[]` (sólo si `idPlanes` viene poblado) — hospital → `planes[]` → ' +
+      '`conceptos[]` (top-N conceptos dentro de cada (hospital, plan)).\n' +
+      '  • `global` — vista CONSOLIDADA de todo el universo: `losTotal`, `totalDiasDenegados`, ' +
+      '`idHospitales` y `items[]` (una fila por determinación, con `totalDiasDenegados`, ' +
+      '`cantidadHospitales`, `porcentajeDiasDenegadoComparadoConDiasDenegados` y ' +
+      '`porcentajeDiasDenegadoComparadoConLos`).\n\n' +
       'PRERREQUISITO OBLIGATORIO:\n' +
       '  • Antes de invocar esta tool, DEBES llamar primero a `obtener_planes_disponibles` ' +
       'para tener el catálogo actualizado de planes (ids + nombres). Sin ese catálogo en ' +
@@ -266,16 +275,18 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • NUNCA inventes `idPlanes` ni uses IDs memorizados de conversaciones anteriores.\n\n' +
       'USO:\n' +
       '  • Úsala cuando el usuario pregunte por la "determinación adversa más frecuente", ' +
-      '"concepto más común", "lo que más se deniega por concepto", "ranking por cantidad", ' +
-      'o similares donde la métrica principal es la FRECUENCIA.\n' +
-      '  • Si el usuario pregunta por DÍAS DENEGADOS (no cantidad), usa ' +
-      '`consultar_concepto_mas_dias_denegados` en su lugar — son métricas distintas.\n\n' +
+      '"concepto más común", "lo que más se deniega por concepto" o similares.\n' +
+      '  • Para el ranking CONSOLIDADO por días Y dinero, usa ' +
+      '`consultar_determinacion_adversa_monto_consolidado`; para el desglose por hospital con ' +
+      'días y monto, `consultar_determinacion_adversa_monto`.\n\n' +
       'MÉTRICAS:\n' +
-      '  • `cantidad` = filas en AuditoriaConceptos (registros administrativos).\n' +
-      '  • `totalDiasDenegados` = suma de `dias_denegados` de esas filas.\n\n' +
+      '  • `totalDiasDenegados` = suma de `dias_denegados` (lo ÚNICO que se rankea).\n' +
+      '  • `porcentajeDiasDenegadoComparadoConLos` = % de los días de estancia del universo que ' +
+      'denegó esa determinación (tasa).\n\n' +
       'RANKINGS:\n' +
-      '  • `items[]`: top-N por hospital (default API = 5).\n' +
-      '  • `itemsPorPlan[plan].conceptos`: `cantidad desc, totalDiasDenegados desc` (desempate).\n' +
+      '  • `items[]`: top-N por hospital (default API = 5), ordenado por `totalDiasDenegados` desc.\n' +
+      '  • `global.items[]`: top-N consolidado de todo el universo, por `totalDiasDenegados` desc.\n' +
+      '  • `itemsPorPlan[].planes[].conceptos[]`: `totalDiasDenegados` desc.\n' +
       '  • Planes pedidos sin actividad NO aparecen en `itemsPorPlan`.\n\n' +
       'OBTENCIÓN DE PARÁMETROS:\n' +
       '  • `fechaInicio` / `fechaFin`: string (YYYY-MM-DD) — el PERÍODO como rango, ' +
@@ -302,7 +313,7 @@ export const TOOLS: Anthropic.Tool[] = [
       'comas o espacios). NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas alineadas. ' +
       'Aunque tengas varias entradas (`items[]` o `itemsPorPlan[]`), NO las pongas en un bloque ' +
       'con columnas; usa SIEMPRE una lista con guion. Ejemplo correcto: "- Hospital San Lucas — ' +
-      'concepto "Criterio de Alta", cantidad 25, días denegados 87."; si hay varias, una línea por ' +
+      'concepto "Criterio de Alta", 87 días denegados."; si hay varias, una línea por ' +
       'concepto. Si agrupas por plan, una sección por plan (encabezado en <b>) y dentro la lista con guion.',
     input_schema: {
       type: 'object',
@@ -375,8 +386,10 @@ export const TOOLS: Anthropic.Tool[] = [
     name: 'consultar_concepto_mas_dias_denegados',
     description:
       'Responde: "¿Qué concepto / determinación genera más días denegados?".\n\n' +
-      'DIFERENCIA CLAVE con `consultar_determinacion_adversa_mas_frecuente`: acá el ranking es ' +
-      'por `totalDiasDenegados desc` (NO por cantidad).\n\n' +
+      'DIFERENCIA CLAVE con `consultar_determinacion_adversa_mas_frecuente`: aquella devuelve el ' +
+      'ranking por hospital + la vista consolidada `global`; esta además da el GANADOR ABSOLUTO ' +
+      '(`masDiasDenegadosGlobal`). Las dos ordenan por `totalDiasDenegados desc` (ninguna expone ' +
+      'conteo de aplicaciones).\n\n' +
       'BLOQUES DEL RESPONSE:\n' +
       '  • `masDiasDenegadosGlobal` — concepto ganador absoluto (sumando todos los hospitales ' +
       'y planes). Solo expone `idConcepto`, `concepto` y `totalDiasDenegados` — ' +
@@ -395,8 +408,9 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • Úsala cuando el usuario pregunte por "qué concepto genera más días denegados", ' +
       '"lo que más días denegados produce", "ranking por días denegados", o similares donde ' +
       'la métrica principal son los DÍAS.\n' +
-      '  • Si el usuario pregunta por FRECUENCIA/CANTIDAD (no días), usa ' +
-      '`consultar_determinacion_adversa_mas_frecuente` en su lugar.\n\n' +
+      '  • Si el usuario pregunta por la determinación "más frecuente" / "más común" (ranking por ' +
+      'hospital + vista consolidada `global`), usa `consultar_determinacion_adversa_mas_frecuente` ' +
+      'en su lugar.\n\n' +
       'RANKINGS:\n' +
       '  • `porHospital[]`: top-N conceptos por hospital (default API = 10).\n' +
       '  • `itemsPorPlan[plan].conceptos`: `totalDiasDenegados desc, cantidad desc` (desempate).\n' +
@@ -600,8 +614,7 @@ export const TOOLS: Anthropic.Tool[] = [
       '($) que generan (perdido / denegado), agrupadas por hospital y, opcionalmente, ' +
       'por plan.\n\n' +
       'DIFERENCIA CLAVE con `consultar_determinacion_adversa_mas_frecuente`: aquella ' +
-      'rankea por FRECUENCIA (cantidad de registros), esta rankea por MONTO ($) ' +
-      'generado.\n\n' +
+      'rankea por DÍAS DENEGADOS, esta rankea por MONTO ($) generado.\n\n' +
       'DIFERENCIA con `consultar_concepto_mas_dias_denegados`: aquel rankea por DÍAS ' +
       'denegados, este rankea por MONTO ($) perdido/denegado.\n\n' +
       'USO:\n' +
@@ -748,8 +761,8 @@ export const TOOLS: Anthropic.Tool[] = [
       'los MISMOS datos pero PARTIDOS por hospital (y por plan si mandás `idPlanes`). Usala cuando el ' +
       'usuario pregunta por un hospital puntual ("cuánto perdió el hospital X", "comparame estos dos ' +
       'hospitales").\n' +
-      '  • `consultar_determinacion_adversa_mas_frecuente`: ranking por CANTIDAD de veces que se ' +
-      'aplicó cada determinación (no por días ni por dinero).\n\n' +
+      '  • `consultar_determinacion_adversa_mas_frecuente`: ranking por DÍAS DENEGADOS (no por ' +
+      'dinero); no expone conteo de aplicaciones.\n\n' +
       'PARÁMETROS:\n' +
       '  • `fechaInicio` / `fechaFin` (string YYYY-MM-DD, OBLIGATORIOS): el PERÍODO como rango, ' +
       'con ambos extremos INCLUSIVOS. Esta tool NO usa `anio` / `meses` / `dia`: el backend filtra ' +

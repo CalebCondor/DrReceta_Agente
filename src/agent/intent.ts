@@ -90,7 +90,7 @@ export const METRICAS_COMPARABLES: MetricaComparable[] = [
     clave: 'determinaciones',
     etiqueta: 'Determinaciones adversas',
     detalle:
-      'el motivo de denegación más frecuente, el que más días concentra y el de mayor pérdida.',
+      'el motivo de denegación más frecuente (por días denegados) y el de mayor pérdida.',
     patron:
       /\bdeterminaci[óo]n\w*\b|\badvers\w*\b|\bmotivo(s)?\b|\braz[óo]n\w*\b|\bfrecuente\b|\badverse\s+determination\w*\b|\bmotives?\b|\breasons?\b/i,
   },
