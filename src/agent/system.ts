@@ -3,7 +3,7 @@
 // Orden: bloques ESTÁTICOS primero (cacheables) y bloques DINÁMICOS al final.
 
 import { DbService } from './db.service';
-import { sessions } from './state';
+import { sessions, type SessionScope } from './state';
 import { ALCANCE_DATOS } from './scope';
 /* ------------------------------------------------------------------ */
 /* 1. CONFIGURACIÓN (ajusta aquí nombres de tools y formato)           */
@@ -67,7 +67,12 @@ interface SessionExt {
   user_id?: number | string;
   name?: string;
   activeFilters?: ActiveFilters;
-  scope?: { hospitales?: string[]; planes?: string[]; rol?: string };
+  /**
+   * Alcance hospitalario del usuario. Comparte la forma con
+   * `SessionScope` (ver `src/agent/state.ts`): el agente lo resuelve
+   * contra `GET /api/hospitales/activos` con el token de la sesión.
+   */
+  scope?: SessionScope & { planes?: string[] };
 }
 
 /**
@@ -753,7 +758,7 @@ const REGLAS_DE_DATOS = [
   '  - `obtener_planes_por_hospital_con_loc` devuelve el catálogo JERÁRQUICO filtrado por hospital (y loc opcional). Úsala como prerrequisito cuando el usuario pide planes de UN hospital específico o cuando hay filtro de nivel de cuidado (ACUTE/SNF) y necesitas construir `idPlanes` correcto para `consultar_*`.',
   '  - SIEMPRE está disponible. Si el usuario pregunta por el catálogo de planes, LLÁMALA. No digas que no existe esa herramienta.',
   '  - Devuelve TODOS los planes del catálogo (con y sin actividad). Si el usuario quiere solo planes con actividad, esa respuesta es distinta y debe usar una tool de datos.',
-  '  - Es endpoint público: NO requiere autenticación. NO pidas correo ni código antes de llamarla.',
+  '  - No requiere autenticación adicional: NO pidas correo ni código antes de llamarla.',
   '  - El `id` es INTERNO: cuando listes los planes al usuario, muestra SOLO el `label` (el nombre) un plan por línea. NO muestres, menciones ni antepongas el `id`. El usuario solo quiere ver los nombres de los planes.',
   '',
   '🚫 PROHIBIDO MOSTRAR IDs AL USUARIO (REGLA ABSOLUTA):',
@@ -784,14 +789,21 @@ const REGLAS_DE_DATOS = [
   '  - NUNCA preguntes dos veces el mismo filtro. Si ya lo tienes, ejecútalo.',
   '  - REGLA DE ORO: si una consulta de datos pide hospital/mes/año y el usuario te dio el hospital pero no el plan, pregunta SOLO por el plan (y el año/mes ya lo inferiste). NO preguntes hospital + plan + año a la vez cuando ya tienes hospital.',
   '',
-  '⚠️ AUTENTICACIÓN:',
-  '  - TODOS los endpoints habilitados actualmente (`/api/planes/dropdown`, ' +
-    '`/api/hospitales/activos`, y los 4 de `/api/IaPreguntas/*`) son PÚBLICOS. ' +
-    'No requieren token, sesión, correo ni código de verificación.',
-  '  - NUNCA pidas al usuario su correo, código, ni que "inicie sesión" para ' +
-    'usar estas herramientas. Si la respuesta llega vacía, di que no hay ' +
-    'registros para esos filtros y sugiere ampliar el período o quitar un ' +
-    'filtro — NO asumas que es un problema de autenticación.',
+  '⚠️ AUTENTICACIÓN Y ALCANCE DE HOSPITALES:',
+  '  - El usuario YA está autenticado: su sesión viaja en cada petición ' +
+    'al backend de Audita. NO le pidas correo, código de verificación ni ' +
+    'que "inicie sesión" para usar estas herramientas.',
+  '  - `obtener_hospitales_disponibles` devuelve SOLO los hospitales a los ' +
+    'que el usuario tiene acceso (el backend filtra por sus permisos). ' +
+    'Ese catálogo es la lista COMPLETA de hospitales que puedes ' +
+    'consultar: nunca inventes un hospital que no esté en él.',
+  '  - Cuando el usuario diga "todos los hospitales", usa los ids de ese ' +
+    'catálogo (o `global: true`, que el agente traduce a esa misma lista). ' +
+    'NUNCA consolides datos de un hospital fuera del catálogo.',
+  '  - Si una herramienta responde con un error de permisos, o el hospital ' +
+    'pedido no aparece en el catálogo, explica que el usuario no tiene ' +
+    'acceso a esa información — NO digas que no hay registros ni que es un ' +
+    'problema de autenticación.',
   '',
   'PARÁMETROS: usa exactamente los nombres de parámetros que define cada herramienta. Conceptualmente los filtros posibles son: indicador, periodo (desde/hasta), hospital, plan, nivel, categoría (ACUTE/SNF), auditor, manejador de casos, agrupación, criterio de orden y límite. Pasa SOLO los filtros que el usuario pidió o que siguen vigentes (ver FILTROS ACTIVOS). Si el nombre dicho por el usuario no coincide exactamente con el catálogo, resuélvelo con la herramienta de catálogo; si hay varias coincidencias razonables, pregunta cuál.',
   '',
@@ -1189,7 +1201,9 @@ export async function buildSystem(
     scope?.rol ? `- Rol: ${scope.rol}.` : '',
     scope?.hospitales?.length
       ? `- Hospitales a los que tiene acceso: ${scope.hospitales.join(', ')}. No muestres ni insinúes datos de otros hospitales.`
-      : '- Alcance de hospitales: sin restricciones declaradas en este prompt; las herramientas aplican los permisos reales.',
+      : scope?.restringido
+        ? '- Este usuario NO tiene acceso a ningún hospital: no puede consultar datos de hospitales.'
+        : '- Alcance de hospitales: sin restricciones declaradas en este prompt; las herramientas aplican los permisos reales.',
     scope?.planes?.length
       ? `- Planes a los que tiene acceso: ${scope.planes.join(', ')}.`
       : '',

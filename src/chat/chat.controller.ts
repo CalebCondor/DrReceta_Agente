@@ -10,12 +10,15 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  Headers,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
 import { IsNumber, IsString, IsNotEmpty, IsOptional } from 'class-validator';
 import { AgentService } from '../agent/agent.service';
 import { ChatService } from './chat.service';
 import { ChatGateway } from './chat.gateway';
+import { extraerToken, resolverAlcance } from '../agent/alcance';
+import { sessions } from '../agent/state';
 class PreguntaRespuestaDto {
   @IsString()
   @IsNotEmpty()
@@ -39,6 +42,20 @@ class ChatDto {
   @IsOptional()
   @IsString()
   user_name?: string;
+
+  /**
+   * Token JWT de Audita (opcional).
+   *
+   * El frontend lo envía en cada mensaje para que el agente pueda:
+   *   · resolver el alcance hospitalario del usuario
+   *     (`GET /api/hospitales/activos` con `Authorization: Bearer`), y
+   *   · reenviarlo a los endpoints de `/api/*` de Audita.
+   *
+   * El token NUNCA se loguea ni se devuelve en la respuesta.
+   */
+  @IsOptional()
+  @IsString()
+  token?: string;
 }
 
 @Controller('chat')
@@ -86,13 +103,44 @@ export class ChatController {
 
   @Post('')
   @HttpCode(200)
-  async chat(@Body() body: ChatDto) {
+  async chat(
+    @Body() body: ChatDto,
+    @Headers('authorization') authorization?: string,
+  ) {
     const incomingAt = Date.now();
     this.logger.log(
       `[chat] RECIBIDO  chat_id=${body.chat_id} user=${body.user_name ?? '-'} ` +
         `len=${body.message.length} preview="${body.message.slice(0, 80).replace(/\n/g, ' ')}"`,
     );
     try {
+      // ─── Token de Audita ──────────────────────────────────────────────
+      // Llega por el header `Authorization: Bearer` o por el campo `token`
+      // del body (el frontend usa el body porque el rewrite de Next.js no
+      // garantiza reenviar el header). Se guarda en la sesión en memoria
+      // para poder reenviarlo a los endpoints de `/api/*` de Audita.
+      //
+      // El token NO se loguea en ningún punto.
+      const token = extraerToken(authorization, body.token);
+
+      if (token) {
+        // Se actualiza la sesión SIN perder lo que ya había (filtros
+        // activos, alcance hospitalario, nombre).
+        const sesion = sessions.get(body.chat_id) ?? {};
+        sesion.token = token;
+        if (body.user_name) sesion.name = body.user_name;
+        sessions.set(body.chat_id, sesion);
+
+        // Se resuelve el alcance hospitalario ANTES de generar la
+        // respuesta: así el system prompt ya sabe a qué hospitales tiene
+        // acceso el usuario desde el primer turno.
+        await resolverAlcance(body.chat_id, token);
+      } else {
+        this.logger.warn(
+          `[chat] chat_id=${body.chat_id} llega SIN token: el agente no podrá ` +
+            `aplicar el alcance hospitalario del usuario.`,
+        );
+      }
+
       const response = await this.agentService.chat(body.chat_id, body.message);
       const elapsedMs = Date.now() - incomingAt;
       const ok = typeof response === 'string' && response.length > 0;

@@ -2,7 +2,8 @@
 // Ejecuta la herramienta solicitada por Claude y devuelve el resultado como JSON string
 
 import { sessions } from './state';
-import { apiPost, apiGet } from '../api/http';
+import { apiGet } from '../api/http';
+import { apiPostConAlcance, resolverAlcance } from './alcance';
 import { DbService } from './db.service';
 
 /*──────────────────────────────────────────────────────────────────────────
@@ -195,16 +196,19 @@ function resolverRangoFechas(toolInput: Record<string, unknown>): {
 /**
  * Tools que requieren una sesión autenticada.
  *
- * IMPORTANTE: los endpoints de Audita (`/api/IaPreguntas/*` y los catálogos
- * `/api/planes/dropdown`, `/api/hospitales/activos`) son PÚBLICOS en este
- * entorno — responden HTTP 200 sin token. Por lo tanto NINGUNA tool
- * actualmente activa requiere auth, y el agente NO debe pedir credenciales
- * al usuario para estas consultas.
+ * Los endpoints de Audita (`/api/IaPreguntas/*`, `/api/planes/dropdown`,
+ * `/api/hospitales/activos`) se consultan SIN token cuando el chat no tiene
+ * sesión: el backend los expone como públicos y el agente no debe bloquear
+ * las consultas de datos por falta de credenciales.
+ *
+ * PERO cuando el usuario SÍ está autenticado (el token llega en
+ * `POST /api/chat`), el agente recorta las consultas al alcance real del
+ * usuario: ver `resolverAlcance` / `aplicarAlcanceHospitales` en
+ * `./alcance.ts`. Ese recorte es lo que impide que Aida devuelva datos de
+ * hospitales a los que el usuario no tiene acceso.
  *
  * Si en el futuro se re-habilitan tools privadas (perfil, órdenes, pagos,
- * compras, etc.), se deben volver a listar aquí. Mientras tanto, este
- * conjunto queda VACÍO a propósito para no bloquear las herramientas de
- * datos cuando no hay sesión iniciada.
+ * compras, etc.), se deben volver a listar aquí.
  */
 const AUTH_REQUIRED = new Set<string>([
   // 'get_perfil',
@@ -223,6 +227,15 @@ export async function executeTool(
 ): Promise<string> {
   const s = sessions.get(chatId);
   const token = s?.token;
+
+  // ─── Alcance hospitalario del usuario (multi-tenant) ──────────────────
+  // Los ids de hospital que el usuario puede consultar. El controller ya
+  // lo resuelve al recibir el token; si el executor se invoca por otra
+  // vía, aquí se resuelve (queda cacheado en la sesión).
+  //
+  // Cuando NO hay token (chat sin sesión) el alcance es `null`: en ese
+  // caso NO se recorta nada, porque no se sabe qué es lo permitido.
+  const alcance = await resolverAlcance(chatId, token);
 
   if (AUTH_REQUIRED.has(toolName) && !s) {
     return JSON.stringify({
@@ -355,14 +368,37 @@ export async function executeTool(
   //
   // Las 4 tools viven en `src/agent/tools.ts` y tienen su URL activa en
   // `src/api/urls.ts`. Aquí se arman los payloads y se delega en
-  // `apiGet`/`apiPost` (definidos en `src/api/http.ts`).
+  // `apiGet`/`apiPostConAlcance` (definidos en `src/api/http.ts` y
+  // `src/agent/alcance.ts`).
+  //
+  // `apiPostConAlcance` recorta el body al alcance hospitalario del
+  // usuario ANTES de pegarle al backend: filtra `idHospitales` y
+  // convierte `global: true` en la lista de hospitales permitidos.
 
   if (toolName === 'obtener_planes_disponibles') {
     return JSON.stringify(await apiGet(PLANES_DISPONIBLES_URL, {}, token));
   }
 
   if (toolName === 'obtener_hospitales_disponibles') {
-    return JSON.stringify(await apiGet(HOSPITALES_DISPONIBLES_URL, {}, token));
+    // El backend, cuando recibe el token, devuelve SOLO los hospitales a
+    // los que el usuario tiene acceso: este catálogo ES el alcance.
+    const res = await apiGet(HOSPITALES_DISPONIBLES_URL, {}, token);
+
+    // El endpoint exige autenticación. Si la sesión no está disponible
+    // (token ausente o vencido) se devuelve un mensaje accionable en vez
+    // del error HTTP crudo, para que el modelo no lo interprete como
+    // "no hay hospitales".
+    if (res['success'] === false && /401|Unauthorized/i.test(String(res['error'] ?? ''))) {
+      return JSON.stringify({
+        success: false,
+        error:
+          'No hay una sesión de Audita válida para este chat, así que no se puede ' +
+          'consultar el catálogo de hospitales (el endpoint requiere autenticación). ' +
+          'Pide al usuario que inicie sesión en Audita y vuelve a intentarlo.',
+      });
+    }
+
+    return JSON.stringify(res);
   }
 
   if (toolName === 'obtener_planes_por_hospital_con_loc') {
@@ -392,7 +428,7 @@ export async function executeTool(
       body['idPlanes'] = idPlanes;
     }
     return JSON.stringify(
-      await apiPost(PLANES_POR_HOSPITAL_CON_LOC_URL, body, token),
+      await apiPostConAlcance(PLANES_POR_HOSPITAL_CON_LOC_URL, body, token, alcance),
     );
   }
 
@@ -553,7 +589,7 @@ export async function executeTool(
     body['fechaInicio'] = rango.fechaInicio;
     body['fechaFin'] = rango.fechaFin;
     return JSON.stringify(
-      await apiPost(RESUMEN_FINANCIERO_HOSPITALES_URL, body, token),
+      await apiPostConAlcance(RESUMEN_FINANCIERO_HOSPITALES_URL, body, token, alcance),
     );
   }
 
@@ -573,7 +609,7 @@ export async function executeTool(
       typeof top === 'number'
         ? `${DETERMINACION_ADVERSA_MAS_FRECUENTE_URL}?top=${encodeURIComponent(String(top))}`
         : DETERMINACION_ADVERSA_MAS_FRECUENTE_URL;
-    return JSON.stringify(await apiPost(url, body, token));
+    return JSON.stringify(await apiPostConAlcance(url, body, token, alcance));
   }
 
   if (toolName === 'consultar_montos_por_estado') {
@@ -587,7 +623,7 @@ export async function executeTool(
     const rango = resolverRangoFechas(toolInput);
     body['fechaInicio'] = rango.fechaInicio;
     body['fechaFin'] = rango.fechaFin;
-    return JSON.stringify(await apiPost(MONTOS_ESTADO, body, token));
+    return JSON.stringify(await apiPostConAlcance(MONTOS_ESTADO, body, token, alcance));
   }
 
   if (toolName === 'consultar_determinacion_adversa_monto') {
@@ -606,7 +642,7 @@ export async function executeTool(
       typeof top === 'number'
         ? `${DETERMINACION_ADVERSA_MONTO_URL}?top=${encodeURIComponent(String(top))}`
         : DETERMINACION_ADVERSA_MONTO_URL;
-    return JSON.stringify(await apiPost(url, body, token));
+    return JSON.stringify(await apiPostConAlcance(url, body, token, alcance));
   }
 
   if (toolName === 'consultar_determinacion_adversa_monto_consolidado') {
@@ -631,12 +667,12 @@ export async function executeTool(
       return JSON.stringify({
         success: false,
         error:
-          'Falta el parámetro requerido `idHospitales` (int[], ≥1). Llama antes a `obtener_hospitales_disponibles` (campo `hosId`) y reintenta con esos IDs; si el usuario no dijo cuáles, manda `global: true` para considerar todos los hospitales.',
+          'Falta el parámetro requerido `idHospitales` (int[], ≥1). Llama antes a `obtener_hospitales_disponibles` (campo `hosId`) y reintenta con esos IDs; si el usuario no dijo cuáles, manda `global: true` y se usarán TODOS los hospitales a los que el usuario tiene acceso.',
       });
     }
 
     return JSON.stringify(
-      await apiPost(DETERMINACION_ADVERSA_MONTO_CONSOLIDADO_URL, body, token),
+      await apiPostConAlcance(DETERMINACION_ADVERSA_MONTO_CONSOLIDADO_URL, body, token, alcance),
     );
   }
 
@@ -665,7 +701,7 @@ export async function executeTool(
     // El ID del médico viaja como QUERY param, no en el body.
     const qs = idPivoteEnQuery(body, 'idMedicoAlta', 'idMedicosAlta');
     const url = qs ? `${DESEMPENO_MEDICO_URL}?${qs}` : DESEMPENO_MEDICO_URL;
-    return JSON.stringify(await apiPost(url, body, token));
+    return JSON.stringify(await apiPostConAlcance(url, body, token, alcance));
   }
 
   // ─── Determinación adversa más frecuente del médico de alta ─────────────
@@ -685,7 +721,7 @@ export async function executeTool(
     body['fechaInicio'] = rango.fechaInicio;
     body['fechaFin'] = rango.fechaFin;
     return JSON.stringify(
-      await apiPost(DETERMINACION_ADVERSA_MEDICO_ALTA_URL, body, token),
+      await apiPostConAlcance(DETERMINACION_ADVERSA_MEDICO_ALTA_URL, body, token, alcance),
     );
   }
 
@@ -710,7 +746,7 @@ export async function executeTool(
     const url = qs
       ? `${DESEMPENO_MANEJADOR_CASO_URL}?${qs}`
       : DESEMPENO_MANEJADOR_CASO_URL;
-    return JSON.stringify(await apiPost(url, body, token));
+    return JSON.stringify(await apiPostConAlcance(url, body, token, alcance));
   }
 
   // ─── Determinación adversa más frecuente del manejador de caso ─────────
@@ -734,7 +770,7 @@ export async function executeTool(
       body['idManejadorCaso'] = idManejadorCaso;
     }
     return JSON.stringify(
-      await apiPost(DETERMINACION_ADVERSA_MANEJADOR_CASO_URL, body, token),
+      await apiPostConAlcance(DETERMINACION_ADVERSA_MANEJADOR_CASO_URL, body, token, alcance),
     );
   }
 
@@ -757,7 +793,7 @@ export async function executeTool(
     body['fechaInicio'] = rango.fechaInicio;
     body['fechaFin'] = rango.fechaFin;
     return JSON.stringify(
-      await apiPost(FACTURACION_MANEJADOR_HOSPITALES_URL, body, token),
+      await apiPostConAlcance(FACTURACION_MANEJADOR_HOSPITALES_URL, body, token, alcance),
     );
   }
 
@@ -779,7 +815,7 @@ export async function executeTool(
     body['fechaInicio'] = rango.fechaInicio;
     body['fechaFin'] = rango.fechaFin;
     return JSON.stringify(
-      await apiPost(FACTURACION_AUDITOR_HOSPITALES_URL, body, token),
+      await apiPostConAlcance(FACTURACION_AUDITOR_HOSPITALES_URL, body, token, alcance),
     );
   }
 
@@ -802,7 +838,7 @@ export async function executeTool(
     // El ID del auditor viaja como QUERY param, no en el body.
     const qs = idPivoteEnQuery(body, 'idAuditor', 'idAuditores');
     const url = qs ? `${DESEMPENO_AUDITOR_URL}?${qs}` : DESEMPENO_AUDITOR_URL;
-    return JSON.stringify(await apiPost(url, body, token));
+    return JSON.stringify(await apiPostConAlcance(url, body, token, alcance));
   }
 
   // ─── Determinación adversa más frecuente de un auditor ──────────────────
@@ -834,7 +870,7 @@ export async function executeTool(
       });
     }
     return JSON.stringify(
-      await apiPost(DETERMINACION_ADVERSA_AUDITOR_URL, body, token),
+      await apiPostConAlcance(DETERMINACION_ADVERSA_AUDITOR_URL, body, token, alcance),
     );
   }
 

@@ -36,12 +36,53 @@ export const MINIMAX_BASE_URL =
 export const MINIMAX_ENABLED =
   MINIMAX_API_KEY.length > 0 && !MINIMAX_API_KEY.startsWith('sk-cp-REPLACE');
 
+/**
+ * Alcance hospitalario del usuario (multi-tenant).
+ *
+ * En Audita un usuario sólo puede consultar los hospitales a los que tiene
+ * acceso (tabla `Usuario_Hospital`). Ese alcance lo resuelve el backend .NET
+ * en `GET /api/hospitales/activos`, que — cuando la request lleva JWT —
+ * devuelve SOLO los hospitales asignados al usuario autenticado.
+ *
+ * `restringido` distingue dos situaciones que el prompt debe tratar de
+ * forma distinta:
+ *   · `true`  → el alcance se resolvió: `hospitalesIds` es la lista EXACTA
+ *               (puede estar vacía si el usuario no tiene ningún hospital).
+ *   · `false` → no se pudo resolver (no hay token, o el backend no
+ *               respondió): en ese caso NO se recorta nada, porque no
+ *               sabemos qué|datum es lo permitido.
+ */
+export interface SessionScope {
+  /** IDs de hospital (`hosId`) a los que el usuario tiene acceso. */
+  hospitalesIds: number[];
+  /** Nombres de hospital (`hosNombre`) a los que el usuario tiene acceso. */
+  hospitales: string[];
+  /** Rol del usuario (claim `rol` del JWT), si se pudo leer. */
+  rol?: string;
+  /** `true` cuando el alcance se resolvió contra el backend de Audita. */
+  restringido: boolean;
+}
+
 export interface SessionData {
-  token: string;
-  user_id: string | number;
-  name: string;
-  es_vip: boolean;
+  /**
+   * Token JWT de Audita. Lo envía el frontend en cada mensaje de chat y
+   * el agente lo reenvía como `Authorization: Bearer` a los endpoints de
+   * `/api/*`.
+   *
+   * IMPORTANTE: NUNCA se loguea ni se devuelve en una respuesta.
+   */
+  token?: string;
+  user_id?: string | number;
+  name?: string;
+  es_vip?: boolean;
   language?: string;
+  /** Alcance hospitalario del usuario (ver `SessionScope`). */
+  scope?: SessionScope;
+  /**
+   * Epoch (ms) de la última resolución del alcance. Sirve para no
+   * pegarle al backend de Audita en cada mensaje del chat.
+   */
+  scopeResolvedAt?: number;
 }
 
 export interface MiniMaxMessage {

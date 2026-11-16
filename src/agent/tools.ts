@@ -40,8 +40,8 @@ export const TOOLS: Anthropic.Tool[] = [
       '"planes de la categoría Comercial", "qué planes Vital hay"). NO digas que no existe esa ' +
       'herramienta — sí existe y debes llamarla.\n\n' +
       'Devuelve el catálogo COMPLETO de planes médicos agrupados por CATEGORÍA (COMERCIAL, ' +
-      'MEDICARE, ASES / VITAL, etc.), incluyendo planes con y sin actividad registrada. Es un ' +
-      'endpoint público — NO requiere autenticación y NO debes pedir correo ni código antes de ' +
+      'MEDICARE, ASES / VITAL, etc.), incluyendo planes con y sin actividad registrada. No ' +
+      'requiere autenticación adicional — NO debes pedir correo ni código antes de ' +
       'llamarla.\n\n' +
       'ADEMÁS es prerrequisito de las tools de datos:\n' +
       '  • Si después vas a llamar `consultar_resumen_financiero_hospitales`, ' +
@@ -91,9 +91,10 @@ export const TOOLS: Anthropic.Tool[] = [
       'los hospitales activos disponibles (ej.: "¿qué hospitales hay?", "¿cuáles son los ' +
       'hospitales?", "dame el listado de hospitales", "qué hospitales activos existen"). ' +
       'NO digas que no existe esa herramienta — sí existe y debes llamarla.\n\n' +
-      'Devuelve el catálogo COMPLETO de hospitales ACTIVOS (con actividad registrada). Es un ' +
-      'endpoint público — NO requiere autenticación y NO debes pedir correo ni código antes de ' +
-      'llamarla.\n\n' +
+      'Devuelve el catálogo COMPLETO de hospitales ACTIVOS **a los que el usuario tiene acceso**. ' +
+      'El backend filtra el catálogo por los permisos de la sesión del usuario: si no tiene acceso ' +
+      'a ningún hospital, la lista viene vacía. NO debes pedir correo ni código antes de llamarla ' +
+      '(la sesión ya está iniciada).\n\n' +
       'ADEMÁS es prerrequisito de las tools de datos:\n' +
       '  • Si después vas a llamar `consultar_resumen_financiero_hospitales`, ' +
       '`consultar_determinacion_adversa_mas_frecuente`, `consultar_concepto_mas_dias_denegados`, ' +
