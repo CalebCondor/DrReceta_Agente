@@ -19,7 +19,7 @@ import {
   RESUMEN_FINANCIERO_HOSPITALES_URL,
   DETERMINACION_ADVERSA_MAS_FRECUENTE_URL,
   PLANES_DISPONIBLES_URL,
-  HOSPITALES_DISPONIBLES_URL,
+  HOSPITALES_ACCESO_URL,
   MONTOS_ESTADO,
   DETERMINACION_ADVERSA_MONTO_URL,
   DETERMINACION_ADVERSA_MONTO_CONSOLIDADO_URL,
@@ -382,7 +382,7 @@ export async function executeTool(
   if (toolName === 'obtener_hospitales_disponibles') {
     // El backend, cuando recibe el token, devuelve SOLO los hospitales a
     // los que el usuario tiene acceso: este catálogo ES el alcance.
-    const res = await apiGet(HOSPITALES_DISPONIBLES_URL, {}, token);
+    const res = await apiGet(HOSPITALES_ACCESO_URL, {}, token);
 
     // El endpoint exige autenticación. Si la sesión no está disponible
     // (token ausente o vencido) se devuelve un mensaje accionable en vez

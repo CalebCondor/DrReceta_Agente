@@ -136,7 +136,7 @@ describe('resolverAlcance', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('consulta /api/hospitales/activos con el header Bearer', async () => {
+  it('consulta /api/hospitales/acceso con el header Bearer', async () => {
     const scope = await resolverAlcance(1, 'jwt-123');
 
     expect(scope).not.toBeNull();
@@ -144,10 +144,46 @@ describe('resolverAlcance', () => {
     expect(scope?.hospitales).toEqual(['Hospital Bayamon', 'Hospital San Lucas']);
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain('/api/hospitales/activos');
+    expect(url).toContain('/api/hospitales/acceso');
     expect((init.headers as Record<string, string>)['Authorization']).toBe(
       'Bearer jwt-123',
     );
+  });
+
+  it('NO consulta /api/hospitales/activos (devuelve el catálogo global)', async () => {
+    await resolverAlcance(1, 'jwt-123');
+
+    const [url] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).not.toContain('/api/hospitales/activos');
+  });
+
+  it('el alcance contiene SOLO los hospitales del usuario', async () => {
+    // El usuario tiene acceso a 3 de los 5 hospitales del tenant.
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () =>
+        Promise.resolve(
+          JSON.stringify([
+            { hosId: 4, hosNombre: 'Centro Medico del Caribe' },
+            { hosId: 5, hosNombre: 'Hospital Bayamon' },
+            { hosId: 1, hosNombre: 'Hospital Central' },
+          ]),
+        ),
+    });
+
+    const scope = await resolverAlcance(7, 'jwt-123');
+
+    expect(scope?.hospitalesIds).toEqual([4, 5, 1]);
+    expect(scope?.hospitales).toHaveLength(3);
+
+    // Los 2 hospitales fuera del alcance quedan recortados en las tools.
+    const r = aplicarAlcanceHospitales(
+      { idHospitales: [4, 3, 6] },
+      scope,
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.body['idHospitales']).toEqual([4]);
   });
 
   it('guarda el alcance en la sesión y lo reutiliza (caché)', async () => {

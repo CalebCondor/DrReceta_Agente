@@ -21,7 +21,21 @@ const AUDITA_API_URL: string =
 export const RESUMEN_FINANCIERO_HOSPITALES_URL = `${AUDITA_API_URL}/api/IaPreguntas/resumen-financiero-hospitales`;
 export const DETERMINACION_ADVERSA_MAS_FRECUENTE_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-mas-frecuente`;
 export const PLANES_DISPONIBLES_URL = `${AUDITA_API_URL}/api/planes/dropdown`;
-export const HOSPITALES_DISPONIBLES_URL = `${AUDITA_API_URL}/api/hospitales/activos`;
+
+// --- Hospitales a los que tiene acceso el usuario (multi-tenant) ---
+//
+// Se usa `GET /api/hospitales/acceso`, que exige JWT y devuelve SOLO los
+// hospitales asignados al usuario en `Usuario_Hospital` (uh_activo = 1 y
+// hos_estado = 1). Es la fuente de verdad del alcance hospitalario.
+//
+// NO usar `GET /api/hospitales/activos`: hasta que el backend .NET despliegue
+// el commit que lo cierra ("Cerrar el endpoint de hospitales activos y
+// filtrar por acceso del usuario"), ese endpoint es `[AllowAnonymous]` y
+// devuelve el catálogo GLOBAL del tenant (los 5 hospitales) aunque se le
+// mande el token del usuario. Con ese catálogo el agente pierde el alcance:
+// le presenta al usuario todos los hospitales y recorta las consultas contra
+// el catálogo completo en vez de contra sus accesos.
+export const HOSPITALES_ACCESO_URL = `${AUDITA_API_URL}/api/hospitales/acceso`;
 export const MONTOS_ESTADO = `${AUDITA_API_URL}/api/IaPreguntas/montos-por-estado`;
 export const DETERMINACION_ADVERSA_MONTO_URL = `${AUDITA_API_URL}/api/IaPreguntas/determinacion-adversa-monto-por-hospital`;
 export const PLANES_POR_HOSPITAL_CON_LOC_URL = `${AUDITA_API_URL}/api/IaPreguntas/planes-por-hospital-con-loc`;

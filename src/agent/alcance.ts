@@ -3,7 +3,7 @@
 
   En Audita un usuario sólo puede consultar los hospitales a los que tiene
   acceso (tabla `Usuario_Hospital`). El backend .NET resuelve ese alcance
-  en `GET /api/hospitales/activos`: cuando la request lleva JWT, devuelve
+  en `GET /api/hospitales/acceso`: cuando la request lleva JWT, devuelve
   SOLO los hospitales asignados al usuario autenticado (no el catálogo
   global del tenant).
 
@@ -11,7 +11,7 @@
 
     1. `extraerToken`      — saca el JWT del header `Authorization: Bearer`
                              o del campo `token` del body de `POST /api/chat`.
-    2. `resolverAlcance`   — consulta `/api/hospitales/activos` con el token
+    2. `resolverAlcance`   — consulta `/api/hospitales/acceso` con el token
                              y guarda el alcance (ids + nombres) en la
                              sesión en memoria (`sessions`), con caché por
                              chat para no pegarle al backend en cada turno.
@@ -25,7 +25,7 @@
 
 import { Logger } from '@nestjs/common';
 import { apiGet, apiPost } from '../api/http';
-import { HOSPITALES_DISPONIBLES_URL } from '../api/urls';
+import { HOSPITALES_ACCESO_URL } from '../api/urls';
 import { sessions, type SessionScope } from './state';
 
 const logger = new Logger('Alcance');
@@ -149,7 +149,7 @@ export function alcanceDeSesion(chatId: number): SessionScope | null {
  *
  * · Sin token → `null` (no hay sesión autenticada: no se recorta nada,
  *   porque no se sabe qué es lo permitido).
- * · Con token → GET `/api/hospitales/activos` con `Authorization: Bearer`.
+ * · Con token → GET `/api/hospitales/acceso` con `Authorization: Bearer`.
  *   El resultado se guarda en `sessions` y se reutiliza durante
  *   `CACHE_TTL_MS`.
  * · Si el backend falla → `null` (se deja pasar sin recortar; el propio
@@ -172,7 +172,7 @@ export async function resolverAlcance(
     return session.scope;
   }
 
-  const payload = await apiGet(HOSPITALES_DISPONIBLES_URL, {}, token);
+  const payload = await apiGet(HOSPITALES_ACCESO_URL, {}, token);
 
   if (!payload || payload['success'] === false) {
     logger.warn(
