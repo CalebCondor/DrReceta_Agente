@@ -310,15 +310,25 @@ export class AgentService {
   ): Promise<Anthropic.MessageParam[]> {
     if (!conversations.has(chatId)) {
       try {
+        // Se cargan los 50 mensajes MÁS RECIENTES del chat (no los más
+        // antiguos): el `chat_id` es el id del usuario, así que el historial
+        // acumula TODAS sus conversaciones a lo largo del tiempo. Cargar los
+        // más antiguos metía en el prompt respuestas viejas de cuando el
+        // agente todavía用的是 el catálogo global de hospitales, y el modelo
+        // las mezclaba con los datos actuales (respondía con 5 hospitales
+        // cuando el usuario tenía acceso a 4).
         const { rows } = await this.db.query(
           `SELECT [role], content
            FROM historial_mensajes
            WHERE chat_id = $1
-           ORDER BY created_at ASC
+           ORDER BY created_at DESC, id DESC
            OFFSET 0 ROWS FETCH NEXT 50 ROWS ONLY`,
           [chatId],
         );
-        const history: Anthropic.MessageParam[] = rows
+        // La query trae los más recientes primero: se invierte para dejar el
+        // historial en orden cronológico (el modelo lo necesita así).
+        const filas = [...rows].reverse();
+        const history: Anthropic.MessageParam[] = filas
           .map((r: { role: string; content: unknown }) => {
             let text = '';
             if (typeof r.content === 'string') {

@@ -56,6 +56,29 @@ function toInt(raw: unknown): number {
 }
 
 /**
+ * Quita el rol en hospital (`uhRolEnHospital`) de la respuesta del
+ * catálogo de hospitales.
+ *
+ * El usuario pidió que Aida no mencione el rol: con el dato dentro del
+ * payload de la tool, el modelo lo repetía en cada respuesta ("en los tres
+ * tienes el rol de médico"). Para resolver el alcance sólo hacen falta el
+ * id y el nombre del hospital.
+ *
+ * Si la respuesta no es el array esperado, se devuelve tal cual.
+ */
+function sinRolEnHospital(res: unknown): unknown {
+  if (!Array.isArray(res)) return res;
+
+  return res.map((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
+
+    const copia = { ...(item as Record<string, unknown>) };
+    delete copia['uhRolEnHospital'];
+    return copia;
+  });
+}
+
+/**
  * Valores de `agruparPor` que admite CADA tool.
  *
  * `agruparPor` es el AGRUPADOR de la jerarquía de la respuesta de los
@@ -398,7 +421,11 @@ export async function executeTool(
       });
     }
 
-    return JSON.stringify(res);
+    // Se quita `uhRolEnHospital` del payload: el usuario pidió que Aida no
+    // mencione el rol, y con el dato en la respuesta el modelo lo repetía
+    // ("en los tres tienes el rol de médico"). Para el alcance sólo hace
+    // falta el id y el nombre del hospital.
+    return JSON.stringify(sinRolEnHospital(res));
   }
 
   if (toolName === 'obtener_planes_por_hospital_con_loc') {

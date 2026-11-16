@@ -83,6 +83,17 @@ export interface SessionData {
    * pegarle al backend de Audita en cada mensaje del chat.
    */
   scopeResolvedAt?: number;
+  /**
+   * Token con el que se resolvió `scope`.
+   *
+   * El alcance se cachea por chat, pero un mismo `chat_id` puede
+   * recibir el token de OTRO usuario (p. ej. el navegador reinicia sesión
+   * y el `chat_id` sigue siendo el mismo). Si el token cambia, el
+   * alcance cacheado es de otro usuario y hay que resolverlo de nuevo:
+   * si no, el prompt le announce al usuario los hospitales de otra
+   * persona.
+   */
+  scopeToken?: string;
 }
 
 export interface MiniMaxMessage {

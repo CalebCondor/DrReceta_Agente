@@ -203,6 +203,49 @@ describe('resolverAlcance', () => {
 
     expect(await resolverAlcance(1, 'jwt-123')).toBeNull();
   });
+
+  it('re-resuelve el alcance si el token del chat cambia de usuario', async () => {
+    // El chat 1 primero lo usa un usuario con 3 hospitales y después otro
+    // con 4. El alcance cacheado por chat_id es del PRIMERO: si no se
+    // re-resuelve, el prompt le anuncia al segundo los hospitales del
+    // primero y las tools (que sí van con el token nuevo) devuelven otra
+    // lista → el modelo se contradice y el chat se cuelga.
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify([
+              { hosId: 4, hosNombre: 'Centro Medico del Caribe' },
+              { hosId: 5, hosNombre: 'Hospital Bayamon' },
+              { hosId: 6, hosNombre: 'Hospital San Lucas' },
+            ]),
+          ),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify([
+              { hosId: 3, hosNombre: 'Centro Medico del Noreste' },
+              { hosId: 4, hosNombre: 'Centro Medico del Caribe' },
+              { hosId: 5, hosNombre: 'Hospital Bayamon' },
+              { hosId: 6, hosNombre: 'Hospital San Lucas' },
+            ]),
+          ),
+      });
+
+    const primero = await resolverAlcance(1, 'jwt-usuario-lucho');
+    expect(primero?.hospitalesIds).toEqual([4, 5, 6]);
+
+    // Mismo chat_id, token de OTRO usuario → tiene que re-resolver.
+    const segundo = await resolverAlcance(1, 'jwt-usuario-admin');
+    expect(segundo?.hospitalesIds).toEqual([3, 4, 5, 6]);
+    expect(alcanceDeSesion(1)?.hospitalesIds).toEqual([3, 4, 5, 6]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('apiPostConAlcance', () => {

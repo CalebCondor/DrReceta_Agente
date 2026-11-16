@@ -164,7 +164,16 @@ export async function resolverAlcance(
   const session = sessions.get(chatId);
   const ahora = Date.now();
 
+  // El alcance cacheado sólo sirve si se resolvió con el MISMO token que
+  // trae esta request. Si el token cambió (el usuario reinició sesión, el
+  // backend rotó el JWT, otro usuario entró en el mismo chat), el alcance
+  // cacheado es de otro usuario: hay que resolverlo otra vez. Sin esto el
+  // prompt le anuncia al usuario los hospitales de otra persona y las
+  // tools (que sí van con el token nuevo) devuelven otra lista.
+  const tokenCambio = session?.scopeToken !== undefined && session.scopeToken !== token;
+
   if (
+    !tokenCambio &&
     session?.scope?.restringido &&
     session.scopeResolvedAt &&
     ahora - session.scopeResolvedAt < CACHE_TTL_MS
@@ -200,6 +209,7 @@ export async function resolverAlcance(
   s.token = token;
   s.scope = scope;
   s.scopeResolvedAt = ahora;
+  s.scopeToken = token;
   if (!s.name && claims.nombre) s.name = claims.nombre;
   sessions.set(chatId, s);
 

@@ -1198,7 +1198,10 @@ export async function buildSystem(
     userName
       ? `- Usuario: ${userName}.`
       : '- Usuario no identificado por nombre.',
-    scope?.rol ? `- Rol: ${scope.rol}.` : '',
+    // El ROL del usuario NO se le pasa al modelo: no hace falta para
+    // responder y hacía que Aida cerrara cada respuesta con frases como
+    // "en los tres tienes el rol de médico", que el usuario no pidió.
+    // (El alcance hospitalario sí se recorta server-side, con el token.)
     scope?.hospitales?.length
       ? `- Hospitales a los que tiene acceso: ${scope.hospitales.join(', ')}. No muestres ni insinúes datos de otros hospitales.`
       : scope?.restringido
