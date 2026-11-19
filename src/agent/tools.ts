@@ -150,7 +150,9 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • Sin `idPlanes`: `porHospital[].planes = null`. Con `idPlanes`: `planes[]` se ordena ' +
       'por `totalDenegado desc, idPlan asc`.\n' +
       '  • El filtro de plan va por la cadena `Auditorias.IdPlanNivel → PlanNivel.PnlPlanId → ' +
-      'Planes.IdPlanes`. Auditorías sin plan quedan EXCLUIDAS cuando se envía `idPlanes`.\n\n' +
+      'Planes.IdPlanes`. Auditorías sin plan quedan EXCLUIDAS cuando se envía `idPlanes`.\n' +
+      '  • Los porcentajes GLOBALES que devuelve la API son `porcentajeAprobadoVsLos` y ' +
+      '`porcentajeDenegadoVsLos` (días ÷ totalLos, × 100). USA esos campos, NO los recalcules.\n\n' +
       'OBTENCIÓN DE PARÁMETROS:\n' +
       '  • `fechaInicio` / `fechaFin`: string (YYYY-MM-DD) — el PERÍODO como rango, ' +
       'con ambos extremos INCLUSIVOS. Esta tool NO usa `anio` / `meses` / `dia`: ' +

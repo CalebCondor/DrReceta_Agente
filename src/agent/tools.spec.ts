@@ -52,6 +52,27 @@ describe.each([
   });
 });
 
+describe('tools · consultar_resumen_financiero_hospitales · porcentaje global', () => {
+  const tool = (TOOLS as unknown as ToolShape[]).find(
+    (t) => t.name === 'consultar_resumen_financiero_hospitales',
+  );
+
+  const description = () =>
+    (tool as unknown as { description: string } | undefined)?.description ?? '';
+
+  it('documenta los porcentajes globales `...VsLos`', () => {
+    const d = description();
+    expect(d).toContain('porcentajeAprobadoVsLos');
+    expect(d).toContain('porcentajeDenegadoVsLos');
+  });
+
+  it('NO menciona los porcentajes globales que ya no se publican', () => {
+    const d = description();
+    expect(d).not.toContain('porcentajeAprobadoSobreTotalLosGlobal');
+    expect(d).not.toContain('porcentajeDenegadoSobreTotalLosGlobal');
+  });
+});
+
 describe('tools · consultar_determinacion_adversa_manejador_caso', () => {
   const tool = (TOOLS as unknown as ToolShape[]).find(
     (t) => t.name === 'consultar_determinacion_adversa_manejador_caso',
