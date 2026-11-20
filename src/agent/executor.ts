@@ -791,6 +791,19 @@ export async function executeTool(
     const rango = resolverRangoFechas(toolInput);
     body['fechaInicio'] = rango.fechaInicio;
     body['fechaFin'] = rango.fechaFin;
+    // `idHospitales` es obligatorio: define el universo multi-hospital del
+    // manejador (`buildIaPreguntasBody` ya lo reenvía; `apiPostConAlcance` lo
+    // recorta al alcance del usuario).
+    if (
+      !Array.isArray(body['idHospitales']) ||
+      body['idHospitales'].length === 0
+    ) {
+      return JSON.stringify({
+        success: false,
+        error:
+          'Falta el parámetro requerido `idHospitales` (int[], ≥1). Llama antes a `obtener_hospitales_disponibles` (campo `hosId`) y reintenta con esos IDs.',
+      });
+    }
     // El ID del manejador viaja en el BODY (el backend lo exige ahí).
     const idManejadorCaso = toolInput['idManejadorCaso'];
     if (typeof idManejadorCaso === 'number') {

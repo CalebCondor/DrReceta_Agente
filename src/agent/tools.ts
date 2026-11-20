@@ -1385,6 +1385,17 @@ export const TOOLS: Anthropic.Tool[] = [
       'manejador X?" PASA `idPlanes` con la lista completa del catálogo.\\n' +
       '  • Para "días denegados totales del manejador X sin importar el plan" ' +
       'OMITE `idPlanes`.\\n\\n' +
+      '  • COMPARACIÓN DE CUOTA ENTRE UNIVERSOS: si el usuario pregunta qué ' +
+      'porcentaje del total de días denegados de todos los hospitales ' +
+      'corresponde a un manejador concreto dentro de un plan concreto, no ' +
+      'trates el plan como el universo total. Haz una consulta específica ' +
+      'con el manejador y el plan, y otra consulta global compatible (por ' +
+      'ejemplo, `consultar_resumen_financiero_hospitales`) con el mismo ' +
+      'período y hospitales, sin filtro de plan ni manejador. Usa los días ' +
+      'denegados de ambas consultas para responder la cuota solicitada. Los ' +
+      'porcentajes de denegación sobre LOS que devuelve la API no responden ' +
+      'esta pregunta y no deben usarse. No muestres la operación ni una ' +
+      'fórmula al usuario.\\n\\n' +
       'FORMATO DE SALIDA: usa SOLO <b>, <i>, <code>, <a> y listas simples ' +
       'con guion (una línea por manejador, con valores separados por comas o ' +
       'espacios). NUNCA uses <pre>, <table>, <ul>, <li>, <br>, ni columnas ' +
@@ -1495,6 +1506,11 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • NUNCA inventes `idPlanes` ni `idManejadorCaso` — usa los IDs ' +
       'devueltos por las herramientas de catálogo.\\n\\n' +
       'OBTENCIÓN DE PARÁMETROS:\\n' +
+      '  • `idHospitales`: int[] REQUERIDO (>=1). Son los hospitales del ' +
+      'universo del reporte: un manejador de caso puede llevar casos en ' +
+      'varios. Resuélvelos SIEMPRE antes con ' +
+      '`obtener_hospitales_disponibles` (campo `hosId`). Si el usuario no ' +
+      'dijo cuáles, usa los de su alcance.\\n' +
       '  • `idManejadorCaso`: int REQUERIDO (>=1). Si no lo tienes resuelto, ' +
       'pregunta el nombre al usuario o usa el catálogo de ' +
       '`consultar_desempeno_manejador_caso` sin filtro.\\n' +
@@ -1525,6 +1541,15 @@ export const TOOLS: Anthropic.Tool[] = [
     input_schema: {
       type: 'object',
       properties: {
+        idHospitales: {
+          type: 'array',
+          items: { type: 'integer', minimum: 1 },
+          description:
+            'IDs de hospitales (int[] REQUERIDO, al menos uno). Universo del ' +
+            'reporte: el manejador de caso puede llevar casos en varios. ' +
+            'Resuélvelos SIEMPRE antes con `obtener_hospitales_disponibles` ' +
+            '(campo `hosId`). SIEMPRE array, NUNCA objeto.',
+        },
         idManejadorCaso: {
           type: 'integer',
           description:
@@ -1564,7 +1589,7 @@ export const TOOLS: Anthropic.Tool[] = [
             'como ARRAY. Si el usuario no menciona nivel de cuidado, OMITE.',
         },
       },
-      required: ['idManejadorCaso'],
+      required: ['idManejadorCaso', 'idHospitales'],
     },
   },
 
