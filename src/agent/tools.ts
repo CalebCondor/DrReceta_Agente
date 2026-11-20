@@ -1342,6 +1342,11 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • Para resolver nombre → `idManejadorCaso`: llama primero a esta ' +
       'misma tool SIN `idManejadorCaso` (MODO CATÁLOGO) y luego vuelve a ' +
       'llamarla con el ID ya resuelto.\\n' +
+      '  • Si el usuario no especifica un hospital, el universo por defecto ' +
+      'es TODOS los hospitales accesibles. Llama a ' +
+      '`obtener_hospitales_disponibles` y conserva TODOS sus `hosId` tanto ' +
+      'en el modo catálogo como en la consulta final. No reduzcas el ' +
+      'universo al hospital donde encontraste el nombre del manejador.\\n' +
       '  • NUNCA inventes `idPlanes` ni `idManejadorCaso` — usa los IDs ' +
       'devueltos por las herramientas de catálogo.\\n\\n' +
       'OBTENCIÓN DE PARÁMETROS:\\n' +
@@ -1500,6 +1505,10 @@ export const TOOLS: Anthropic.Tool[] = [
       '`consultar_desempeno_manejador_caso` en MODO CATÁLOGO (sin ' +
       '`idManejadorCaso`), identifica el ID, y VUELVE a llamar a esta ' +
       'herramienta pasándolo.\\n' +
+      '  • Si el usuario no especifica un hospital, el universo por defecto ' +
+      'es TODOS los hospitales accesibles. Conserva TODOS sus `hosId` en ' +
+      'esta consulta y no uses solo el hospital donde el catálogo encontró ' +
+      'al manejador.\\n' +
       '  • Antes de invocar esta tool, DEBES llamar antes a ' +
       '`obtener_planes_disponibles` para tener el catálogo actualizado de ' +
       'planes.\\n' +
