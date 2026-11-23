@@ -283,7 +283,7 @@ export const TOOLS: Anthropic.Tool[] = [
         pg_plan_extra2: {
           type: 'number',
           description:
-            'Monto de la Cita de Seguimiento (29.99). Solo incluir si el usuario aceptó la Cita de Seguimiento.',
+            'Monto de la Rush Fee o de la Cita de Seguimiento (29.99). Solo incluir si el usuario aceptó el Rush Fee (siempre ligado al paquete Oro) o la Cita de Seguimiento — nunca ambos en la misma orden.',
         },
         dip_id: {
           type: 'integer',
@@ -364,7 +364,7 @@ export const TOOLS: Anthropic.Tool[] = [
         pg_plan_extra2: {
           type: 'number',
           description:
-            'Monto de la Cita de Seguimiento (29.99). Solo incluir si el usuario aceptó la Cita de Seguimiento. Solo residentes.',
+            'Monto de la Rush Fee o de la Cita de Seguimiento (29.99). Solo incluir si el usuario aceptó el Rush Fee (siempre ligado al paquete Oro) o la Cita de Seguimiento. Solo residentes.',
         },
         tarjeta_pvc: {
           type: 'integer',

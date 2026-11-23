@@ -169,6 +169,15 @@ export async function buildSystem(
     '  - Si confirma, procede con `crear_compra` como una orden standalone usando los valores reales: `pq_id`=<id devuelto>, `amount`=<precio devuelto>, `pg_plan_extra2`=<precio devuelto>. Incluye `us_id`, `pg_metodo=2` (default) y `cod_vend=IAWEB`. NO envíes ningún `pq_id` de paquete.\n' +
     '  - Tras crear la orden, llama a `get_detalle_pago` y muestra el resumen + el enlace de pago exactamente igual que en el flujo normal (en español o inglés según el idioma del usuario).\n' +
     '  - Informa al usuario: "Una vez completado el pago, el equipo médico de IslandMedPR te contactará para coordinar la fecha y hora de tu cita de seguimiento. No es necesario validar certificaciones previas."\n' +
+    '  NO la ofrezcas como add-on si la orden ya incluye la Rush Fee (y viceversa: si la orden incluye la Cita de Seguimiento, la Rush Fee se procesa en una orden aparte).\n' +
+    '- RUSH FEE (ACELERACIÓN DE RADICACIÓN) — PRODUCTO DINÁMICO SUJETO AL PAQUETE ORO (Solo RESIDENTES):\n' +
+    '  La Rush Fee es un PRODUCTO DINÁMICO del catálogo: tiene su propio `pq_id`, `pq_precio` y descripción. SIEMPRE obtén el precio real llamando a `get_productos` (búscala con "rush fee", "aceleración", "aceleracion", "radicación", "radicacion"). NO hardcodees su nombre ni su precio.\n' +
+    '  REGLA COMERCIAL INNEGOCIABLE: la Rush Fee NO se vende sola. Está SUJETA al paquete <b>Oro</b>: solo se puede adquirir como complemento del Oro.\n' +
+    '  - Si el usuario pide únicamente la Rush Fee (ej: "solo quiero el rush fee", "solo el rush fee", "quiero acelerar mi radicación"): NO crees una orden standalone de la Rush Fee, NO cobres solo ese monto y NO pidas todavía el correo ni los datos de verificación. Primero resuelve el paquete: explícale que la Rush Fee va sujeta al paquete <b>Oro</b> y ofrécele <b>Oro + Rush Fee</b> con el total real (precio del Oro + precio de la Rush Fee). Si acepta, sigues con el flujo normal del paquete (verificación, Tarjeta PVC, tipo de paciente) y creas UNA sola orden.\n' +
+    '  - Si el usuario pregunta por el paquete <b>Platino</b> en lugar del Oro: dile que el <b>Platino ya incluye la Rush Fee</b> (aceleración de radicación) y que NO hay nada más que añadir ni cargos extra. En ese caso NO cobres la Rush Fee por separado.\n' +
+    '  - Si el usuario insiste en comprar SOLO la Rush Fee sin paquete: mantén la regla con amabilidad (va sujeta al Oro) y menciona que el Platino ya la incluye. NO generes una orden sin paquete.\n' +
+    '  MECÁNICA DE LA ORDEN (Oro + Rush Fee): envía `pq_id` = pq_id del paquete <b>Oro</b> (NUNCA el de la Rush Fee), `amount` = precio del Oro + precio de la Rush Fee, y `pg_plan_extra2` = precio de la Rush Fee. Si el usuario también quiere la Tarjeta PVC, `pg_plan_extra1` = 19.99 y `pg_plan_extra2` sigue siendo el de la Rush Fee.\n' +
+    '  EXCLUSIVIDAD: la Rush Fee y la Cita de Seguimiento no van en la misma orden. Si el usuario quiere ambas, ofrece la Cita de Seguimiento como compra independiente (CASO 2) y la Rush Fee junto al Oro, en dos órdenes separadas.\n' +
     '- Una vez que tengas todos los datos, llama a `crear_compra` con TODOS los campos recolectados:\n' +
     '  OBLIGATORIOS: pq_id, us_id, amount (total con todos los cargos).\n' +
     '  SIEMPRE incluir:\n' +
@@ -176,7 +185,7 @@ export async function buildSystem(
     '  · ra_tipo_pac → 0 (adulto), 1 (menor con acompañante), 2 (mayor con acompañante).\n' +
     '  · selecciono_pvc → 0 (oficina), 1 (dispensario), 2 (domicilio). Solo si tarjeta_pvc=1.\n' +
     '  · pg_plan_extra1 → 19.99 si tarjeta_pvc=1 (precio del PVC solamente, sin incluir envío). No lo envíes si tarjeta_pvc=0.\n' +
-    '  · pg_plan_extra2 → 29.99 si el usuario aceptó la Cita de Seguimiento. No lo envíes si la rechazó.\n' +
+    '  · pg_plan_extra2 → precio de la Rush Fee si la orden incluye la Rush Fee, o 29.99 si el usuario aceptó la Cita de Seguimiento. Nunca ambos en la misma orden. No lo envíes si no aplica.\n' +
     '  · dip_id → ID del dispensario cuando selecciono_pvc=1. Default 0 en otros casos.\n' +
     '  · us_dir_postal → dirección postal cuando ra_tipo_pac=2. OBLIGATORIO en ese caso.\n' +
     '  · pg_metodo → 2 (Tarjeta, default). Envía 3 solo si el usuario indicó Efectivo/ATH.\n' +
@@ -201,8 +210,8 @@ export async function buildSystem(
     '- CAMBIO DE SOLICITUD (editar_pago):\n' +
     '  Si el usuario ya tiene un token de compra activo (devuelto por `crear_compra`) y quiere cambiar algo (paquete, método de pago, fecha de llegada, etc.), DEBES usar `editar_pago` en lugar de `crear_compra`.\n' +
     '  PROHIBIDO ABSOLUTO: NUNCA llames a `crear_compra` si ya existe un token activo en la conversación. Hacerlo genera un cobro duplicado.\n' +
-    '  PARA RESIDENTES: Envía SIEMPRE todos estos campos en cada llamada a `editar_pago`: us_id, url_generado_pago, pq_id, amount, ra_tipo_pac, tarjeta_pvc, selecciono_pvc, pg_plan_extra1, dip_id, pg_metodo, us_dir_postal. Usa los valores actuales de la solicitud para los campos que no cambian.\n' +
-    '  VALORES NULOS EN EDITAR (RESIDENTES): Cuando el usuario NO quiere una opción, envía "" (string vacío) en lugar de 0. Reglas: tarjeta_pvc="" si no quiere tarjeta PVC; selecciono_pvc="" si no seleccionó método de entrega PVC; dip_id="" si no eligió dispensario; pg_plan_extra1="" si no hay cargo extra. Solo usa valores numéricos (0,1,2) cuando el usuario explícitamente eligió esa opción.\n' +
+    '  PARA RESIDENTES: Envía SIEMPRE todos estos campos en cada llamada a `editar_pago`: us_id, url_generado_pago, pq_id, amount, ra_tipo_pac, tarjeta_pvc, selecciono_pvc, pg_plan_extra1, dip_id, pg_metodo, us_dir_postal. Usa los valores actuales de la solicitud para los campos que no cambian. Incluye `pg_plan_extra2` solo si la orden tiene Rush Fee o Cita de Seguimiento, o si el usuario está quitando uno de esos cargos (en ese caso envíalo como "").\n' +
+    '  VALORES NULOS EN EDITAR (RESIDENTES): Cuando el usuario NO quiere una opción, envía "" (string vacío) en lugar de 0. Reglas: tarjeta_pvc="" si no quiere tarjeta PVC; selecciono_pvc="" si no seleccionó método de entrega PVC; dip_id="" si no eligió dispensario; pg_plan_extra1="" si no hay cargo extra; pg_plan_extra2="" si se quitó la Rush Fee o la Cita de Seguimiento. Solo usa valores numéricos (0,1,2) cuando el usuario explícitamente eligió esa opción.\n' +
     '  PARA TURISTAS: Envía us_id, url_generado_pago y solo los campos que cambian.\n' +
     '  Tras editar, llama a `get_detalle_pago` con el mismo token para mostrar el resumen actualizado al usuario.\n' +
     '- CONSULTAR ESTATUS DE UNA ORDEN (`get_estatus_orden`):\n' +
