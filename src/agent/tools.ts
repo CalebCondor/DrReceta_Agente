@@ -514,12 +514,12 @@ export const TOOLS: Anthropic.Tool[] = [
       'hospital tiene la MENOR cantidad / el MENOR % perdido" RECORRÉ TODOS los elementos y compará: ' +
       'el ganador es el de cifra MÁS BAJA, NO el primero del array. Lo mismo para el MÁXIMO.\n' +
       '  • Cada hospital trae `facturacionPerdida` ($), `facturacionEsperada`, `porcentajeFacturacionPerdidaSobreFacturacionEsperadaHospital` ' +
-      '(% de pérdida sobre SU propio potencial) y `porcentajeFacturacionFinalSobreFacturacionEsperadaHospital`.\n' +
+      '(% de facturación perdida sobre SU propia facturación esperada) y `porcentajeFacturacionFinalSobreFacturacionEsperadaHospital`.\n' +
       '  • Cada hospital trae además `porcentajeFacturacionPerdidaSobreFacturacionPerdidaGlobal` y ' +
       '`porcentajeFacturacionFinalSobreFacturacionFinalGlobal`: la CUOTA de ese hospital sobre el TOTAL de todos ' +
       'los hospitales consultados (qué % de la pérdida total y de la facturación total aportó). ' +
       'ÚSALOS para "¿qué hospital aporta más a la pérdida/facturación global?"; NO son lo mismo que ' +
-      'los porcentajes contra SU propio potencial.\n' +
+      'los porcentajes contra SU propia facturación esperada.\n' +
       '  • Un hospital que aparece en `filtrosAplicados.hospitales` pero NO en `porHospital[]` NO ' +
       'tiene datos en el período: no es "el que menos perdió" (no registró nada) y no lo presentes ' +
       'como si tuviera un valor.\n' +
@@ -549,7 +549,10 @@ export const TOOLS: Anthropic.Tool[] = [
       '<table>, <ul>, <li>, <br>, ni columnas alineadas. Aunque tengas varios hospitales, ' +
       'NO los pongas en un bloque con columnas; usa SIEMPRE una lista con guion. Ejemplo: ' +
       '"- Hospital San Lucas — aprobado $12,500, denegado $3,200, recuperado $0". Si los ' +
-      'montos vienen agregados, una sola línea con el total.',
+      'montos vienen agregados, una sola línea con el total. Al presentar los montos al usuario, ' +
+      'usa los términos "facturación perdida" (`facturacionPerdida`), "facturación final" ' +
+      '(`facturacionFinal`) y "facturación esperada" (`facturacionEsperada`) — NUNCA los llames ' +
+      '"potencial recuperable".',
     input_schema: {
       type: 'object',
       properties: {
