@@ -322,7 +322,7 @@ describe('tools · consultar_determinacion_adversa_auditor · agruparPor', () =>
       (tool as unknown as { description: string } | undefined)?.description ??
       '';
     expect(d).toContain('PADRE');
-    expect(d).toContain('porcentajeMontoPerdidoVsTotalMontoPerdido');
+    expect(d).toContain('porcentajeFacturacionPerdidaVsTotalFacturacionPerdida');
     expect(d).toContain('porcentajeDiasDenegadosVsLos');
     // En el modo 2 el denominador es lo perdido EN ESE PLAN.
     expect(d).toContain('EN ESE PLAN');
@@ -374,9 +374,9 @@ describe('tools · consultar_facturacion_auditor_hospitales · agruparPor', () =
 
   it('documenta el payload real (los nombres de los porcentajes y del potencial)', () => {
     const d = description();
-    expect(d).toContain('porcentajeFacturadoSobrePotencial');
-    expect(d).toContain('porcentajePerdidoSobrePotencial');
-    expect(d).toContain('montoPotencial');
+    expect(d).toContain('porcentajeFacturacionFinalSobreFacturacionEsperada');
+    expect(d).toContain('porcentajeFacturacionPerdidaSobreFacturacionEsperada');
+    expect(d).toContain('facturacionEsperada');
     // La cuota dentro del nivel de arriba.
     expect(d).toContain('porcentajeXDelTotal');
     expect(d).toContain('porcentajeXDelHospital');

@@ -513,10 +513,10 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `porHospital[]` NO viene ordenado por la métrica (viene por `idHospital`). Para "qué ' +
       'hospital tiene la MENOR cantidad / el MENOR % perdido" RECORRÉ TODOS los elementos y compará: ' +
       'el ganador es el de cifra MÁS BAJA, NO el primero del array. Lo mismo para el MÁXIMO.\n' +
-      '  • Cada hospital trae `perdido` ($), `potencial`, `porcentajePerdidaSobrePotencialHospital` ' +
-      '(% de pérdida sobre SU propio potencial) y `porcentajeFacturadoSobrePotencialHospital`.\n' +
-      '  • Cada hospital trae además `porcentajePerdidoSobrePerdidaGlobal` y ' +
-      '`porcentajeFacturadoSobreFacturacionGlobal`: la CUOTA de ese hospital sobre el TOTAL de todos ' +
+      '  • Cada hospital trae `facturacionPerdida` ($), `facturacionEsperada`, `porcentajeFacturacionPerdidaSobreFacturacionEsperadaHospital` ' +
+      '(% de pérdida sobre SU propio potencial) y `porcentajeFacturacionFinalSobreFacturacionEsperadaHospital`.\n' +
+      '  • Cada hospital trae además `porcentajeFacturacionPerdidaSobreFacturacionPerdidaGlobal` y ' +
+      '`porcentajeFacturacionFinalSobreFacturacionFinalGlobal`: la CUOTA de ese hospital sobre el TOTAL de todos ' +
       'los hospitales consultados (qué % de la pérdida total y de la facturación total aportó). ' +
       'ÚSALOS para "¿qué hospital aporta más a la pérdida/facturación global?"; NO son lo mismo que ' +
       'los porcentajes contra SU propio potencial.\n' +
@@ -792,7 +792,7 @@ export const TOOLS: Anthropic.Tool[] = [
       'o "2 planes solicitados: A, B") y `loc` ("Todos" o "ACUTE"). Usalo para confirmarle al usuario ' +
       'qué período y qué hospitales se aplicaron.\n' +
       '  • `totalDiasDenegados` (number) — Σ de días denegados del filtro.\n' +
-      '  • `totalMontoPerdido` (number) — Σ del dinero perdido del filtro (días denegados × precio del ' +
+      '  • `facturacionPerdida` (number) — Σ del dinero perdido del filtro (días denegados × precio del ' +
       'plan del nivel).\n' +
       '  • `totalLos` (number) — Σ de los DÍAS DE ESTANCIA del filtro (las mismas auditorías, el mismo ' +
       'período, los mismos filtros). Es el denominador de la tasa de denegación.\n' +
@@ -800,20 +800,20 @@ export const TOOLS: Anthropic.Tool[] = [
       'de estancia del filtro quedaron denegados. La API lo devuelve con 4 decimales (ej. 41.5902) pero ' +
       'AL MOSTRARLO poné 2 decimales (41.59%).\n' +
       '  • `items` (array) — una entrada por determinación adversa, ordenada por `diasDenegados` DESC. ' +
-      'Cada item trae `determinacionAdversa` (nombre del motivo), `diasDenegados`, `montoPerdido`, ' +
+      'Cada item trae `determinacionAdversa` (nombre del motivo), `diasDenegados`, `facturacionPerdida`, ' +
       '`porcentajeDiasDenegadosVsTotalDiasDenegados`, `porcentajeDiasDenegadosVsTotalLos`, ' +
-      '`porcentajeMontoPerdido` y NADA más. Los campos `idConcepto`, `idGrupo` y `tipoCategoria` son ' +
+      '`porcentajeFacturacionPerdida` y NADA más. Los campos `idConcepto`, `idGrupo` y `tipoCategoria` son ' +
       'INTERNOS.\n' +
       '  ⚠️ EL ORDEN DEL ARRAY ES POR DÍAS, NO POR DINERO: para "qué determinación costó más EN ' +
-      'DINERO" el ganador es el item con el `montoPerdido` MÁS ALTO, que puede NO ser el primero del ' +
+      'DINERO" el ganador es el item con el `facturacionPerdida` MÁS ALTO, que puede NO ser el primero del ' +
       'array (con algunos filtros de loc hay diferencias). Recorre los items y COMPARA los montos; no ' +
       'te quedes con el primero. Para "qué denegó más días" el primero SÍ es el ganador.\n' +
       'Ejemplo real de un item:\n' +
       '  { "idConcepto": 5, "determinacionAdversa": "Tardanza En Realizar Estudio Imagen/Med Nuclear",\n' +
-      '    "idGrupo": 1, "tipoCategoria": "Administracion", "diasDenegados": 32.0, "montoPerdido": 13522.0,\n' +
+      '    "idGrupo": 1, "tipoCategoria": "Administracion", "diasDenegados": 32.0, "facturacionPerdida": 13522.0,\n' +
       '    "porcentajeDiasDenegadosVsTotalDiasDenegados": 23.53,\n' +
       '    "porcentajeDiasDenegadosVsTotalLos": 9.7859,\n' +
-      '    "porcentajeMontoPerdido": 23.62 }\n' +
+      '    "porcentajeFacturacionPerdida": 23.62 }\n' +
       '(ejemplo crudo de la API: al usuario mostralo con 2 decimales → 23.53%, 9.79%, 23.62%).\n\n' +
       'LOS TRES PORCENTAJES NO SON LO MISMO — no los confundas:\n' +
       '  • `porcentajeDiasDenegadosVsTotalDiasDenegados` — CUOTA: qué % de todos los DÍAS DENEGADOS del ' +
@@ -823,7 +823,7 @@ export const TOOLS: Anthropic.Tool[] = [
       'esta determinación (comparar contra `totalLos`). La suma puede SUPERAR 100% (una misma auditoría ' +
       'puede tener varias determinaciones). Si el usuario pregunta "¿qué % de la estancia se perdió por ' +
       'esto?", usá ESTE.\n' +
-      '  • `porcentajeMontoPerdido` — qué % del DINERO perdido del filtro explica esta determinación. La ' +
+      '  • `porcentajeFacturacionPerdida` — qué % del DINERO perdido del filtro explica esta determinación. La ' +
       'suma ≈ 100%.\n\n' +
       'CÓMO RESPONDERLE AL USUARIO:\n' +
       '  • Redondeá los porcentajes a 2 DECIMALES al mostrarlos (19.5532 → 19.55%, 41.5902 → 41.59%, ' +
@@ -1672,20 +1672,20 @@ export const TOOLS: Anthropic.Tool[] = [
       '📦 ESTRUCTURA DEL PAYLOAD QUE DEVUELVE EL ENDPOINT (úsalo literal, ' +
       'NO renombres NI recalcules nada):\n' +
       '  • `totales`: { cantidadCasos, cantidadPlanes, cantidadManejadores, ' +
-      '    montoFacturado, montoPerdido, montoRecuperado, ' +
-      '    porcentajeFacturado, porcentajePerdido, porcentajeRecuperado }\n' +
+      '    facturacionFinal, facturacionPerdida, montoRecuperado, ' +
+      '    porcentajeFacturacionFinal, porcentajeFacturacionPerdida, porcentajeRecuperado }\n' +
       '  • `hospitales[]`: un elemento por hospital, con sus propios montos ' +
       '    y porcentajes.\n' +
       '  • `manejadores[]`: un elemento por manejador, con los campos ' +
       '    `idManejadorCaso`, `manejador` (nombre), `casos`, ' +
-      '    `montoFacturado`, `montoPerdido`, `montoRecuperado`, ' +
-      '    `porcentajeFacturado`, `porcentajePerdido`, `porcentajeRecuperado`.\n' +
-      '⚠️ NOTA: el campo de porcentaje se llama EXACTAMENTE `porcentajePerdido` ' +
+      '    `facturacionFinal`, `facturacionPerdida`, `montoRecuperado`, ' +
+      '    `porcentajeFacturacionFinal`, `porcentajeFacturacionPerdida`, `porcentajeRecuperado`.\n' +
+      '⚠️ NOTA: el campo de porcentaje se llama EXACTAMENTE `porcentajeFacturacionPerdida` ' +
       '(NO `porcentajePerdida`, NO `porcentajePerdidoDeFacturado`, etc.). Si el ' +
       'usuario pregunta por el "% de pérdida", lee directamente el campo ' +
-      '`porcentajePerdido` del payload — NO lo calcules dividiendo ' +
-      'montoPerdido entre montoFacturado ni sumando nada. NO existe un campo ' +
-      '"potencial" explícito: NO inventes esa cifra.',
+      '`porcentajeFacturacionPerdida` del payload — NO lo calcules dividiendo ' +
+      'facturacionPerdida entre facturacionFinal ni sumando nada. El techo ' +
+      'facturable ya viene como `facturacionEsperada` en `totales`: NO lo inventes.',
     input_schema: {
       type: 'object',
       properties: {
@@ -1820,9 +1820,9 @@ export const TOOLS: Anthropic.Tool[] = [
       '  • `filtrosAplicados`: { periodo, hospitales[], planes, loc } — los ' +
       'filtros ya resueltos, en texto legible.\\n' +
       '  • `totales`: { cantidadCasos, cantidadPlanes, cantidadAuditores, ' +
-      'cantidadHospitales, montoFacturado, montoPerdido, montoRecuperado, ' +
-      'montoPotencial, porcentajeFacturadoSobrePotencial, ' +
-      'porcentajePerdidoSobrePotencial, porcentajeRecuperadoSobrePotencial }.\\n' +
+      'cantidadHospitales, facturacionFinal, facturacionPerdida, montoRecuperado, ' +
+      'facturacionEsperada, porcentajeFacturacionFinalSobreFacturacionEsperada, ' +
+      'porcentajeFacturacionPerdidaSobreFacturacionEsperada, porcentajeRecuperadoSobreFacturacionEsperada }.\\n' +
       '  • MODO 1: `hospitales[]` → cada hospital trae sus montos, sus ' +
       'porcentajes y `auditores[]`; cada auditor trae sus montos, sus ' +
       'porcentajes y `planes[]` (la HOJA).\\n' +
@@ -1830,9 +1830,9 @@ export const TOOLS: Anthropic.Tool[] = [
       'porcentajes y `planes[]`; cada plan trae sus montos, sus ' +
       'porcentajes y `hospitales[]` (la HOJA).\\n' +
       '  • Cada nodo (hospital / auditor / plan) trae: `cantidadCasos`, ' +
-      '`montoFacturado`, `montoPerdido`, `montoRecuperado`, `montoPotencial`, ' +
-      '`porcentajeFacturadoSobrePotencial`, `porcentajePerdidoSobrePotencial`, ' +
-      '`porcentajeRecuperadoSobrePotencial` y su cuota dentro del nivel de ' +
+      '`facturacionFinal`, `facturacionPerdida`, `montoRecuperado`, `facturacionEsperada`, ' +
+      '`porcentajeFacturacionFinalSobreFacturacionEsperada`, `porcentajeFacturacionPerdidaSobreFacturacionEsperada`, ' +
+      '`porcentajeRecuperadoSobreFacturacionEsperada` y su cuota dentro del nivel de ' +
       'ARRIBA (`porcentajeXDelTotal` en la raíz, `porcentajeXDelHospital`, ' +
       '`porcentajeXDelAuditor` o `porcentajeXDelPlan` según el nivel): los ' +
       'hijos suman el 100% de su padre.\\n' +
@@ -1840,12 +1840,12 @@ export const TOOLS: Anthropic.Tool[] = [
       '`hospitalNombre`, `idAuditor` + `nombreCompleto`, `idPlan` + ' +
       '`planNombre`.\\n' +
       '⚠️ NOTA: los porcentajes se llaman EXACTAMENTE ' +
-      '`porcentajeFacturadoSobrePotencial`, `porcentajePerdidoSobrePotencial` ' +
-      'y `porcentajeRecuperadoSobrePotencial` (NO `porcentajeFacturado` ni ' +
-      '`porcentajePerdido` a secas). Si el usuario pregunta por el "% de ' +
-      'pérdida", lee `porcentajePerdidoSobrePotencial` (o el `...Del...` que ' +
-      'corresponda al nivel) — NO lo calcules dividiendo montoPerdido entre ' +
-      'montoFacturado ni sumando nada. `montoPotencial` SÍ existe: es el ' +
+      '`porcentajeFacturacionFinalSobreFacturacionEsperada`, `porcentajeFacturacionPerdidaSobreFacturacionEsperada` ' +
+      'y `porcentajeRecuperadoSobreFacturacionEsperada` (NO `porcentajeFacturacionFinal` ni ' +
+      '`porcentajeFacturacionPerdida` a secas). Si el usuario pregunta por el "% de ' +
+      'pérdida", lee `porcentajeFacturacionPerdidaSobreFacturacionEsperada` (o el `...Del...` que ' +
+      'corresponda al nivel) — NO lo calcules dividiendo facturacionPerdida entre ' +
+      'facturacionFinal ni sumando nada. `facturacionEsperada` SÍ existe: es el ' +
       'denominador de esos porcentajes.',
     input_schema: {
       type: 'object',
@@ -2159,12 +2159,12 @@ export const TOOLS: Anthropic.Tool[] = [
       'determinación viaja como atributo (`tipoCategoria`) del nodo ' +
       '"determinacion", NO como un nivel.\\n' +
       '  • QUÉ POSEEN LOS NODOS (léelo bien antes de responder):\\n' +
-      '    - Nodos "plan" y "hospital": `diasDenegados`, `montoPerdido`, los ' +
+      '    - Nodos "plan" y "hospital": `diasDenegados`, `facturacionPerdida`, los ' +
       'porcentajes y un bloque `totales` con la CASUÍSTICA del auditor en ese ' +
-      'alcance (`numeroCasos`, `los`, `diasAprobados`, `potencial`, ' +
-      '`facturado`).\\n' +
+      'alcance (`numeroCasos`, `los`, `diasAprobados`, `facturacionEsperada`, ' +
+      '`facturacionFinal`).\\n' +
       '    - Nodos "determinacion" (las HOJAS): SOLO `diasDenegados`, ' +
-      '`montoPerdido` y sus porcentajes. NO tienen `totales` (ni número de ' +
+      '`facturacionPerdida` y sus porcentajes. NO tienen `totales` (ni número de ' +
       'casos ni LOS): una determinación adversa SOLO se relaciona con días ' +
       'denegados y con el dinero perdido. NUNCA inventes ni menciones casos ' +
       'o días de estancia de una determinación.\\n' +
@@ -2172,7 +2172,7 @@ export const TOOLS: Anthropic.Tool[] = [
       'arriba), así que los hijos suman el 100% de su padre:\\n' +
       '    - `porcentajeDiasDenegadosvsTotalDenegados`: días denegados del ' +
       'nodo / días denegados del padre.\\n' +
-      '    - `porcentajeMontoPerdidoVsTotalMontoPerdido`: monto perdido del ' +
+      '    - `porcentajeFacturacionPerdidaVsTotalFacturacionPerdida`: monto perdido del ' +
       'nodo / monto perdido del padre (en el modo 2: la parte que ' +
       'representa de todo lo que el auditor perdió EN ESE PLAN).\\n' +
       '    - `porcentajeDiasDenegadosVsLos`: días denegados del nodo sobre el ' +

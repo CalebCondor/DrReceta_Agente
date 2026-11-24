@@ -875,7 +875,7 @@ export class AgentService {
                   userPattern: /\b(facturad[oa]s?|tasa de facturaci[oó]n)\b/i,
                   requiredInResponse: /\b(facturad[oa]s?|facturaci[oó]n)\b/i,
                   label: 'facturado',
-                  fieldHint: 'porcentajeFacturado',
+                  fieldHint: 'porcentajeFacturacionFinal',
                 },
               ];
               let mismatch: typeof checks[number] | null = null;
@@ -1000,7 +1000,7 @@ export class AgentService {
                 '  - "% sobre LOS" / "% según LOS" → campo `porcentajeSobreLos`\n' +
                 '  - "% de pérdida" → campo `porcentajePerdida`\n' +
                 '  - "% de recuperación" → campo `porcentajeRecuperado`\n' +
-                '  - "% facturado" → campo `porcentajeFacturado`\n' +
+                '  - "% facturado" → campo `porcentajeFacturacionFinal`\n' +
                 'Si la herramienta no devuelve ese campo exacto, di literalmente: ' +
                 '"Ese porcentaje específico no lo devuelve la herramienta con esos ' +
                 'filtros; los porcentajes disponibles son [lista]". NO INVENTES el valor.',
@@ -1586,7 +1586,7 @@ export class AgentService {
                     'FLUJO CORRECTO:\n' +
                     '1. PRIMER tool_use = `obtener_planes_disponibles` con `input = {}` para obtener TODOS los IDs.\n' +
                     '2. SEGUNDO tool_use = `consultar_montos_por_estado` con `idPlanes: [TODOS_LOS_IDS]` (TODOS, no una selección).\n' +
-                    '3. La API devolverá `porHospital[].planes[]` con cada plan y su `totalFacturado`. Identifica el de mayor monto.\n\n' +
+                    '3. La API devolverá `porHospital[].planes[]` con cada plan y su `facturacionFinal`. Identifica el de mayor monto.\n\n' +
                     'ACCIÓN OBLIGATORIA: llama primero a `obtener_planes_disponibles` para resolver TODOS los IDs, luego re-llama a `consultar_montos_por_estado` con el array COMPLETO de `idPlanes`.',
                 }),
               });
