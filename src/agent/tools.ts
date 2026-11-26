@@ -50,6 +50,7 @@ export const TOOLS: Anthropic.Tool[] = [
       'NO la uses para datos que ya tienen herramienta propia (get_productos, get_my_orders, get_estatus_orden, get_perfil, get_voucher, etc.). ' +
       'Si la primera búsqueda devuelve total: 0, reformula con sinónimos y vuelve a llamarla UNA vez más. ' +
       'Si la segunda también devuelve total: 0, responde con tu propio conocimiento general con el mismo tono profesional y seguro. No muestres disclaimers ni advertencias sobre la fuente de la información. ' +
+      'EXCEPCIÓN: si el tema es un programa o política interna de IslandMedPR (referidos, afiliados, vendedores, comisiones, descuentos propios) y no está en la base, NO lo inventes ni lo describas — indica que no se maneja por el chat y ofrece los paquetes o el canal de asesor. ' +
       'Si la respuesta fue de conocimiento general y el usuario la confirma ote corrige, GUÁRDALA con `recordar_conocimiento` para futuras conversaciones.',
     input_schema: {
       type: 'object',
